@@ -241,7 +241,7 @@ struct FaircopyRootView: View {
                 labeledUsageRow(title: NSLocalizedString("Requests", bundle: Bundle.wrti_support, comment: ""), value: usageStats.requestCount)
                 Button(NSLocalizedString("Reset Statistics", bundle: Bundle.wrti_support, comment: "")) {
                     AIGateClient.executeCommand(.usageReset) { _, _ in
-                        DispatchQueue.main.async { usageStats = UsageStats.empty }
+                        DispatchQueue.main.async { self.usageStats = UsageStats.empty }
                     }
                 }
                 .foregroundStyle(.red)

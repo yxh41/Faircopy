@@ -76,12 +76,12 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
 
         guard let text = String(data: usageScanBuffer, encoding: .utf8),
               let usageRange = text.range(of: "\"usage\""),
-              let braceStart = text[usageRange.upperBound ...].firstIndex(of: "{")
+              let braceStart = text[usageRange.upperBound...].firstIndex(of: "{")
         else { return }
 
         var depth = 0
         var objectEnd: String.Index?
-        for index in text[braceStart ...].indices {
+        for index in text[braceStart...].indices {
             switch text[index] {
             case "{": depth += 1
             case "}":
