@@ -1,0 +1,1728 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "TopLevel",
+    "printedName": "TopLevel",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "SwiftUI",
+        "printedName": "SwiftUI",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLinkModifier",
+        "printedName": "DisplayLinkModifier",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "link",
+            "printedName": "link",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLink",
+                "printedName": "MSDisplayLink.DisplayLink",
+                "usr": "s:13MSDisplayLink07DisplayB0C"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB8ModifierV4linkAA0cB0Cvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV4linkAA0cB0Cvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "HasStorage"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DisplayLink",
+                    "printedName": "MSDisplayLink.DisplayLink",
+                    "usr": "s:13MSDisplayLink07DisplayB0C"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB8ModifierV4linkAA0cB0Cvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV4linkAA0cB0Cvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "context",
+            "printedName": "context",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkModifierContext",
+                "printedName": "MSDisplayLink.DisplayLinkModifierContext",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB8ModifierV7contextAA0cbD7ContextCvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV7contextAA0cbD7ContextCvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "HasStorage"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DisplayLinkModifierContext",
+                    "printedName": "MSDisplayLink.DisplayLinkModifierContext",
+                    "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB8ModifierV7contextAA0cbD7ContextCvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV7contextAA0cbD7ContextCvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(scheduleToMainThread:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkModifier",
+                "printedName": "MSDisplayLink.DisplayLinkModifier",
+                "usr": "s:13MSDisplayLink07DisplayB8ModifierV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "hasDefaultArg": true,
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "() -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:13MSDisplayLink07DisplayB8ModifierV20scheduleToMainThread_ACSb_yyctcfc",
+            "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV20scheduleToMainThread_ACSb_yyctcfc",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "body",
+            "printedName": "body(content:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "OpaqueTypeArchetype",
+                "printedName": "some SwiftUI.View",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "View",
+                    "printedName": "SwiftUI.View",
+                    "usr": "s:7SwiftUI4ViewP"
+                  }
+                ]
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "_ViewModifier_Content",
+                "printedName": "SwiftUI._ViewModifier_Content<MSDisplayLink.DisplayLinkModifier>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DisplayLinkModifier",
+                    "printedName": "MSDisplayLink.DisplayLinkModifier",
+                    "usr": "s:13MSDisplayLink07DisplayB8ModifierV"
+                  }
+                ],
+                "usr": "s:7SwiftUI21_ViewModifier_ContentV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB8ModifierV4body7contentQr7SwiftUI05_ViewD8_ContentVyACG_tF",
+            "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV4body7contentQr7SwiftUI05_ViewD8_ContentVyACG_tF",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Custom",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:13MSDisplayLink07DisplayB8ModifierV",
+        "mangledName": "$s13MSDisplayLink07DisplayB8ModifierV",
+        "moduleName": "MSDisplayLink",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "ViewModifier",
+            "printedName": "ViewModifier",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "Body",
+                "printedName": "Body",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "OpaqueTypeArchetype",
+                    "printedName": "some SwiftUI.View",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "View",
+                        "printedName": "SwiftUI.View",
+                        "usr": "s:7SwiftUI4ViewP"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "usr": "s:7SwiftUI12ViewModifierP",
+            "mangledName": "$s7SwiftUI12ViewModifierP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLinkModifierContext",
+        "printedName": "DisplayLinkModifierContext",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "scheduleToMainThread",
+            "printedName": "scheduleToMainThread",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThreadSbvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThreadSbvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 0,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThreadSbvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThreadSbvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "callback",
+            "printedName": "callback",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "() -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvp",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "declAttributes": [
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 1,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "() -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "isOpen": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "() -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvs",
+                "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvs",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "isOpen": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvM",
+                "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC8callbackyycvM",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "isOpen": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(scheduleToMainThread:callback:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkModifierContext",
+                "printedName": "MSDisplayLink.DisplayLinkModifierContext",
+                "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "() -> ()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThread8callbackACSb_yyctcfc",
+            "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC20scheduleToMainThread8callbackACSb_yyctcfc",
+            "moduleName": "MSDisplayLink",
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "synchronization",
+            "printedName": "synchronization()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC15synchronizationyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC15synchronizationyyF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:13MSDisplayLink07DisplayB15ModifierContextC",
+        "mangledName": "$s13MSDisplayLink07DisplayB15ModifierContextC",
+        "moduleName": "MSDisplayLink",
+        "isOpen": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "ObservableObject",
+            "printedName": "ObservableObject",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "ObjectWillChangePublisher",
+                "printedName": "ObjectWillChangePublisher",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ObservableObjectPublisher",
+                    "printedName": "Combine.ObservableObjectPublisher",
+                    "usr": "s:7Combine25ObservableObjectPublisherC"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:7Combine16ObservableObjectP",
+            "mangledName": "$s7Combine16ObservableObjectP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "DisplayLinkDelegate",
+            "printedName": "DisplayLinkDelegate",
+            "usr": "s:13MSDisplayLink07DisplayB8DelegateP",
+            "mangledName": "$s13MSDisplayLink07DisplayB8DelegateP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Combine",
+        "printedName": "Combine",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLinkDelegate",
+        "printedName": "DisplayLinkDelegate",
+        "children": [
+          {
+            "kind": "Function",
+            "name": "synchronization",
+            "printedName": "synchronization()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB8DelegateP15synchronizationyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB8DelegateP15synchronizationyyF",
+            "moduleName": "MSDisplayLink",
+            "genericSig": "<τ_0_0 where τ_0_0 : MSDisplayLink.DisplayLinkDelegate>",
+            "sugared_genericSig": "<Self where Self : MSDisplayLink.DisplayLinkDelegate>",
+            "protocolReq": true,
+            "reqNewWitnessTableEntry": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Protocol",
+        "usr": "s:13MSDisplayLink07DisplayB8DelegateP",
+        "mangledName": "$s13MSDisplayLink07DisplayB8DelegateP",
+        "moduleName": "MSDisplayLink",
+        "genericSig": "<τ_0_0 : AnyObject>",
+        "sugared_genericSig": "<Self : AnyObject>",
+        "declAttributes": [
+          "AccessControl"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLink",
+        "printedName": "DisplayLink",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLink",
+                "printedName": "MSDisplayLink.DisplayLink",
+                "usr": "s:13MSDisplayLink07DisplayB0C"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:13MSDisplayLink07DisplayB0CACycfc",
+            "mangledName": "$s13MSDisplayLink07DisplayB0CACycfc",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "teardown",
+            "printedName": "teardown()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB0C8teardownyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB0C8teardownyyF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "delegatingObject",
+            "printedName": "delegatingObject(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "(any MSDisplayLink.DisplayLinkDelegate)?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "DisplayLinkDelegate",
+                    "printedName": "any MSDisplayLink.DisplayLinkDelegate",
+                    "usr": "s:13MSDisplayLink07DisplayB8DelegateP"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB0C16delegatingObjectyyAA0cB8Delegate_pSgF",
+            "mangledName": "$s13MSDisplayLink07DisplayB0C16delegatingObjectyyAA0cB8Delegate_pSgF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:13MSDisplayLink07DisplayB0C",
+        "mangledName": "$s13MSDisplayLink07DisplayB0C",
+        "moduleName": "MSDisplayLink",
+        "isOpen": true,
+        "declAttributes": [
+          "AccessControl"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink"
+      },
+      {
+        "kind": "Import",
+        "name": "UIKit",
+        "printedName": "UIKit",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "CADisplayLinkDriverHelper",
+        "printedName": "CADisplayLinkDriverHelper",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "shared",
+            "printedName": "shared",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "CADisplayLinkDriverHelper",
+                "printedName": "MSDisplayLink.CADisplayLinkDriverHelper",
+                "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC6sharedACvpZ",
+            "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC6sharedACvpZ",
+            "moduleName": "MSDisplayLink",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CADisplayLinkDriverHelper",
+                    "printedName": "MSDisplayLink.CADisplayLinkDriverHelper",
+                    "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC6sharedACvgZ",
+                "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC6sharedACvgZ",
+                "moduleName": "MSDisplayLink",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "displayLink",
+            "printedName": "displayLink",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "QuartzCore.CADisplayLink?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "CADisplayLink",
+                    "printedName": "QuartzCore.CADisplayLink",
+                    "usr": "c:objc(cs)CADisplayLink"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC07displayB033_545AE43B7CD4B4843354AE847AFE7D88LLSo0cB0CSgvp",
+            "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC07displayB033_545AE43B7CD4B4843354AE847AFE7D88LLSo0cB0CSgvp",
+            "moduleName": "MSDisplayLink",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 0,
+            "hasStorage": true
+          },
+          {
+            "kind": "Function",
+            "name": "startDisplayLink",
+            "printedName": "startDisplayLink()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC012startDisplayB0yyF",
+            "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC012startDisplayB0yyF",
+            "moduleName": "MSDisplayLink",
+            "overriding": true,
+            "isOpen": true,
+            "declAttributes": [
+              "Override"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "stopDisplayLink",
+            "printedName": "stopDisplayLink()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC011stopDisplayB0yyF",
+            "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC011stopDisplayB0yyF",
+            "moduleName": "MSDisplayLink",
+            "overriding": true,
+            "isOpen": true,
+            "declAttributes": [
+              "Override"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:13MSDisplayLink09CADisplayB12DriverHelperC",
+        "mangledName": "$s13MSDisplayLink09CADisplayB12DriverHelperC",
+        "moduleName": "MSDisplayLink",
+        "isOpen": true,
+        "superclassUsr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC",
+        "inheritsConvenienceInitializers": true,
+        "superclassNames": [
+          "MSDisplayLink.DisplayLinkDriverHelperBase"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Identifiable",
+            "printedName": "Identifiable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "ID",
+                "printedName": "ID",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UUID",
+                    "printedName": "Foundation.UUID",
+                    "usr": "s:10Foundation4UUIDV"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s12IdentifiableP",
+            "mangledName": "$ss12IdentifiableP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLinkDriverHelperBase",
+        "printedName": "DisplayLinkDriverHelperBase",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "id",
+            "printedName": "id",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UUID",
+                "printedName": "Foundation.UUID",
+                "usr": "s:10Foundation4UUIDV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC2id10Foundation4UUIDVvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC2id10Foundation4UUIDVvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "Final"
+            ],
+            "fixedbinaryorder": 0,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UUID",
+                    "printedName": "Foundation.UUID",
+                    "usr": "s:10Foundation4UUIDV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC2id10Foundation4UUIDVvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC2id10Foundation4UUIDVvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "referenceHolder",
+            "printedName": "referenceHolder",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "WeakBox",
+                    "printedName": "MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC15referenceHolderSayAC7WeakBoxVGvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC15referenceHolderSayAC7WeakBoxVGvp",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "SetterAccess"
+            ],
+            "fixedbinaryorder": 1,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Array",
+                    "printedName": "[MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "WeakBox",
+                        "printedName": "MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox",
+                        "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV"
+                      }
+                    ],
+                    "usr": "s:Sa"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC15referenceHolderSayAC7WeakBoxVGvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC15referenceHolderSayAC7WeakBoxVGvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "isOpen": true,
+                "declAttributes": [
+                  "Transparent"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "lock",
+            "printedName": "lock",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "NSLock",
+                "printedName": "Foundation.NSLock",
+                "usr": "c:objc(cs)NSLock"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC4lockSo6NSLockCvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC4lockSo6NSLockCvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "Final"
+            ],
+            "fixedbinaryorder": 2,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NSLock",
+                    "printedName": "Foundation.NSLock",
+                    "usr": "c:objc(cs)NSLock"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC4lockSo6NSLockCvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC4lockSo6NSLockCvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "WeakBox",
+            "printedName": "WeakBox",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "object",
+                "printedName": "object",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "WeakStorage",
+                    "printedName": "MSDisplayLink.DisplayLinkDriver?"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvp",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvp",
+                "moduleName": "MSDisplayLink",
+                "declAttributes": [
+                  "HasInitialValue",
+                  "HasStorage",
+                  "ReferenceOwnership"
+                ],
+                "fixedbinaryorder": 0,
+                "ownership": 1,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Optional",
+                        "printedName": "MSDisplayLink.DisplayLinkDriver?",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "DisplayLinkDriver",
+                            "printedName": "MSDisplayLink.DisplayLinkDriver",
+                            "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+                          }
+                        ],
+                        "usr": "s:Sq"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvg",
+                    "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvg",
+                    "moduleName": "MSDisplayLink",
+                    "implicit": true,
+                    "declAttributes": [
+                      "Transparent"
+                    ],
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Optional",
+                        "printedName": "MSDisplayLink.DisplayLinkDriver?",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "DisplayLinkDriver",
+                            "printedName": "MSDisplayLink.DisplayLinkDriver",
+                            "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+                          }
+                        ],
+                        "usr": "s:Sq"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvs",
+                    "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvs",
+                    "moduleName": "MSDisplayLink",
+                    "implicit": true,
+                    "declAttributes": [
+                      "Transparent"
+                    ],
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvM",
+                    "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAA0cbD0CSgvM",
+                    "moduleName": "MSDisplayLink",
+                    "implicit": true,
+                    "declAttributes": [
+                      "Transparent"
+                    ],
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(object:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "WeakBox",
+                    "printedName": "MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "MSDisplayLink.DisplayLinkDriver?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "DisplayLinkDriver",
+                        "printedName": "MSDisplayLink.DisplayLinkDriver",
+                        "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+                      }
+                    ],
+                    "hasDefaultArg": true,
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAeA0cbD0CSg_tcfc",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV6objectAeA0cbD0CSg_tcfc",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "WeakBox",
+                    "printedName": "MSDisplayLink.DisplayLinkDriverHelperBase.WeakBox",
+                    "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxVAEycfc",
+                "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxVAEycfc",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "init_kind": "Designated"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC7WeakBoxV",
+            "moduleName": "MSDisplayLink"
+          },
+          {
+            "kind": "Function",
+            "name": "delegate",
+            "printedName": "delegate(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkDriver",
+                "printedName": "MSDisplayLink.DisplayLinkDriver",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC8delegateyyAA0cbD0CF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC8delegateyyAA0cbD0CF",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "remove",
+            "printedName": "remove(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkDriver",
+                "printedName": "MSDisplayLink.DisplayLinkDriver",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC6removeyyAA0cbD0CF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC6removeyyAA0cbD0CF",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "reclaimComputeResourceIfPossible",
+            "printedName": "reclaimComputeResourceIfPossible()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC32reclaimComputeResourceIfPossibleyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC32reclaimComputeResourceIfPossibleyyF",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "dispatchUpdate",
+            "printedName": "dispatchUpdate()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC14dispatchUpdateyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC14dispatchUpdateyyF",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "startDisplayLink",
+            "printedName": "startDisplayLink()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC05startcB0yyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC05startcB0yyF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "stopDisplayLink",
+            "printedName": "stopDisplayLink()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC04stopcB0yyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC04stopcB0yyF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkDriverHelperBase",
+                "printedName": "MSDisplayLink.DisplayLinkDriverHelperBase",
+                "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseCACycfc",
+            "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseCACycfc",
+            "moduleName": "MSDisplayLink",
+            "implicit": true,
+            "init_kind": "Designated"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:13MSDisplayLink07DisplayB16DriverHelperBaseC",
+        "mangledName": "$s13MSDisplayLink07DisplayB16DriverHelperBaseC",
+        "moduleName": "MSDisplayLink",
+        "isOpen": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Identifiable",
+            "printedName": "Identifiable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "ID",
+                "printedName": "ID",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UUID",
+                    "printedName": "Foundation.UUID",
+                    "usr": "s:10Foundation4UUIDV"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s12IdentifiableP",
+            "mangledName": "$ss12IdentifiableP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Combine",
+        "printedName": "Combine",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "MSDisplayLink"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DisplayLinkDriver",
+        "printedName": "DisplayLinkDriver",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "id",
+            "printedName": "id",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "UUID",
+                "printedName": "Foundation.UUID",
+                "usr": "s:10Foundation4UUIDV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverC2id10Foundation4UUIDVvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverC2id10Foundation4UUIDVvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 0,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UUID",
+                    "printedName": "Foundation.UUID",
+                    "usr": "s:10Foundation4UUIDV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC2id10Foundation4UUIDVvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB6DriverC2id10Foundation4UUIDVvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "dispatchQueue",
+            "printedName": "dispatchQueue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DispatchQueue",
+                "printedName": "Dispatch.DispatchQueue",
+                "usr": "c:objc(cs)OS_dispatch_queue"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverC13dispatchQueue33_F25AFDD96F1E7F8D41ED92574D4D908FLLSo03OS_E6_queueCvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverC13dispatchQueue33_F25AFDD96F1E7F8D41ED92574D4D908FLLSo03OS_E6_queueCvp",
+            "moduleName": "MSDisplayLink",
+            "isInternal": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "fixedbinaryorder": 1,
+            "isLet": true,
+            "hasStorage": true
+          },
+          {
+            "kind": "Var",
+            "name": "synchronizationSubject",
+            "printedName": "synchronizationSubject",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "PassthroughSubject",
+                "printedName": "Combine.PassthroughSubject<(), Swift.Never>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Never",
+                    "printedName": "Swift.Never",
+                    "usr": "s:s5NeverO"
+                  }
+                ],
+                "usr": "s:7Combine18PassthroughSubjectC"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverC22synchronizationSubject7Combine011PassthroughF0Cyyts5NeverOGvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverC22synchronizationSubject7Combine011PassthroughF0Cyyts5NeverOGvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 2,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "PassthroughSubject",
+                    "printedName": "Combine.PassthroughSubject<(), Swift.Never>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Never",
+                        "printedName": "Swift.Never",
+                        "usr": "s:s5NeverO"
+                      }
+                    ],
+                    "usr": "s:7Combine18PassthroughSubjectC"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC22synchronizationSubject7Combine011PassthroughF0Cyyts5NeverOGvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB6DriverC22synchronizationSubject7Combine011PassthroughF0Cyyts5NeverOGvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "synchronizationPublisher",
+            "printedName": "synchronizationPublisher",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "AnyPublisher",
+                "printedName": "Combine.AnyPublisher<(), Swift.Never>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Never",
+                    "printedName": "Swift.Never",
+                    "usr": "s:s5NeverO"
+                  }
+                ],
+                "usr": "s:7Combine12AnyPublisherV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverC24synchronizationPublisher7Combine03AnyF0Vyyts5NeverOGvp",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverC24synchronizationPublisher7Combine03AnyF0Vyyts5NeverOGvp",
+            "moduleName": "MSDisplayLink",
+            "declAttributes": [
+              "Final",
+              "HasStorage"
+            ],
+            "fixedbinaryorder": 3,
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AnyPublisher",
+                    "printedName": "Combine.AnyPublisher<(), Swift.Never>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Never",
+                        "printedName": "Swift.Never",
+                        "usr": "s:s5NeverO"
+                      }
+                    ],
+                    "usr": "s:7Combine12AnyPublisherV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC24synchronizationPublisher7Combine03AnyF0Vyyts5NeverOGvg",
+                "mangledName": "$s13MSDisplayLink07DisplayB6DriverC24synchronizationPublisher7Combine03AnyF0Vyyts5NeverOGvg",
+                "moduleName": "MSDisplayLink",
+                "implicit": true,
+                "declAttributes": [
+                  "Transparent",
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "DisplayLinkDriver",
+                "printedName": "MSDisplayLink.DisplayLinkDriver",
+                "usr": "s:13MSDisplayLink07DisplayB6DriverC"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverCACycfc",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverCACycfc",
+            "moduleName": "MSDisplayLink",
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "synchronize",
+            "printedName": "synchronize()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:13MSDisplayLink07DisplayB6DriverC11synchronizeyyF",
+            "mangledName": "$s13MSDisplayLink07DisplayB6DriverC11synchronizeyyF",
+            "moduleName": "MSDisplayLink",
+            "isOpen": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:13MSDisplayLink07DisplayB6DriverC",
+        "mangledName": "$s13MSDisplayLink07DisplayB6DriverC",
+        "moduleName": "MSDisplayLink",
+        "isOpen": true,
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Identifiable",
+            "printedName": "Identifiable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "ID",
+                "printedName": "ID",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "UUID",
+                    "printedName": "Foundation.UUID",
+                    "usr": "s:10Foundation4UUIDV"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:s12IdentifiableP",
+            "mangledName": "$ss12IdentifiableP"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": [
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/MSDisplayLink\/Sources\/MSDisplayLink\/DisplayLink+SwiftUI.swift",
+      "kind": "BooleanLiteral",
+      "offset": 279,
+      "length": 4,
+      "value": "true"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/MSDisplayLink\/Sources\/MSDisplayLink\/DisplayLinkDriver+Helper.swift",
+      "kind": "Array",
+      "offset": 240,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/MSDisplayLink\/Sources\/MSDisplayLink\/DisplayLinkDriver.swift",
+      "kind": "StringLiteral",
+      "offset": 249,
+      "length": 16,
+      "value": "\"wiki.qaq.vsync\""
+    }
+  ]
+}

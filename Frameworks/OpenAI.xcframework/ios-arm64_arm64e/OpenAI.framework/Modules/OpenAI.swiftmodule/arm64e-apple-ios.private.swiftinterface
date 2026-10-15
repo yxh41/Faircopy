@@ -1,0 +1,1674 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
+// swift-module-flags: -target arm64e-apple-ios15.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name OpenAI
+import Combine
+import Foundation
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+@_hasMissingDesignatedInitializers final public class OpenAI : OpenAIProtocol {
+  public struct Configuration {
+    public let token: String
+    public let organizationIdentifier: String?
+    public let host: String
+    public let port: Int
+    public let scheme: String
+    public let timeoutInterval: TimeInterval
+    public init(token: String, organizationIdentifier: String? = nil, host: String = "api.openai.com", port: Int = 443, scheme: String = "https", timeoutInterval: TimeInterval = 60.0)
+  }
+  final public let configuration: Configuration
+  convenience public init(apiToken: String)
+  convenience public init(configuration: Configuration)
+  convenience public init(configuration: Configuration, session: URLSession = URLSession.shared)
+  final public func completions(query: CompletionsQuery, completion: @escaping (Result<CompletionsResult, Error>) -> Void)
+  final public func completionsStream(query: CompletionsQuery, onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+  final public func images(query: ImagesQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  final public func imageEdits(query: ImageEditsQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  final public func imageVariations(query: ImageVariationsQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  final public func embeddings(query: EmbeddingsQuery, completion: @escaping (Result<EmbeddingsResult, Error>) -> Void)
+  final public func chats(query: ChatQuery, completion: @escaping (Result<ChatResult, Error>) -> Void)
+  final public func chatsStream(query: ChatQuery, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+  final public func edits(query: EditsQuery, completion: @escaping (Result<EditsResult, Error>) -> Void)
+  final public func model(query: ModelQuery, completion: @escaping (Result<ModelResult, Error>) -> Void)
+  final public func models(completion: @escaping (Result<ModelsResult, Error>) -> Void)
+  @available(iOS 13.0, *)
+  final public func moderations(query: ModerationsQuery, completion: @escaping (Result<ModerationsResult, Error>) -> Void)
+  final public func audioTranscriptions(query: AudioTranscriptionQuery, completion: @escaping (Result<AudioTranscriptionResult, Error>) -> Void)
+  final public func audioTranslations(query: AudioTranslationQuery, completion: @escaping (Result<AudioTranslationResult, Error>) -> Void)
+  final public func audioCreateSpeech(query: AudioSpeechQuery, completion: @escaping (Result<AudioSpeechResult, Error>) -> Void)
+  @objc deinit
+}
+public enum OpenAIError : Error {
+  case emptyData
+  public static func == (a: OpenAIError, b: OpenAIError) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+public struct APIError : Error, Decodable, Equatable {
+  public let message: String
+  public let type: String
+  public let param: String?
+  public let code: String?
+  public init(message: String, type: String, param: String?, code: String?)
+  public init(from decoder: Decoder) throws
+  public static func == (a: APIError, b: APIError) -> Swift.Bool
+}
+extension APIError : LocalizedError {
+  public var errorDescription: String? {
+    get
+  }
+}
+public struct APIErrorResponse : Error, Decodable, Equatable {
+  public let error: APIError
+  public static func == (a: APIErrorResponse, b: APIErrorResponse) -> Swift.Bool
+  public init(from decoder: any Swift.Decoder) throws
+}
+extension APIErrorResponse : LocalizedError {
+  public var errorDescription: String? {
+    get
+  }
+}
+public struct AudioSpeechQuery : Codable {
+  public enum AudioSpeechVoice : String, Codable, CaseIterable {
+    case alloy
+    case echo
+    case fable
+    case onyx
+    case nova
+    case shimmer
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [AudioSpeechQuery.AudioSpeechVoice]
+    public typealias RawValue = Swift.String
+    public static var allCases: [AudioSpeechQuery.AudioSpeechVoice] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum AudioSpeechResponseFormat : String, Codable, CaseIterable {
+    case mp3
+    case opus
+    case aac
+    case flac
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [AudioSpeechQuery.AudioSpeechResponseFormat]
+    public typealias RawValue = Swift.String
+    public static var allCases: [AudioSpeechQuery.AudioSpeechResponseFormat] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let input: String
+  public let model: Model
+  public let voice: AudioSpeechVoice
+  public let responseFormat: AudioSpeechResponseFormat?
+  public let speed: String?
+  public enum CodingKeys : String, CodingKey {
+    case model
+    case input
+    case voice
+    case responseFormat
+    case speed
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public init(model: Model, input: String, voice: AudioSpeechVoice, responseFormat: AudioSpeechResponseFormat = .mp3, speed: Double?)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+extension AudioSpeechQuery {
+  public enum Speed : Double {
+    case normal
+    case max
+    case min
+    public init?(rawValue: Swift.Double)
+    public typealias RawValue = Swift.Double
+    public var rawValue: Swift.Double {
+      get
+    }
+  }
+  public static func normalizeSpeechSpeed(_ inputSpeed: Double?) -> String
+}
+public struct AudioSpeechResult : Codable, Equatable {
+  public let audio: Data
+  public static func == (a: AudioSpeechResult, b: AudioSpeechResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct AudioTranscriptionQuery : Codable {
+  public enum ResponseFormat : String, Codable, Equatable, CaseIterable {
+    case json
+    case text
+    case verboseJson
+    case srt
+    case vtt
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [AudioTranscriptionQuery.ResponseFormat]
+    public typealias RawValue = Swift.String
+    public static var allCases: [AudioTranscriptionQuery.ResponseFormat] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let file: Data
+  public let fileType: `Self`.FileType
+  public let model: Model
+  public let responseFormat: `Self`.ResponseFormat?
+  public let prompt: String?
+  public let temperature: Double?
+  public let language: String?
+  public init(file: Data, fileType: `Self`.FileType, model: Model, prompt: String? = nil, temperature: Double? = nil, language: String? = nil, responseFormat: `Self`.ResponseFormat? = nil)
+  public enum FileType : String, Codable, Equatable, CaseIterable {
+    case flac
+    case mp3, mpga
+    case mp4, m4a
+    case mpeg
+    case ogg
+    case wav
+    case webm
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [AudioTranscriptionQuery.FileType]
+    public typealias RawValue = Swift.String
+    public static var allCases: [AudioTranscriptionQuery.FileType] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct AudioTranscriptionResult : Codable, Equatable {
+  public let text: String
+  public static func == (a: AudioTranscriptionResult, b: AudioTranscriptionResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct AudioTranslationQuery : Codable {
+  public typealias FileType = AudioTranscriptionQuery.FileType
+  public typealias ResponseFormat = AudioTranscriptionQuery.ResponseFormat
+  public let file: Data
+  public let fileType: `Self`.FileType
+  public let model: Model
+  public let responseFormat: `Self`.ResponseFormat?
+  public let prompt: String?
+  public let temperature: Double?
+  public init(file: Data, fileType: `Self`.FileType, model: Model, prompt: String? = nil, temperature: Double? = nil, responseFormat: `Self`.ResponseFormat? = nil)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct AudioTranslationResult : Codable, Equatable {
+  public let text: String
+  public static func == (a: AudioTranslationResult, b: AudioTranslationResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ChatQuery : Equatable, Codable {
+  public let messages: [`Self`.ChatCompletionMessageParam]
+  public let model: Model
+  public let frequencyPenalty: Double?
+  public let logitBias: [String : Int]?
+  public let logprobs: Bool?
+  public let maxTokens: Int?
+  public let n: Int?
+  public let presencePenalty: Double?
+  public let responseFormat: `Self`.ResponseFormat?
+  public let seed: Int?
+  public let stop: Stop?
+  public let temperature: Double?
+  public let toolChoice: `Self`.ChatCompletionFunctionCallOptionParam?
+  public let tools: [`Self`.ChatCompletionToolParam]?
+  public let topLogprobs: Int?
+  public let topP: Double?
+  public let user: String?
+  public var stream: Bool
+  public init(messages: [`Self`.ChatCompletionMessageParam], model: Model, frequencyPenalty: Double? = nil, logitBias: [String : Int]? = nil, logprobs: Bool? = nil, maxTokens: Int? = nil, n: Int? = nil, presencePenalty: Double? = nil, responseFormat: `Self`.ResponseFormat? = nil, seed: Int? = nil, stop: `Self`.Stop? = nil, temperature: Double? = nil, toolChoice: `Self`.ChatCompletionFunctionCallOptionParam? = nil, tools: [`Self`.ChatCompletionToolParam]? = nil, topLogprobs: Int? = nil, topP: Double? = nil, user: String? = nil, stream: Bool = false)
+  public enum ChatCompletionMessageParam : Codable, Equatable {
+    case system(`Self`.ChatCompletionSystemMessageParam)
+    case user(`Self`.ChatCompletionUserMessageParam)
+    case assistant(`Self`.ChatCompletionAssistantMessageParam)
+    case tool(`Self`.ChatCompletionToolMessageParam)
+    public var content: `Self`.ChatCompletionUserMessageParam.Content? {
+      get
+    }
+    public var role: Role {
+      get
+    }
+    public var name: String? {
+      get
+    }
+    public var toolCallId: String? {
+      get
+    }
+    public var toolCalls: [`Self`.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam]? {
+      get
+    }
+    public init?(role: Role, content: String? = nil, name: String? = nil, toolCalls: [`Self`.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam]? = nil, toolCallId: String? = nil)
+    public init?(role: Role, content: [ChatCompletionUserMessageParam.Content.VisionContent], name: String? = nil)
+    public func encode(to encoder: Encoder) throws
+    public struct ChatCompletionSystemMessageParam : Codable, Equatable {
+      public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
+      public let content: String
+      public let role: `Self`.Role
+      public let name: String?
+      public init(content: String, name: String? = nil)
+      public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionSystemMessageParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionSystemMessageParam) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public struct ChatCompletionUserMessageParam : Codable, Equatable {
+      public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
+      public let content: Content
+      public let role: `Self`.Role
+      public let name: String?
+      public init(content: Content, name: String? = nil)
+      public enum Content : Codable, Equatable {
+        case string(String)
+        case vision([VisionContent])
+        public var string: String? {
+          get
+        }
+        public init(string: String)
+        public init(vision: [VisionContent])
+        public enum CodingKeys : CodingKey {
+          case string
+          case vision
+          public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.CodingKeys, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.CodingKeys) -> Swift.Bool
+          public func hash(into hasher: inout Swift.Hasher)
+          public init?(stringValue: Swift.String)
+          public init?(intValue: Swift.Int)
+          public var hashValue: Swift.Int {
+            get
+          }
+          public var intValue: Swift.Int? {
+            get
+          }
+          public var stringValue: Swift.String {
+            get
+          }
+        }
+        public func encode(to encoder: Encoder) throws
+        public enum VisionContent : Codable, Equatable {
+          case chatCompletionContentPartTextParam(ChatCompletionContentPartTextParam)
+          case chatCompletionContentPartImageParam(ChatCompletionContentPartImageParam)
+          public var text: String? {
+            get
+          }
+          public var imageUrl: `Self`.ChatCompletionContentPartImageParam.ImageURL? {
+            get
+          }
+          public init(chatCompletionContentPartTextParam: ChatCompletionContentPartTextParam)
+          public init(chatCompletionContentPartImageParam: ChatCompletionContentPartImageParam)
+          public func encode(to encoder: Encoder) throws
+          public struct ChatCompletionContentPartTextParam : Codable, Equatable {
+            public let text: String
+            public let type: String
+            public init(text: String)
+            public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartTextParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartTextParam) -> Swift.Bool
+            public func encode(to encoder: any Swift.Encoder) throws
+            public init(from decoder: any Swift.Decoder) throws
+          }
+          public struct ChatCompletionContentPartImageParam : Codable, Equatable {
+            public let imageUrl: ImageURL
+            public let type: String
+            public init(imageUrl: ImageURL)
+            public struct ImageURL : Codable, Equatable {
+              public let url: String
+              public let detail: Detail
+              public init(url: String, detail: Detail)
+              public init(url: Data, detail: Detail)
+              public enum Detail : String, Codable, Equatable, CaseIterable {
+                case auto
+                case low
+                case high
+                public init?(rawValue: Swift.String)
+                public typealias AllCases = [ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL.Detail]
+                public typealias RawValue = Swift.String
+                public static var allCases: [ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL.Detail] {
+                  get
+                }
+                public var rawValue: Swift.String {
+                  get
+                }
+              }
+              public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL) -> Swift.Bool
+              public func encode(to encoder: any Swift.Encoder) throws
+              public init(from decoder: any Swift.Decoder) throws
+            }
+            public enum CodingKeys : String, CodingKey {
+              case imageUrl
+              case type
+              public init?(rawValue: Swift.String)
+              public init?(stringValue: Swift.String)
+              public init?(intValue: Swift.Int)
+              public typealias RawValue = Swift.String
+              public var intValue: Swift.Int? {
+                get
+              }
+              public var rawValue: Swift.String {
+                get
+              }
+              public var stringValue: Swift.String {
+                get
+              }
+            }
+            public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam) -> Swift.Bool
+            public func encode(to encoder: any Swift.Encoder) throws
+            public init(from decoder: any Swift.Decoder) throws
+          }
+          public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent) -> Swift.Bool
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content) -> Swift.Bool
+      }
+      public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public struct ChatCompletionAssistantMessageParam : Codable, Equatable {
+      public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
+      public let role: `Self`.Role
+      public let content: String?
+      public let name: String?
+      public let toolCalls: [`Self`.ChatCompletionMessageToolCallParam]?
+      public init(content: String? = nil, name: String? = nil, toolCalls: [`Self`.ChatCompletionMessageToolCallParam]? = nil)
+      public enum CodingKeys : String, CodingKey {
+        case name
+        case role
+        case content
+        case toolCalls
+        public init?(rawValue: Swift.String)
+        public init?(stringValue: Swift.String)
+        public init?(intValue: Swift.Int)
+        public typealias RawValue = Swift.String
+        public var intValue: Swift.Int? {
+          get
+        }
+        public var rawValue: Swift.String {
+          get
+        }
+        public var stringValue: Swift.String {
+          get
+        }
+      }
+      public struct ChatCompletionMessageToolCallParam : Codable, Equatable {
+        public typealias ToolsType = ChatQuery.ChatCompletionToolParam.ToolsType
+        public let id: String
+        public let function: `Self`.FunctionCall
+        public let type: `Self`.ToolsType
+        public init(id: String, function: `Self`.FunctionCall)
+        public struct FunctionCall : Codable, Equatable {
+          public let arguments: String
+          public let name: String
+          public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam.FunctionCall, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam.FunctionCall) -> Swift.Bool
+          public func encode(to encoder: any Swift.Encoder) throws
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.ChatCompletionMessageToolCallParam) -> Swift.Bool
+        public func encode(to encoder: any Swift.Encoder) throws
+        public init(from decoder: any Swift.Decoder) throws
+      }
+      public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public struct ChatCompletionToolMessageParam : Codable, Equatable {
+      public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
+      public let content: String
+      public let role: `Self`.Role
+      public let toolCallId: String
+      public init(content: String, toolCallId: String)
+      public enum CodingKeys : String, CodingKey {
+        case content
+        case role
+        case toolCallId
+        public init?(rawValue: Swift.String)
+        public init?(stringValue: Swift.String)
+        public init?(intValue: Swift.Int)
+        public typealias RawValue = Swift.String
+        public var intValue: Swift.Int? {
+          get
+        }
+        public var rawValue: Swift.String {
+          get
+        }
+        public var stringValue: Swift.String {
+          get
+        }
+      }
+      public static func == (a: ChatQuery.ChatCompletionMessageParam.ChatCompletionToolMessageParam, b: ChatQuery.ChatCompletionMessageParam.ChatCompletionToolMessageParam) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public enum Role : String, Codable, Equatable, CaseIterable {
+      case system
+      case user
+      case assistant
+      case tool
+      public init?(rawValue: Swift.String)
+      public typealias AllCases = [ChatQuery.ChatCompletionMessageParam.Role]
+      public typealias RawValue = Swift.String
+      public static var allCases: [ChatQuery.ChatCompletionMessageParam.Role] {
+        get
+      }
+      public var rawValue: Swift.String {
+        get
+      }
+    }
+    public static func == (a: ChatQuery.ChatCompletionMessageParam, b: ChatQuery.ChatCompletionMessageParam) -> Swift.Bool
+  }
+  public enum Stop : Codable, Equatable {
+    case string(String)
+    case stringList([String])
+    public func encode(to encoder: Encoder) throws
+    public init(string: String)
+    public init(stringList: [String])
+    public static func == (a: ChatQuery.Stop, b: ChatQuery.Stop) -> Swift.Bool
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public enum ResponseFormat : String, Codable, Equatable {
+    case jsonObject
+    case text
+    public func encode(to encoder: Encoder) throws
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum ChatCompletionFunctionCallOptionParam : Codable, Equatable {
+    case none
+    case auto
+    case function(String)
+    public func encode(to encoder: Encoder) throws
+    public init(function: String)
+    public static func == (a: ChatQuery.ChatCompletionFunctionCallOptionParam, b: ChatQuery.ChatCompletionFunctionCallOptionParam) -> Swift.Bool
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public struct ChatCompletionToolParam : Codable, Equatable {
+    public let function: `Self`.FunctionDefinition
+    public let type: `Self`.ToolsType
+    public init(function: `Self`.FunctionDefinition)
+    public struct FunctionDefinition : Codable, Equatable {
+      public let name: String
+      public let description: String?
+      public let parameters: `Self`.FunctionParameters?
+      public init(name: String, description: String? = nil, parameters: `Self`.FunctionParameters? = nil)
+      public struct FunctionParameters : Codable, Equatable {
+        public let type: `Self`.JSONType
+        public let properties: [String : Property]?
+        public let required: [String]?
+        public let pattern: String?
+        public let const: String?
+        public let `enum`: [String]?
+        public let multipleOf: Int?
+        public let minimum: Int?
+        public let maximum: Int?
+        public init(type: `Self`.JSONType, properties: [String : Property]? = nil, required: [String]? = nil, pattern: String? = nil, const: String? = nil, enum: [String]? = nil, multipleOf: Int? = nil, minimum: Int? = nil, maximum: Int? = nil)
+        public struct Property : Codable, Equatable {
+          public typealias JSONType = ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.JSONType
+          public let type: `Self`.JSONType
+          public let description: String?
+          public let format: String?
+          public let items: `Self`.Items?
+          public let required: [String]?
+          public let pattern: String?
+          public let const: String?
+          public let `enum`: [String]?
+          public let multipleOf: Int?
+          public let minimum: Double?
+          public let maximum: Double?
+          public let minItems: Int?
+          public let maxItems: Int?
+          public let uniqueItems: Bool?
+          public init(type: `Self`.JSONType, description: String? = nil, format: String? = nil, items: `Self`.Items? = nil, required: [String]? = nil, pattern: String? = nil, const: String? = nil, enum: [String]? = nil, multipleOf: Int? = nil, minimum: Double? = nil, maximum: Double? = nil, minItems: Int? = nil, maxItems: Int? = nil, uniqueItems: Bool? = nil)
+          public struct Items : Codable, Equatable {
+            public typealias JSONType = ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.JSONType
+            public let type: `Self`.JSONType
+            public let properties: [String : Property]?
+            public let pattern: String?
+            public let const: String?
+            public let `enum`: [String]?
+            public let multipleOf: Int?
+            public let minimum: Double?
+            public let maximum: Double?
+            public let minItems: Int?
+            public let maxItems: Int?
+            public let uniqueItems: Bool?
+            public init(type: `Self`.JSONType, properties: [String : Property]? = nil, pattern: String? = nil, const: String? = nil, enum: [String]? = nil, multipleOf: Int? = nil, minimum: Double? = nil, maximum: Double? = nil, minItems: Int? = nil, maxItems: Int? = nil, uniqueItems: Bool? = nil)
+            public static func == (a: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.Property.Items, b: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.Property.Items) -> Swift.Bool
+            public func encode(to encoder: any Swift.Encoder) throws
+            public init(from decoder: any Swift.Decoder) throws
+          }
+          public static func == (a: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.Property, b: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.Property) -> Swift.Bool
+          public func encode(to encoder: any Swift.Encoder) throws
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public enum JSONType : String, Codable {
+          case integer
+          case string
+          case boolean
+          case array
+          case object
+          case number
+          case null
+          public init?(rawValue: Swift.String)
+          public typealias RawValue = Swift.String
+          public var rawValue: Swift.String {
+            get
+          }
+        }
+        public static func == (a: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters, b: ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters) -> Swift.Bool
+        public func encode(to encoder: any Swift.Encoder) throws
+        public init(from decoder: any Swift.Decoder) throws
+      }
+      public static func == (a: ChatQuery.ChatCompletionToolParam.FunctionDefinition, b: ChatQuery.ChatCompletionToolParam.FunctionDefinition) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public enum ToolsType : String, Codable, Equatable {
+      case function
+      public init?(rawValue: Swift.String)
+      public typealias RawValue = Swift.String
+      public var rawValue: Swift.String {
+        get
+      }
+    }
+    public static func == (a: ChatQuery.ChatCompletionToolParam, b: ChatQuery.ChatCompletionToolParam) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public enum CodingKeys : String, CodingKey {
+    case messages
+    case model
+    case frequencyPenalty
+    case logitBias
+    case logprobs
+    case maxTokens
+    case n
+    case presencePenalty
+    case responseFormat
+    case seed
+    case stop
+    case temperature
+    case toolChoice
+    case tools
+    case topLogprobs
+    case topP
+    case user
+    case stream
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public static func == (a: ChatQuery, b: ChatQuery) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ChatResult : Codable, Equatable {
+  public struct Choice : Codable, Equatable {
+    public typealias ChatCompletionMessage = ChatQuery.ChatCompletionMessageParam
+    public let index: Int
+    public let logprobs: `Self`.ChoiceLogprobs?
+    public let message: `Self`.ChatCompletionMessage
+    public let finishReason: String?
+    public struct ChoiceLogprobs : Codable, Equatable {
+      public let content: [`Self`.ChatCompletionTokenLogprob]?
+      public struct ChatCompletionTokenLogprob : Codable, Equatable {
+        public let token: String
+        public let bytes: [Int]?
+        public let logprob: Double
+        public let topLogprobs: [TopLogprob]
+        public struct TopLogprob : Codable, Equatable {
+          public let token: String
+          public let bytes: [Int]?
+          public let logprob: Double
+          public static func == (a: ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.TopLogprob, b: ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.TopLogprob) -> Swift.Bool
+          public func encode(to encoder: any Swift.Encoder) throws
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public enum CodingKeys : String, CodingKey {
+          case token
+          case bytes
+          case logprob
+          case topLogprobs
+          public init?(rawValue: Swift.String)
+          public init?(stringValue: Swift.String)
+          public init?(intValue: Swift.Int)
+          public typealias RawValue = Swift.String
+          public var intValue: Swift.Int? {
+            get
+          }
+          public var rawValue: Swift.String {
+            get
+          }
+          public var stringValue: Swift.String {
+            get
+          }
+        }
+        public static func == (a: ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob, b: ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob) -> Swift.Bool
+        public func encode(to encoder: any Swift.Encoder) throws
+        public init(from decoder: any Swift.Decoder) throws
+      }
+      public static func == (a: ChatResult.Choice.ChoiceLogprobs, b: ChatResult.Choice.ChoiceLogprobs) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public enum CodingKeys : String, CodingKey {
+      case index
+      case logprobs
+      case message
+      case finishReason
+      public init?(rawValue: Swift.String)
+      public init?(stringValue: Swift.String)
+      public init?(intValue: Swift.Int)
+      public typealias RawValue = Swift.String
+      public var intValue: Swift.Int? {
+        get
+      }
+      public var rawValue: Swift.String {
+        get
+      }
+      public var stringValue: Swift.String {
+        get
+      }
+    }
+    public enum FinishReason : String, Codable, Equatable {
+      case stop
+      case length
+      case toolCalls
+      case contentFilter
+      case functionCall
+      public init?(rawValue: Swift.String)
+      public typealias RawValue = Swift.String
+      public var rawValue: Swift.String {
+        get
+      }
+    }
+    public static func == (a: ChatResult.Choice, b: ChatResult.Choice) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public struct CompletionUsage : Codable, Equatable {
+    public let completionTokens: Int
+    public let promptTokens: Int
+    public let totalTokens: Int
+    public static func == (a: ChatResult.CompletionUsage, b: ChatResult.CompletionUsage) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let id: String
+  public let object: String
+  public let created: TimeInterval
+  public let model: String
+  public let choices: [Choice]
+  public let usage: `Self`.CompletionUsage?
+  public let systemFingerprint: String?
+  public enum CodingKeys : String, CodingKey {
+    case id
+    case object
+    case created
+    case model
+    case choices
+    case usage
+    case systemFingerprint
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public static func == (a: ChatResult, b: ChatResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+extension ChatQuery.ChatCompletionMessageParam {
+  public init(from decoder: Decoder) throws
+}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content {
+  public init(from decoder: Decoder) throws
+}
+public struct ChatStreamResult : Codable, Equatable {
+  public struct Choice : Codable, Equatable {
+    public typealias FinishReason = ChatResult.Choice.FinishReason
+    public struct ChoiceDelta : Codable, Equatable {
+      public typealias Role = ChatQuery.ChatCompletionMessageParam.Role
+      public let content: String?
+      public let role: `Self`.Role?
+      public let toolCalls: [`Self`.ChoiceDeltaToolCall]?
+      public struct ChoiceDeltaToolCall : Codable, Equatable {
+        public let index: Int
+        public let id: String?
+        public let function: `Self`.ChoiceDeltaToolCallFunction?
+        public let type: String?
+        public init(index: Int, id: String? = nil, function: `Self`.ChoiceDeltaToolCallFunction? = nil)
+        public struct ChoiceDeltaToolCallFunction : Codable, Equatable {
+          public let arguments: String?
+          public let name: String?
+          public init(arguments: String? = nil, name: String? = nil)
+          public static func == (a: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall.ChoiceDeltaToolCallFunction, b: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall.ChoiceDeltaToolCallFunction) -> Swift.Bool
+          public func encode(to encoder: any Swift.Encoder) throws
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public static func == (a: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall, b: ChatStreamResult.Choice.ChoiceDelta.ChoiceDeltaToolCall) -> Swift.Bool
+        public func encode(to encoder: any Swift.Encoder) throws
+        public init(from decoder: any Swift.Decoder) throws
+      }
+      public enum CodingKeys : String, CodingKey {
+        case content
+        case role
+        case toolCalls
+        public init?(rawValue: Swift.String)
+        public init?(stringValue: Swift.String)
+        public init?(intValue: Swift.Int)
+        public typealias RawValue = Swift.String
+        public var intValue: Swift.Int? {
+          get
+        }
+        public var rawValue: Swift.String {
+          get
+        }
+        public var stringValue: Swift.String {
+          get
+        }
+      }
+      public static func == (a: ChatStreamResult.Choice.ChoiceDelta, b: ChatStreamResult.Choice.ChoiceDelta) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public let index: Int?
+    public let delta: `Self`.ChoiceDelta
+    public let finishReason: FinishReason?
+    public let logprobs: `Self`.ChoiceLogprobs?
+    public struct ChoiceLogprobs : Codable, Equatable {
+      public let content: [`Self`.ChatCompletionTokenLogprob]?
+      public struct ChatCompletionTokenLogprob : Codable, Equatable {
+        public let token: String
+        public let bytes: [Int]?
+        public let logprob: Double
+        public let topLogprobs: [`Self`.TopLogprob]?
+        public struct TopLogprob : Codable, Equatable {
+          public let token: String
+          public let bytes: [Int]?
+          public let logprob: Double
+          public static func == (a: ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.TopLogprob, b: ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.TopLogprob) -> Swift.Bool
+          public func encode(to encoder: any Swift.Encoder) throws
+          public init(from decoder: any Swift.Decoder) throws
+        }
+        public enum CodingKeys : String, CodingKey {
+          case token
+          case bytes
+          case logprob
+          case topLogprobs
+          public init?(rawValue: Swift.String)
+          public init?(stringValue: Swift.String)
+          public init?(intValue: Swift.Int)
+          public typealias RawValue = Swift.String
+          public var intValue: Swift.Int? {
+            get
+          }
+          public var rawValue: Swift.String {
+            get
+          }
+          public var stringValue: Swift.String {
+            get
+          }
+        }
+        public static func == (a: ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob, b: ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob) -> Swift.Bool
+        public func encode(to encoder: any Swift.Encoder) throws
+        public init(from decoder: any Swift.Decoder) throws
+      }
+      public static func == (a: ChatStreamResult.Choice.ChoiceLogprobs, b: ChatStreamResult.Choice.ChoiceLogprobs) -> Swift.Bool
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public enum CodingKeys : String, CodingKey {
+      case index
+      case delta
+      case finishReason
+      case logprobs
+      public init?(rawValue: Swift.String)
+      public init?(stringValue: Swift.String)
+      public init?(intValue: Swift.Int)
+      public typealias RawValue = Swift.String
+      public var intValue: Swift.Int? {
+        get
+      }
+      public var rawValue: Swift.String {
+        get
+      }
+      public var stringValue: Swift.String {
+        get
+      }
+    }
+    public static func == (a: ChatStreamResult.Choice, b: ChatStreamResult.Choice) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let id: String
+  public let object: String
+  public let created: TimeInterval
+  public let model: String
+  public let choices: [Choice]
+  public let systemFingerprint: String?
+  public enum CodingKeys : String, CodingKey {
+    case id
+    case object
+    case created
+    case model
+    case choices
+    case systemFingerprint
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public static func == (a: ChatStreamResult, b: ChatStreamResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct CompletionsQuery : Codable {
+  public let model: Model
+  public let prompt: String
+  public let temperature: Double?
+  public let maxTokens: Int?
+  public let topP: Double?
+  public let frequencyPenalty: Double?
+  public let presencePenalty: Double?
+  public let stop: [String]?
+  public let user: String?
+  public init(model: Model, prompt: String, temperature: Double? = nil, maxTokens: Int? = nil, topP: Double? = nil, frequencyPenalty: Double? = nil, presencePenalty: Double? = nil, stop: [String]? = nil, user: String? = nil)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct CompletionsResult : Codable, Equatable {
+  public struct Usage : Codable, Equatable {
+    public let promptTokens: Int
+    public let completionTokens: Int
+    public let totalTokens: Int
+    public static func == (a: CompletionsResult.Usage, b: CompletionsResult.Usage) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public struct Choice : Codable, Equatable {
+    public let text: String
+    public let index: Int
+    public let finishReason: String?
+    public static func == (a: CompletionsResult.Choice, b: CompletionsResult.Choice) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let id: String
+  public let object: String
+  public let created: TimeInterval
+  public let model: Model
+  public let choices: [Choice]
+  public let usage: Usage?
+  public static func == (a: CompletionsResult, b: CompletionsResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct EditsQuery : Codable {
+  public let model: Model
+  public let input: String?
+  public let instruction: String
+  public let n: Int?
+  public let temperature: Double?
+  public let topP: Double?
+  public init(model: Model, input: String?, instruction: String, n: Int? = nil, temperature: Double? = nil, topP: Double? = nil)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct EditsResult : Codable, Equatable {
+  public struct Choice : Codable, Equatable {
+    public let text: String
+    public let index: Int
+    public static func == (a: EditsResult.Choice, b: EditsResult.Choice) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public struct Usage : Codable, Equatable {
+    public let promptTokens: Int
+    public let completionTokens: Int
+    public let totalTokens: Int
+    public static func == (a: EditsResult.Usage, b: EditsResult.Usage) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let object: String
+  public let created: TimeInterval
+  public let choices: [Choice]
+  public let usage: Usage
+  public static func == (a: EditsResult, b: EditsResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct EmbeddingsQuery : Codable {
+  public let input: `Self`.Input
+  public let model: Model
+  public let encodingFormat: `Self`.EncodingFormat?
+  public let user: String?
+  public init(input: `Self`.Input, model: Model, encodingFormat: `Self`.EncodingFormat? = nil, user: String? = nil)
+  public enum Input : Codable, Equatable {
+    case string(String)
+    case stringList([String])
+    case intList([Int])
+    case intMatrix([[Int]])
+    public func encode(to encoder: Encoder) throws
+    public init(string: String)
+    public init(stringList: [String])
+    public init(intList: [Int])
+    public init(intMatrix: [[Int]])
+    public static func == (a: EmbeddingsQuery.Input, b: EmbeddingsQuery.Input) -> Swift.Bool
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public enum EncodingFormat : String, Codable {
+    case float
+    case base64
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum CodingKeys : String, CodingKey {
+    case input
+    case model
+    case encodingFormat
+    case user
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct EmbeddingsResult : Codable, Equatable {
+  public struct Embedding : Codable, Equatable {
+    public let object: String
+    public let embedding: [Double]
+    public let index: Int
+    public static func == (a: EmbeddingsResult.Embedding, b: EmbeddingsResult.Embedding) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public struct Usage : Codable, Equatable {
+    public let promptTokens: Int
+    public let totalTokens: Int
+    public static func == (a: EmbeddingsResult.Usage, b: EmbeddingsResult.Usage) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let data: [Embedding]
+  public let model: String
+  public let usage: Usage
+  public let object: String
+  public static func == (a: EmbeddingsResult, b: EmbeddingsResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ImageEditsQuery : Codable {
+  public typealias ResponseFormat = ImagesQuery.ResponseFormat
+  public typealias Size = ImagesQuery.Size
+  public let image: Data
+  public let mask: Data?
+  public let prompt: String
+  public let model: Model?
+  public let n: Int?
+  public let responseFormat: `Self`.ResponseFormat?
+  public let size: Size?
+  public let user: String?
+  public init(image: Data, prompt: String, mask: Data? = nil, model: Model? = nil, n: Int? = nil, responseFormat: `Self`.ResponseFormat? = nil, size: `Self`.Size? = nil, user: String? = nil)
+  public enum CodingKeys : String, CodingKey {
+    case image
+    case mask
+    case prompt
+    case model
+    case n
+    case responseFormat
+    case size
+    case user
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ImageVariationsQuery : Codable {
+  public typealias ResponseFormat = ImagesQuery.ResponseFormat
+  public let image: Data
+  public let model: Model?
+  public let n: Int?
+  public let responseFormat: `Self`.ResponseFormat?
+  public let size: String?
+  public let user: String?
+  public init(image: Data, model: Model? = nil, n: Int? = nil, responseFormat: `Self`.ResponseFormat? = nil, size: String? = nil, user: String? = nil)
+  public enum CodingKeys : String, CodingKey {
+    case image
+    case model
+    case n
+    case responseFormat
+    case size
+    case user
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ImagesQuery : Codable {
+  public enum ResponseFormat : String, Codable, Equatable {
+    case url
+    case b64_json
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let prompt: String
+  public let model: Model?
+  public let responseFormat: `Self`.ResponseFormat?
+  public let n: Int?
+  public let size: `Self`.Size?
+  public let user: String?
+  public let style: `Self`.Style?
+  public let quality: `Self`.Quality?
+  public init(prompt: String, model: Model? = nil, n: Int? = nil, quality: `Self`.Quality? = nil, responseFormat: `Self`.ResponseFormat? = nil, size: Size? = nil, style: `Self`.Style? = nil, user: String? = nil)
+  public enum CodingKeys : String, CodingKey {
+    case model
+    case prompt
+    case n
+    case size
+    case user
+    case style
+    case responseFormat
+    case quality
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public enum Style : String, Codable, CaseIterable {
+    case natural
+    case vivid
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [ImagesQuery.Style]
+    public typealias RawValue = Swift.String
+    public static var allCases: [ImagesQuery.Style] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum Quality : String, Codable, CaseIterable {
+    case standard
+    case hd
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [ImagesQuery.Quality]
+    public typealias RawValue = Swift.String
+    public static var allCases: [ImagesQuery.Quality] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public enum Size : String, Codable, CaseIterable {
+    case _256
+    case _512
+    case _1024
+    case _1792_1024
+    case _1024_1792
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [ImagesQuery.Size]
+    public typealias RawValue = Swift.String
+    public static var allCases: [ImagesQuery.Size] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ImagesResult : Codable, Equatable {
+  public let created: TimeInterval
+  public let data: [`Self`.Image]
+  public struct Image : Codable, Equatable {
+    public let b64Json: String?
+    public let revisedPrompt: String?
+    public let url: String?
+    public enum CodingKeys : String, CodingKey {
+      case b64Json
+      case revisedPrompt
+      case url
+      public init?(rawValue: Swift.String)
+      public init?(stringValue: Swift.String)
+      public init?(intValue: Swift.Int)
+      public typealias RawValue = Swift.String
+      public var intValue: Swift.Int? {
+        get
+      }
+      public var rawValue: Swift.String {
+        get
+      }
+      public var stringValue: Swift.String {
+        get
+      }
+    }
+    public static func == (a: ImagesResult.Image, b: ImagesResult.Image) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public static func == (a: ImagesResult, b: ImagesResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ModelQuery : Codable, Equatable {
+  public let model: Model
+  public init(model: Model)
+  public static func == (a: ModelQuery, b: ModelQuery) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ModelResult : Codable, Equatable {
+  public let id: String
+  public let created: TimeInterval
+  public let object: String
+  public let ownedBy: String
+  public enum CodingKeys : String, CodingKey {
+    case id
+    case created
+    case object
+    case ownedBy
+    public init?(rawValue: Swift.String)
+    public init?(stringValue: Swift.String)
+    public init?(intValue: Swift.Int)
+    public typealias RawValue = Swift.String
+    public var intValue: Swift.Int? {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+    public var stringValue: Swift.String {
+      get
+    }
+  }
+  public static func == (a: ModelResult, b: ModelResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public typealias Model = String
+extension Model {
+  public static let gpt4_o: Swift.String
+  public static let gpt4_o_mini: Swift.String
+  public static let gpt4_turbo: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt4_turbo_preview: Swift.String
+  public static let gpt4_vision_preview: Swift.String
+  public static let gpt4_0125_preview: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt4_1106_preview: Swift.String
+  public static let gpt4: Swift.String
+  public static let gpt4_0613: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt4_0314: Swift.String
+  public static let gpt4_32k: Swift.String
+  public static let gpt4_32k_0613: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt4_32k_0314: Swift.String
+  public static let gpt3_5Turbo: Swift.String
+  public static let gpt3_5Turbo_0125: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt3_5Turbo_1106: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt3_5Turbo_0613: Swift.String
+  @available(*, deprecated, message: "Please upgrade to the newer model")
+  public static let gpt3_5Turbo_0301: Swift.String
+  public static let gpt3_5Turbo_16k: Swift.String
+  public static let gpt3_5Turbo_16k_0613: Swift.String
+  public static let textDavinci_003: Swift.String
+  public static let textDavinci_002: Swift.String
+  public static let textCurie: Swift.String
+  public static let textBabbage: Swift.String
+  public static let textAda: Swift.String
+  public static let textDavinci_001: Swift.String
+  public static let codeDavinciEdit_001: Swift.String
+  public static let tts_1: Swift.String
+  public static let tts_1_hd: Swift.String
+  public static let whisper_1: Swift.String
+  public static let dall_e_2: Swift.String
+  public static let dall_e_3: Swift.String
+  public static let davinci: Swift.String
+  public static let curie: Swift.String
+  public static let babbage: Swift.String
+  public static let ada: Swift.String
+  public static let textEmbeddingAda: Swift.String
+  public static let textSearchAda: Swift.String
+  public static let textSearchBabbageDoc: Swift.String
+  public static let textSearchBabbageQuery001: Swift.String
+  public static let textEmbedding3: Swift.String
+  public static let textEmbedding3Large: Swift.String
+  public static let textModerationStable: Swift.String
+  public static let textModerationLatest: Swift.String
+  public static let moderation: Swift.String
+}
+public struct ModelsResult : Codable, Equatable {
+  public let data: [ModelResult]
+  public let object: String
+  public static func == (a: ModelsResult, b: ModelsResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ModerationsQuery : Codable {
+  public let input: String
+  public let model: Model?
+  public init(input: String, model: Model? = nil)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+@available(iOS 13.0, *)
+public struct ModerationsResult : Codable, Equatable {
+  public struct Moderation : Codable, Equatable {
+    public struct Categories : Codable, Equatable, Sequence {
+      public let harassment: Bool
+      public let harassmentThreatening: Bool
+      public let hate: Bool
+      public let hateThreatening: Bool
+      public let selfHarm: Bool
+      public let selfHarmIntent: Bool
+      public let selfHarmInstructions: Bool
+      public let sexual: Bool
+      public let sexualMinors: Bool
+      public let violence: Bool
+      public let violenceGraphic: Bool
+      public enum CodingKeys : String, CodingKey, CaseIterable {
+        case harassment
+        case harassmentThreatening
+        case hate
+        case hateThreatening
+        case selfHarm
+        case selfHarmIntent
+        case selfHarmInstructions
+        case sexual
+        case sexualMinors
+        case violence
+        case violenceGraphic
+        public init?(rawValue: Swift.String)
+        public init?(stringValue: Swift.String)
+        public init?(intValue: Swift.Int)
+        public typealias AllCases = [ModerationsResult.Moderation.Categories.CodingKeys]
+        public typealias RawValue = Swift.String
+        public static var allCases: [ModerationsResult.Moderation.Categories.CodingKeys] {
+          get
+        }
+        public var intValue: Swift.Int? {
+          get
+        }
+        public var rawValue: Swift.String {
+          get
+        }
+        public var stringValue: Swift.String {
+          get
+        }
+      }
+      public func makeIterator() -> IndexingIterator<[(String, Bool)]>
+      public static func == (a: ModerationsResult.Moderation.Categories, b: ModerationsResult.Moderation.Categories) -> Swift.Bool
+      public typealias Element = Swift.IndexingIterator<[(Swift.String, Swift.Bool)]>.Element
+      public typealias Iterator = Swift.IndexingIterator<[(Swift.String, Swift.Bool)]>
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public struct CategoryScores : Codable, Equatable, Sequence {
+      public let harassment: Double
+      public let harassmentThreatening: Double
+      public let hate: Double
+      public let hateThreatening: Double
+      public let selfHarm: Double
+      public let selfHarmIntent: Double
+      public let selfHarmInstructions: Double
+      public let sexual: Double
+      public let sexualMinors: Double
+      public let violence: Double
+      public let violenceGraphic: Double
+      public enum CodingKeys : String, CodingKey, CaseIterable {
+        case harassment
+        case harassmentThreatening
+        case hate
+        case hateThreatening
+        case selfHarm
+        case selfHarmIntent
+        case selfHarmInstructions
+        case sexual
+        case sexualMinors
+        case violence
+        case violenceGraphic
+        public init?(rawValue: Swift.String)
+        public init?(stringValue: Swift.String)
+        public init?(intValue: Swift.Int)
+        public typealias AllCases = [ModerationsResult.Moderation.CategoryScores.CodingKeys]
+        public typealias RawValue = Swift.String
+        public static var allCases: [ModerationsResult.Moderation.CategoryScores.CodingKeys] {
+          get
+        }
+        public var intValue: Swift.Int? {
+          get
+        }
+        public var rawValue: Swift.String {
+          get
+        }
+        public var stringValue: Swift.String {
+          get
+        }
+      }
+      public func makeIterator() -> IndexingIterator<[(String, Bool)]>
+      public static func == (a: ModerationsResult.Moderation.CategoryScores, b: ModerationsResult.Moderation.CategoryScores) -> Swift.Bool
+      public typealias Element = Swift.IndexingIterator<[(Swift.String, Swift.Bool)]>.Element
+      public typealias Iterator = Swift.IndexingIterator<[(Swift.String, Swift.Bool)]>
+      public func encode(to encoder: any Swift.Encoder) throws
+      public init(from decoder: any Swift.Decoder) throws
+    }
+    public let categories: Categories
+    public let categoryScores: CategoryScores
+    public let flagged: Bool
+    public static func == (a: ModerationsResult.Moderation, b: ModerationsResult.Moderation) -> Swift.Bool
+    public func encode(to encoder: any Swift.Encoder) throws
+    public init(from decoder: any Swift.Decoder) throws
+  }
+  public let id: String
+  public let model: Model
+  public let results: [`Self`.Moderation]
+  public static func == (a: ModerationsResult, b: ModerationsResult) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+@available(iOS 13.0, *)
+extension ModerationsResult : Identifiable {
+  public typealias ID = Swift.String
+}
+@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+extension OpenAIProtocol {
+  #if compiler(>=5.3) && $AsyncAwait
+  public func completions(query: CompletionsQuery) async throws -> CompletionsResult
+  #endif
+  public func completionsStream(query: CompletionsQuery) -> AsyncThrowingStream<CompletionsResult, Error>
+  #if compiler(>=5.3) && $AsyncAwait
+  public func images(query: ImagesQuery) async throws -> ImagesResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func imageEdits(query: ImageEditsQuery) async throws -> ImagesResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func imageVariations(query: ImageVariationsQuery) async throws -> ImagesResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func embeddings(query: EmbeddingsQuery) async throws -> EmbeddingsResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func chats(query: ChatQuery) async throws -> ChatResult
+  #endif
+  public func chatsStream(query: ChatQuery) -> AsyncThrowingStream<ChatStreamResult, Error>
+  #if compiler(>=5.3) && $AsyncAwait
+  public func edits(query: EditsQuery) async throws -> EditsResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func model(query: ModelQuery) async throws -> ModelResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func models() async throws -> ModelsResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func moderations(query: ModerationsQuery) async throws -> ModerationsResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func audioCreateSpeech(query: AudioSpeechQuery) async throws -> AudioSpeechResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func audioTranscriptions(query: AudioTranscriptionQuery) async throws -> AudioTranscriptionResult
+  #endif
+  #if compiler(>=5.3) && $AsyncAwait
+  public func audioTranslations(query: AudioTranslationQuery) async throws -> AudioTranslationResult
+  #endif
+}
+@available(iOS 13.0, tvOS 13.0, macOS 10.15, watchOS 6.0, *)
+extension OpenAIProtocol {
+  public func completions(query: CompletionsQuery) -> AnyPublisher<CompletionsResult, Error>
+  public func completionsStream(query: CompletionsQuery) -> AnyPublisher<Result<CompletionsResult, Error>, Error>
+  public func images(query: ImagesQuery) -> AnyPublisher<ImagesResult, Error>
+  public func imageEdits(query: ImageEditsQuery) -> AnyPublisher<ImagesResult, Error>
+  public func imageVariations(query: ImageVariationsQuery) -> AnyPublisher<ImagesResult, Error>
+  public func embeddings(query: EmbeddingsQuery) -> AnyPublisher<EmbeddingsResult, Error>
+  public func chats(query: ChatQuery) -> AnyPublisher<ChatResult, Error>
+  public func chatsStream(query: ChatQuery) -> AnyPublisher<Result<ChatStreamResult, Error>, Error>
+  public func edits(query: EditsQuery) -> AnyPublisher<EditsResult, Error>
+  public func model(query: ModelQuery) -> AnyPublisher<ModelResult, Error>
+  public func models() -> AnyPublisher<ModelsResult, Error>
+  public func moderations(query: ModerationsQuery) -> AnyPublisher<ModerationsResult, Error>
+  public func audioCreateSpeech(query: AudioSpeechQuery) -> AnyPublisher<AudioSpeechResult, Error>
+  public func audioTranscriptions(query: AudioTranscriptionQuery) -> AnyPublisher<AudioTranscriptionResult, Error>
+  public func audioTranslations(query: AudioTranslationQuery) -> AnyPublisher<AudioTranslationResult, Error>
+}
+public protocol OpenAIProtocol {
+  func completions(query: CompletionsQuery, completion: @escaping (Result<CompletionsResult, Error>) -> Void)
+  func completionsStream(query: CompletionsQuery, onResult: @escaping (Result<CompletionsResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+  func images(query: ImagesQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  func imageEdits(query: ImageEditsQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  func imageVariations(query: ImageVariationsQuery, completion: @escaping (Result<ImagesResult, Error>) -> Void)
+  func embeddings(query: EmbeddingsQuery, completion: @escaping (Result<EmbeddingsResult, Error>) -> Void)
+  func chats(query: ChatQuery, completion: @escaping (Result<ChatResult, Error>) -> Void)
+  func chatsStream(query: ChatQuery, onResult: @escaping (Result<ChatStreamResult, Error>) -> Void, completion: ((Error?) -> Void)?)
+  func edits(query: EditsQuery, completion: @escaping (Result<EditsResult, Error>) -> Void)
+  func model(query: ModelQuery, completion: @escaping (Result<ModelResult, Error>) -> Void)
+  func models(completion: @escaping (Result<ModelsResult, Error>) -> Void)
+  @available(iOS 13.0, *)
+  func moderations(query: ModerationsQuery, completion: @escaping (Result<ModerationsResult, Error>) -> Void)
+  func audioCreateSpeech(query: AudioSpeechQuery, completion: @escaping (Result<AudioSpeechResult, Error>) -> Void)
+  func audioTranscriptions(query: AudioTranscriptionQuery, completion: @escaping (Result<AudioTranscriptionResult, Error>) -> Void)
+  func audioTranslations(query: AudioTranslationQuery, completion: @escaping (Result<AudioTranslationResult, Error>) -> Void)
+}
+public struct Vector {
+  public static func cosineSimilarity(a: [Double], b: [Double]) -> Double
+  public func cosineDifference(a: [Double], b: [Double]) -> Double
+}
+extension OpenAIError : Swift.Equatable {}
+extension OpenAIError : Swift.Hashable {}
+extension AudioSpeechQuery.AudioSpeechVoice : Swift.Equatable {}
+extension AudioSpeechQuery.AudioSpeechVoice : Swift.Hashable {}
+extension AudioSpeechQuery.AudioSpeechVoice : Swift.RawRepresentable {}
+extension AudioSpeechQuery.AudioSpeechResponseFormat : Swift.Equatable {}
+extension AudioSpeechQuery.AudioSpeechResponseFormat : Swift.Hashable {}
+extension AudioSpeechQuery.AudioSpeechResponseFormat : Swift.RawRepresentable {}
+extension AudioSpeechQuery.CodingKeys : Swift.Equatable {}
+extension AudioSpeechQuery.CodingKeys : Swift.Hashable {}
+extension AudioSpeechQuery.CodingKeys : Swift.RawRepresentable {}
+extension AudioSpeechQuery.Speed : Swift.Equatable {}
+extension AudioSpeechQuery.Speed : Swift.Hashable {}
+extension AudioSpeechQuery.Speed : Swift.RawRepresentable {}
+extension AudioTranscriptionQuery.ResponseFormat : Swift.Hashable {}
+extension AudioTranscriptionQuery.ResponseFormat : Swift.RawRepresentable {}
+extension AudioTranscriptionQuery.FileType : Swift.Hashable {}
+extension AudioTranscriptionQuery.FileType : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.CodingKeys : Swift.Equatable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.CodingKeys : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL.Detail : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.ImageURL.Detail : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.CodingKeys : Swift.Equatable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.CodingKeys : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionUserMessageParam.Content.VisionContent.ChatCompletionContentPartImageParam.CodingKeys : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.CodingKeys : Swift.Equatable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.CodingKeys : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionAssistantMessageParam.CodingKeys : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionToolMessageParam.CodingKeys : Swift.Equatable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionToolMessageParam.CodingKeys : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.ChatCompletionToolMessageParam.CodingKeys : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionMessageParam.Role : Swift.Hashable {}
+extension ChatQuery.ChatCompletionMessageParam.Role : Swift.RawRepresentable {}
+extension ChatQuery.ResponseFormat : Swift.Hashable {}
+extension ChatQuery.ResponseFormat : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.JSONType : Swift.Equatable {}
+extension ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.JSONType : Swift.Hashable {}
+extension ChatQuery.ChatCompletionToolParam.FunctionDefinition.FunctionParameters.JSONType : Swift.RawRepresentable {}
+extension ChatQuery.ChatCompletionToolParam.ToolsType : Swift.Hashable {}
+extension ChatQuery.ChatCompletionToolParam.ToolsType : Swift.RawRepresentable {}
+extension ChatQuery.CodingKeys : Swift.Equatable {}
+extension ChatQuery.CodingKeys : Swift.Hashable {}
+extension ChatQuery.CodingKeys : Swift.RawRepresentable {}
+extension ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.Equatable {}
+extension ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.Hashable {}
+extension ChatResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.RawRepresentable {}
+extension ChatResult.Choice.CodingKeys : Swift.Equatable {}
+extension ChatResult.Choice.CodingKeys : Swift.Hashable {}
+extension ChatResult.Choice.CodingKeys : Swift.RawRepresentable {}
+extension ChatResult.Choice.FinishReason : Swift.Hashable {}
+extension ChatResult.Choice.FinishReason : Swift.RawRepresentable {}
+extension ChatResult.CodingKeys : Swift.Equatable {}
+extension ChatResult.CodingKeys : Swift.Hashable {}
+extension ChatResult.CodingKeys : Swift.RawRepresentable {}
+extension ChatStreamResult.Choice.ChoiceDelta.CodingKeys : Swift.Equatable {}
+extension ChatStreamResult.Choice.ChoiceDelta.CodingKeys : Swift.Hashable {}
+extension ChatStreamResult.Choice.ChoiceDelta.CodingKeys : Swift.RawRepresentable {}
+extension ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.Equatable {}
+extension ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.Hashable {}
+extension ChatStreamResult.Choice.ChoiceLogprobs.ChatCompletionTokenLogprob.CodingKeys : Swift.RawRepresentable {}
+extension ChatStreamResult.Choice.CodingKeys : Swift.Equatable {}
+extension ChatStreamResult.Choice.CodingKeys : Swift.Hashable {}
+extension ChatStreamResult.Choice.CodingKeys : Swift.RawRepresentable {}
+extension ChatStreamResult.CodingKeys : Swift.Equatable {}
+extension ChatStreamResult.CodingKeys : Swift.Hashable {}
+extension ChatStreamResult.CodingKeys : Swift.RawRepresentable {}
+extension EmbeddingsQuery.EncodingFormat : Swift.Equatable {}
+extension EmbeddingsQuery.EncodingFormat : Swift.Hashable {}
+extension EmbeddingsQuery.EncodingFormat : Swift.RawRepresentable {}
+extension EmbeddingsQuery.CodingKeys : Swift.Equatable {}
+extension EmbeddingsQuery.CodingKeys : Swift.Hashable {}
+extension EmbeddingsQuery.CodingKeys : Swift.RawRepresentable {}
+extension ImageEditsQuery.CodingKeys : Swift.Equatable {}
+extension ImageEditsQuery.CodingKeys : Swift.Hashable {}
+extension ImageEditsQuery.CodingKeys : Swift.RawRepresentable {}
+extension ImageVariationsQuery.CodingKeys : Swift.Equatable {}
+extension ImageVariationsQuery.CodingKeys : Swift.Hashable {}
+extension ImageVariationsQuery.CodingKeys : Swift.RawRepresentable {}
+extension ImagesQuery.ResponseFormat : Swift.Hashable {}
+extension ImagesQuery.ResponseFormat : Swift.RawRepresentable {}
+extension ImagesQuery.CodingKeys : Swift.Equatable {}
+extension ImagesQuery.CodingKeys : Swift.Hashable {}
+extension ImagesQuery.CodingKeys : Swift.RawRepresentable {}
+extension ImagesQuery.Style : Swift.Equatable {}
+extension ImagesQuery.Style : Swift.Hashable {}
+extension ImagesQuery.Style : Swift.RawRepresentable {}
+extension ImagesQuery.Quality : Swift.Equatable {}
+extension ImagesQuery.Quality : Swift.Hashable {}
+extension ImagesQuery.Quality : Swift.RawRepresentable {}
+extension ImagesQuery.Size : Swift.Equatable {}
+extension ImagesQuery.Size : Swift.Hashable {}
+extension ImagesQuery.Size : Swift.RawRepresentable {}
+extension ImagesResult.Image.CodingKeys : Swift.Equatable {}
+extension ImagesResult.Image.CodingKeys : Swift.Hashable {}
+extension ImagesResult.Image.CodingKeys : Swift.RawRepresentable {}
+extension ModelResult.CodingKeys : Swift.Equatable {}
+extension ModelResult.CodingKeys : Swift.Hashable {}
+extension ModelResult.CodingKeys : Swift.RawRepresentable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.Categories.CodingKeys : Swift.Equatable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.Categories.CodingKeys : Swift.Hashable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.Categories.CodingKeys : Swift.RawRepresentable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.CategoryScores.CodingKeys : Swift.Equatable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.CategoryScores.CodingKeys : Swift.Hashable {}
+@available(iOS 13.0, *)
+extension ModerationsResult.Moderation.CategoryScores.CodingKeys : Swift.RawRepresentable {}

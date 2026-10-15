@@ -1,0 +1,470 @@
+/* No comment provided by engineer. */
+"%@ v%@ by OwnGoal Studio" = "%@ v%@ by OwnGoal Studio";
+
+/* HTTP 202 */
+"Accepted" = "Accepted";
+
+/* No comment provided by engineer. */
+"Activate" = "Activate";
+
+/* No comment provided by engineer. */
+"Add Endpoint" = "Add Endpoint";
+
+/* No comment provided by engineer. */
+"AI tool within your hands." = "AI tool within your hands.";
+
+/* HTTP 208 */
+"Already Reported" = "Already Reported";
+
+/* No comment provided by engineer. */
+"An awesome music visualizer." = "An awesome music visualizer.";
+
+/* No comment provided by engineer. */
+"Application Supports" = "Application Supports";
+
+/* No comment provided by engineer. */
+"AutoRun" = "AutoRun";
+
+/* No comment provided by engineer. */
+"Available Models" = "Available Models";
+
+/* HTTP 502 */
+"Bad Gateway" = "Bad Gateway";
+
+/* HTTP 400 */
+"Bad Request" = "Bad Request";
+
+/* No comment provided by engineer. */
+"Bringing back the most advanced system and security analysis tool." = "Bringing back the most advanced system and security analysis tool.";
+
+/* No comment provided by engineer. */
+"Built-in Endpoint" = "Built-in Endpoint";
+
+/* No comment provided by engineer. */
+"Built-in Endpoint Activated" = "Built-in Endpoint Activated";
+
+/* No comment provided by engineer. */
+"Cancel" = "Cancel";
+
+/* No comment provided by engineer. */
+"CFBundleDisplayName" = "Faircopy";
+
+/* HTTP 4xx */
+"Client Error" = "Client Error";
+
+/* No comment provided by engineer. */
+"Colorful Wallpaper X" = "Colorful Wallpaper X";
+
+/* No comment provided by engineer. */
+"Common Provider" = "Common Provider";
+
+/* No comment provided by engineer. */
+"Complete Edition" = "Complete Edition";
+
+/* HTTP 409 */
+"Conflict" = "Conflict";
+
+/* HTTP 100 */
+"Continue" = "Continue";
+
+/* No comment provided by engineer. */
+"Copy Model" = "Copy Model";
+
+/* No comment provided by engineer. */
+"Copy Token" = "Copy Token";
+
+/* No comment provided by engineer. */
+"Copy URL" = "Copy URL";
+
+/* HTTP 201 */
+"Created" = "Created";
+
+/* No comment provided by engineer. */
+"Deactivate" = "Deactivate";
+
+/* No comment provided by engineer. */
+"Delete" = "Delete";
+
+/* No comment provided by engineer. */
+"Dynamic wallpaper with colorful effects." = "Dynamic wallpaper with colorful effects.";
+
+/* HTTP 103 */
+"Early Hints" = "Early Hints";
+
+/* No comment provided by engineer. */
+"Enable Service" = "Enable Service";
+
+/* No comment provided by engineer. */
+"Endpoint Error: %d %@" = "Endpoint Error: %d %@";
+
+/* No comment provided by engineer. */
+"Endpoint Key" = "Endpoint Key";
+
+/* No comment provided by engineer. */
+"Endpoint Not Configured" = "Endpoint Not Configured";
+
+/* No comment provided by engineer. */
+"Endpoint Not Reachable" = "Endpoint Not Reachable";
+
+/* No comment provided by engineer. */
+"Endpoint URL" = "Endpoint URL";
+
+/* No comment provided by engineer. */
+"Endpoints" = "Endpoints";
+
+/* No comment provided by engineer. */
+"Error: %@" = "Error: %@";
+
+/* HTTP 417 */
+"Expectation Failed" = "Expectation Failed";
+
+/* No comment provided by engineer. */
+"Export Support Tweak" = "Export Support Tweak";
+
+/* HTTP 424 */
+"Failed Dependency" = "Failed Dependency";
+
+/* No comment provided by engineer. */
+"Fast, feature-rich VNC server for iOS: remote control made simple." = "Fast, feature-rich VNC server for iOS: remote control made simple.";
+
+/* No comment provided by engineer. */
+"Fetch Available Models" = "Fetch Available Models";
+
+/* HTTP 403 */
+"Forbidden" = "Forbidden";
+
+/* HTTP 302 */
+"Found" = "Found";
+
+/* No comment provided by engineer. */
+"Full-Fledged Automation Framework for Jailbroken iOS." = "Full-Fledged Automation Framework for Jailbroken iOS.";
+
+/* No comment provided by engineer. */
+"Full-Fledged Automation Framework for TrollStore." = "Full-Fledged Automation Framework for TrollStore.";
+
+/* HTTP 504 */
+"Gateway Timeout" = "Gateway Timeout";
+
+/* No comment provided by engineer. */
+"Get Endpoint Key" = "Get Endpoint Key";
+
+/* No comment provided by engineer. */
+"Get Jailbreak Edition" = "Get Jailbreak Edition";
+
+/* HTTP 410 */
+"Gone" = "Gone";
+
+/* HTTP 505 */
+"HTTP Version Not Supported" = "HTTP Version Not Supported";
+
+/* HTTP 418 */
+"I'm a teapot" = "I'm a teapot";
+
+/* HTTP 226 */
+"IM Used" = "IM Used";
+
+/* No comment provided by engineer. */
+"In-place tweak injection with insert_dylib and ChOma." = "In-place tweak injection with insert_dylib and ChOma.";
+
+/* HTTP 1xx */
+"Informational" = "Informational";
+
+/* HTTP 507 */
+"Insufficient Storage" = "Insufficient Storage";
+
+/* HTTP 500 */
+"Internal Server Error" = "Internal Server Error";
+
+/* No comment provided by engineer. */
+"Invalid Response" = "Invalid Response";
+
+/* No comment provided by engineer. */
+"Invalid URL." = "Invalid URL.";
+
+/* No comment provided by engineer. */
+"Keep your everyday apps ready." = "Keep your everyday apps ready.";
+
+/* No comment provided by engineer. */
+"Key" = "Key";
+
+/* HTTP 411 */
+"Length Required" = "Length Required";
+
+/* No comment provided by engineer. */
+"Letterpress" = "Letterpress";
+
+/* HTTP 423 */
+"Locked" = "Locked";
+
+/* HTTP 508 */
+"Loop Detected" = "Loop Detected";
+
+/* HTTP 405 */
+"Method Not Allowed" = "Method Not Allowed";
+
+/* HTTP 421 */
+"Misdirected Request" = "Misdirected Request";
+
+/* No comment provided by engineer. */
+"Model Not Found" = "Model Not Found";
+
+/* No comment provided by engineer. */
+"More from OwnGoal Studio" = "More from OwnGoal Studio";
+
+/* HTTP 301 */
+"Moved Permanently" = "Moved Permanently";
+
+/* HTTP 207 */
+"Multi-Status" = "Multi-Status";
+
+/* HTTP 300 */
+"Multiple Choices" = "Multiple Choices";
+
+/* HTTP 511 */
+"Network Authentication Required" = "Network Authentication Required";
+
+/* HTTP 204 */
+"No Content" = "No Content";
+
+/* HTTP 203 */
+"Non-Authoritative Information" = "Non-Authoritative Information";
+
+/* HTTP 406 */
+"Not Acceptable" = "Not Acceptable";
+
+/* HTTP 510 */
+"Not Extended" = "Not Extended";
+
+/* HTTP 404 */
+"Not Found" = "Not Found";
+
+/* HTTP 501 */
+"Not Implemented" = "Not Implemented";
+
+/* HTTP 304 */
+"Not Modified" = "Not Modified";
+
+/* No comment provided by engineer. */
+"Notice" = "Notice";
+
+/* HTTP 200 */
+"OK" = "OK";
+
+/* HTTP 206 */
+"Partial Content" = "Partial Content";
+
+/* HTTP 413 */
+"Payload Too Large" = "Payload Too Large";
+
+/* HTTP 402 */
+"Payment Required" = "Payment Required";
+
+/* HTTP 308 */
+"Permanent Redirect" = "Permanent Redirect";
+
+/* No comment provided by engineer. */
+"Please be aware that these service providers are not related to our product, and we do not take responsibility for the usage of these services." = "Please be aware that these service providers are not related to our product, and we do not take responsibility for the usage of these services.";
+
+/* HTTP 412 */
+"Precondition Failed" = "Precondition Failed";
+
+/* HTTP 428 */
+"Precondition Required" = "Precondition Required";
+
+/* HTTP 102 */
+"Processing" = "Processing";
+
+/* HTTP 407 */
+"Proxy Authentication Required" = "Proxy Authentication Required";
+
+/* HTTP 416 */
+"Range Not Satisfiable" = "Range Not Satisfiable";
+
+/* No comment provided by engineer. */
+"Recommended Models" = "Recommended Models";
+
+/* No comment provided by engineer. */
+"Recommended models are tested to perform better in most cases." = "Recommended models are tested to perform better in most cases.";
+
+/* No comment provided by engineer. */
+"Record your phone calls like never before." = "Record your phone calls like never before.";
+
+/* HTTP 3xx */
+"Redirection" = "Redirection";
+
+/* HTTP 431 */
+"Request Header Fields Too Large" = "Request Header Fields Too Large";
+
+/* HTTP 408 */
+"Request Timeout" = "Request Timeout";
+
+/* HTTP 205 */
+"Reset Content" = "Reset Content";
+
+/* No comment provided by engineer. */
+"Reveil" = "Reveil";
+
+/* No comment provided by engineer. */
+"Save" = "Save";
+
+/* No comment provided by engineer. */
+"Save %d Endpoints" = "Save %d Endpoints";
+
+/* No comment provided by engineer. */
+"Save Endpoint" = "Save Endpoint";
+
+/* HTTP 303 */
+"See Other" = "See Other";
+
+/* No comment provided by engineer. */
+"Select a model you want to use." = "Select a model you want to use.";
+
+/* HTTP 5xx */
+"Server Error" = "Server Error";
+
+/* No comment provided by engineer. */
+"Service" = "Service";
+
+/* No comment provided by engineer. */
+"Service Disabled" = "Service Disabled";
+
+/* HTTP 503 */
+"Service Unavailable" = "Service Unavailable";
+
+/* No comment provided by engineer. */
+"Shows upload & download speed below the status bar." = "Shows upload & download speed below the status bar.";
+
+/* Unknown HTTP status */
+"Status %d" = "Status %d";
+
+/* HTTP 2xx */
+"Success" = "Success";
+
+/* HTTP 306 (unused) */
+"Switch Proxy" = "Switch Proxy";
+
+/* HTTP 101 */
+"Switching Protocols" = "Switching Protocols";
+
+/* No comment provided by engineer. */
+"Tap to activate your endpoint. Long press for a menu." = "Tap to activate your endpoint. Long press for a menu.";
+
+/* No comment provided by engineer. */
+"Tap to Select" = "Tap to Select";
+
+/* HTTP 307 */
+"Temporary Redirect" = "Temporary Redirect";
+
+/* No comment provided by engineer. */
+"Test Mail Composer" = "Test Mail Composer";
+
+/* No comment provided by engineer. */
+"Test Scene" = "Test Scene";
+
+/* No comment provided by engineer. */
+"Test Text Editor" = "Test Text Editor";
+
+/* No comment provided by engineer. */
+"The authorization of this endpoint. It may be optional." = "The authorization of this endpoint. It may be optional.";
+
+/* No comment provided by engineer. */
+"The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it." = "The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it.";
+
+/* No comment provided by engineer. */
+"The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies." = "The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies.";
+
+/* No comment provided by engineer. */
+"The URL of the endpoint you want to add. It should be OpenAI API endpoint url without v1 suffix." = "The URL of the endpoint you want to add. It should be OpenAI API endpoint url without v1 suffix.";
+
+/* No comment provided by engineer. */
+"These are some common providers, you can get the key from the link below, and then select the provider you want to use." = "These are some common providers, you can get the key from the link below, and then select the provider you want to use.";
+
+/* HTTP 425 */
+"Too Early" = "Too Early";
+
+/* HTTP 429 */
+"Too Many Requests" = "Too Many Requests";
+
+/* No comment provided by engineer. */
+"Touch-Viz" = "Touch-Viz";
+
+/* No comment provided by engineer. */
+"TrollFools" = "TrollFools";
+
+/* No comment provided by engineer. */
+"TrollRecorder" = "TrollRecorder";
+
+/* No comment provided by engineer. */
+"TrollRecorder JB" = "TrollRecorder JB";
+
+/* No comment provided by engineer. */
+"TrollSpeed" = "TrollSpeed";
+
+/* No comment provided by engineer. */
+"TrollSpeed JB" = "TrollSpeed JB";
+
+/* No comment provided by engineer. */
+"TrollVNC" = "TrollVNC";
+
+/* No comment provided by engineer. */
+"TrollVNC JB" = "TrollVNC JB";
+
+/* No comment provided by engineer. */
+"Unable to fetch models. Please check your endpoint address and its key carefully, then try again later." = "Unable to fetch models. Please check your endpoint address and its key carefully, then try again later.";
+
+/* No comment provided by engineer. */
+"Unable to locate tweak support" = "Unable to locate tweak support";
+
+/* HTTP 401 */
+"Unauthorized" = "Unauthorized";
+
+/* HTTP 451 */
+"Unavailable For Legal Reasons" = "Unavailable For Legal Reasons";
+
+/* HTTP 422 */
+"Unprocessable Content" = "Unprocessable Content";
+
+/* HTTP 415 */
+"Unsupported Media Type" = "Unsupported Media Type";
+
+/* HTTP 426 */
+"Upgrade Required" = "Upgrade Required";
+
+/* HTTP 414 */
+"URI Too Long" = "URI Too Long";
+
+/* No comment provided by engineer. */
+"URL" = "URL";
+
+/* No comment provided by engineer. */
+"Use Built-in Endpoint" = "Use Built-in Endpoint";
+
+/* HTTP 305 */
+"Use Proxy" = "Use Proxy";
+
+/* HTTP 506 */
+"Variant Also Negotiates" = "Variant Also Negotiates";
+
+/* No comment provided by engineer. */
+"Visualize your touch interactions!" = "Visualize your touch interactions!";
+
+/* No comment provided by engineer. */
+"Waiting for activation… %d/5" = "Waiting for activation… %d/5";
+
+/* No comment provided by engineer. */
+"Faircopy" = "Faircopy";
+
+/* No comment provided by engineer. */
+"Faircopy Lite" = "Faircopy Lite";
+
+/* No comment provided by engineer. */
+"Faircopy Lite is made for TrollStore with partial support for Faircopy, which is now free for everyone to try out." = "Faircopy Lite is made for TrollStore with partial support for Faircopy, which is now free for everyone to try out.";
+
+/* No comment provided by engineer. */
+"XXTouch Elite" = "XXTouch Elite";
+
+/* No comment provided by engineer. */
+"XXTouch Elite TS" = "XXTouch Elite TS";
+
+/* No comment provided by engineer. */
+"Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them." = "Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them.";

@@ -1,0 +1,470 @@
+/* No comment provided by engineer. */
+"%@ v%@ by OwnGoal Studio" = "%@ v%@ 由「乌龙工作室」倾情献制";
+
+/* HTTP 202 */
+"Accepted" = "Accepted";
+
+/* No comment provided by engineer. */
+"Activate" = "激活";
+
+/* No comment provided by engineer. */
+"Add Endpoint" = "添加节点";
+
+/* No comment provided by engineer. */
+"AI tool within your hands." = "令人爱不释手的 AI 创作助手。";
+
+/* HTTP 208 */
+"Already Reported" = "Already Reported";
+
+/* No comment provided by engineer. */
+"An awesome music visualizer." = "一款超棒的音乐可视化工具。";
+
+/* No comment provided by engineer. */
+"Application Supports" = "应用程序支持";
+
+/* No comment provided by engineer. */
+"AutoRun" = "AutoRun";
+
+/* No comment provided by engineer. */
+"Available Models" = "可用模型列表";
+
+/* HTTP 502 */
+"Bad Gateway" = "Bad Gateway";
+
+/* HTTP 400 */
+"Bad Request" = "Bad Request";
+
+/* No comment provided by engineer. */
+"Bringing back the most advanced system and security analysis tool." = "最先进的系统和安全分析工具，再次归来！";
+
+/* No comment provided by engineer. */
+"Built-in Endpoint" = "内置节点";
+
+/* No comment provided by engineer. */
+"Built-in Endpoint Activated" = "内置节点已激活";
+
+/* No comment provided by engineer. */
+"Cancel" = "取消";
+
+/* No comment provided by engineer. */
+"CFBundleDisplayName" = "清稿";
+
+/* HTTP 4xx */
+"Client Error" = "Client Error";
+
+/* No comment provided by engineer. */
+"Colorful Wallpaper X" = "光影壁纸 X";
+
+/* No comment provided by engineer. */
+"Common Provider" = "常用提供商";
+
+/* No comment provided by engineer. */
+"Complete Edition" = "完整版";
+
+/* HTTP 409 */
+"Conflict" = "Conflict";
+
+/* HTTP 100 */
+"Continue" = "Continue";
+
+/* No comment provided by engineer. */
+"Copy Model" = "复制模型";
+
+/* No comment provided by engineer. */
+"Copy Token" = "复制令牌";
+
+/* No comment provided by engineer. */
+"Copy URL" = "复制地址";
+
+/* HTTP 201 */
+"Created" = "Created";
+
+/* No comment provided by engineer. */
+"Deactivate" = "取消激活";
+
+/* No comment provided by engineer. */
+"Delete" = "删除";
+
+/* No comment provided by engineer. */
+"Dynamic wallpaper with colorful effects." = "多彩效果的动态光影壁纸。";
+
+/* HTTP 103 */
+"Early Hints" = "Early Hints";
+
+/* No comment provided by engineer. */
+"Enable Service" = "启用服务";
+
+/* No comment provided by engineer. */
+"Endpoint Error: %d %@" = "节点返回错误代码：%d %@";
+
+/* No comment provided by engineer. */
+"Endpoint Key" = "节点密钥";
+
+/* No comment provided by engineer. */
+"Endpoint Not Configured" = "未配置上游节点";
+
+/* No comment provided by engineer. */
+"Endpoint Not Reachable" = "无法连接到上游节点";
+
+/* No comment provided by engineer. */
+"Endpoint URL" = "节点地址";
+
+/* No comment provided by engineer. */
+"Endpoints" = "节点";
+
+/* No comment provided by engineer. */
+"Error: %@" = "错误: %@";
+
+/* HTTP 417 */
+"Expectation Failed" = "Expectation Failed";
+
+/* No comment provided by engineer. */
+"Export Support Tweak" = "导出支持插件";
+
+/* HTTP 424 */
+"Failed Dependency" = "Failed Dependency";
+
+/* No comment provided by engineer. */
+"Fast, feature-rich VNC server for iOS: remote control made simple." = "功能强大的 iOS VNC 服务器：远程控制，从未如此简单。";
+
+/* No comment provided by engineer. */
+"Fetch Available Models" = "获取可用模型";
+
+/* HTTP 403 */
+"Forbidden" = "Forbidden";
+
+/* HTTP 302 */
+"Found" = "Found";
+
+/* No comment provided by engineer. */
+"Full-Fledged Automation Framework for Jailbroken iOS." = "适用于越狱 iOS 的全功能自动化框架。";
+
+/* No comment provided by engineer. */
+"Full-Fledged Automation Framework for TrollStore." = "适用于 TrollStore 的全功能自动化框架。";
+
+/* HTTP 504 */
+"Gateway Timeout" = "Gateway Timeout";
+
+/* No comment provided by engineer. */
+"Get Endpoint Key" = "获取密钥";
+
+/* No comment provided by engineer. */
+"Get Jailbreak Edition" = "获取越狱版";
+
+/* HTTP 410 */
+"Gone" = "Gone";
+
+/* HTTP 505 */
+"HTTP Version Not Supported" = "HTTP Version Not Supported";
+
+/* HTTP 418 */
+"I'm a teapot" = "I'm a teapot";
+
+/* HTTP 226 */
+"IM Used" = "IM Used";
+
+/* No comment provided by engineer. */
+"In-place tweak injection with insert_dylib and ChOma." = "使用 insert_dylib 和 ChOma 实现原地注入插件。";
+
+/* HTTP 1xx */
+"Informational" = "Informational";
+
+/* HTTP 507 */
+"Insufficient Storage" = "Insufficient Storage";
+
+/* HTTP 500 */
+"Internal Server Error" = "Internal Server Error";
+
+/* No comment provided by engineer. */
+"Invalid Response" = "无效的响应";
+
+/* No comment provided by engineer. */
+"Invalid URL." = "无效的 URL。";
+
+/* No comment provided by engineer. */
+"Keep your everyday apps ready." = "让常用应用随时待命。";
+
+/* No comment provided by engineer. */
+"Key" = "密钥";
+
+/* HTTP 411 */
+"Length Required" = "Length Required";
+
+/* No comment provided by engineer. */
+"Letterpress" = "活字印刷术";
+
+/* HTTP 423 */
+"Locked" = "Locked";
+
+/* HTTP 508 */
+"Loop Detected" = "Loop Detected";
+
+/* HTTP 405 */
+"Method Not Allowed" = "Method Not Allowed";
+
+/* HTTP 421 */
+"Misdirected Request" = "Misdirected Request";
+
+/* No comment provided by engineer. */
+"Model Not Found" = "未找到模型";
+
+/* No comment provided by engineer. */
+"More from OwnGoal Studio" = "「乌龙工作室」的作品";
+
+/* HTTP 301 */
+"Moved Permanently" = "Moved Permanently";
+
+/* HTTP 207 */
+"Multi-Status" = "Multi-Status";
+
+/* HTTP 300 */
+"Multiple Choices" = "Multiple Choices";
+
+/* HTTP 511 */
+"Network Authentication Required" = "Network Authentication Required";
+
+/* HTTP 204 */
+"No Content" = "No Content";
+
+/* HTTP 203 */
+"Non-Authoritative Information" = "Non-Authoritative Information";
+
+/* HTTP 406 */
+"Not Acceptable" = "Not Acceptable";
+
+/* HTTP 510 */
+"Not Extended" = "Not Extended";
+
+/* HTTP 404 */
+"Not Found" = "Not Found";
+
+/* HTTP 501 */
+"Not Implemented" = "Not Implemented";
+
+/* HTTP 304 */
+"Not Modified" = "Not Modified";
+
+/* No comment provided by engineer. */
+"Notice" = "注意";
+
+/* HTTP 200 */
+"OK" = "OK";
+
+/* HTTP 206 */
+"Partial Content" = "Partial Content";
+
+/* HTTP 413 */
+"Payload Too Large" = "Payload Too Large";
+
+/* HTTP 402 */
+"Payment Required" = "Payment Required";
+
+/* HTTP 308 */
+"Permanent Redirect" = "Permanent Redirect";
+
+/* No comment provided by engineer. */
+"Please be aware that these service providers are not related to our product, and we do not take responsibility for the usage of these services." = "请注意，这些服务提供商与我们的产品无关，我们不对这些服务的使用负责。";
+
+/* HTTP 412 */
+"Precondition Failed" = "Precondition Failed";
+
+/* HTTP 428 */
+"Precondition Required" = "Precondition Required";
+
+/* HTTP 102 */
+"Processing" = "Processing";
+
+/* HTTP 407 */
+"Proxy Authentication Required" = "Proxy Authentication Required";
+
+/* HTTP 416 */
+"Range Not Satisfiable" = "Range Not Satisfiable";
+
+/* No comment provided by engineer. */
+"Recommended Models" = "推荐模型";
+
+/* No comment provided by engineer. */
+"Recommended models are tested to perform better in most cases." = "推荐模型在大多数情况下表现更好。";
+
+/* No comment provided by engineer. */
+"Record your phone calls like never before." = "前所未有的通话录音体验。";
+
+/* HTTP 3xx */
+"Redirection" = "Redirection";
+
+/* HTTP 431 */
+"Request Header Fields Too Large" = "Request Header Fields Too Large";
+
+/* HTTP 408 */
+"Request Timeout" = "Request Timeout";
+
+/* HTTP 205 */
+"Reset Content" = "Reset Content";
+
+/* No comment provided by engineer. */
+"Reveil" = "Reveil";
+
+/* No comment provided by engineer. */
+"Save" = "保存";
+
+/* No comment provided by engineer. */
+"Save %d Endpoints" = "保存 %d 个节点";
+
+/* No comment provided by engineer. */
+"Save Endpoint" = "保存节点";
+
+/* HTTP 303 */
+"See Other" = "See Other";
+
+/* No comment provided by engineer. */
+"Select a model you want to use." = "选择你想要使用的模型。";
+
+/* HTTP 5xx */
+"Server Error" = "Server Error";
+
+/* No comment provided by engineer. */
+"Service" = "服务";
+
+/* No comment provided by engineer. */
+"Service Disabled" = "服务未启用";
+
+/* HTTP 503 */
+"Service Unavailable" = "Service Unavailable";
+
+/* No comment provided by engineer. */
+"Shows upload & download speed below the status bar." = "在状态栏下方显示上传和下载速度。";
+
+/* Unknown HTTP status */
+"Status %d" = "Status %d";
+
+/* HTTP 2xx */
+"Success" = "Success";
+
+/* HTTP 306 (unused) */
+"Switch Proxy" = "Switch Proxy";
+
+/* HTTP 101 */
+"Switching Protocols" = "Switching Protocols";
+
+/* No comment provided by engineer. */
+"Tap to activate your endpoint. Long press for a menu." = "轻按来激活节点。长按以显示菜单。";
+
+/* No comment provided by engineer. */
+"Tap to Select" = "轻按以选用";
+
+/* HTTP 307 */
+"Temporary Redirect" = "Temporary Redirect";
+
+/* No comment provided by engineer. */
+"Test Mail Composer" = "测试邮件编辑器";
+
+/* No comment provided by engineer. */
+"Test Scene" = "测试场景";
+
+/* No comment provided by engineer. */
+"Test Text Editor" = "测试文本编辑器";
+
+/* No comment provided by engineer. */
+"The authorization of this endpoint. It may be optional." = "使用此节点所需的授权信息（可选）。";
+
+/* No comment provided by engineer. */
+"The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it." = "内置节点是插件提供的有限服务。此服务免费且无需配置。你的请求将被记录并存储在我们的服务器上。目前我们没有提供删除的方法。";
+
+/* No comment provided by engineer. */
+"The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies." = "支持插件是启用编辑菜单中的 “%@” 快捷方式所必需的。你可以通过 TrollFools 或类似的技术将其注入到其他应用程序中。";
+
+/* No comment provided by engineer. */
+"The URL of the endpoint you want to add. It should be OpenAI API endpoint url without v1 suffix." = "要添加的节点的地址。应是 OpenAI API 或其他兼容的节点地址，通常不包含 v1 后缀。";
+
+/* No comment provided by engineer. */
+"These are some common providers, you can get the key from the link below, and then select the provider you want to use." = "这些是一些常用的提供商，你可以从下面的链接获取密钥，然后选择你想要使用的提供商。";
+
+/* HTTP 425 */
+"Too Early" = "Too Early";
+
+/* HTTP 429 */
+"Too Many Requests" = "Too Many Requests";
+
+/* No comment provided by engineer. */
+"Touch-Viz" = "Touch-Viz 触摸轨迹";
+
+/* No comment provided by engineer. */
+"TrollFools" = "TrollFools";
+
+/* No comment provided by engineer. */
+"TrollRecorder" = "巨魔录音机";
+
+/* No comment provided by engineer. */
+"TrollRecorder JB" = "巨魔录音机越狱版";
+
+/* No comment provided by engineer. */
+"TrollSpeed" = "巨魔网速";
+
+/* No comment provided by engineer. */
+"TrollSpeed JB" = "巨魔网速越狱版";
+
+/* No comment provided by engineer. */
+"TrollVNC" = "TrollVNC";
+
+/* No comment provided by engineer. */
+"TrollVNC JB" = "TrollVNC JB";
+
+/* No comment provided by engineer. */
+"Unable to fetch models. Please check your endpoint address and its key carefully, then try again later." = "无法获取模型。请仔细检查节点地址和密钥，然后稍后重试。";
+
+/* No comment provided by engineer. */
+"Unable to locate tweak support" = "无法找到插件支持文件";
+
+/* HTTP 401 */
+"Unauthorized" = "Unauthorized";
+
+/* HTTP 451 */
+"Unavailable For Legal Reasons" = "Unavailable For Legal Reasons";
+
+/* HTTP 422 */
+"Unprocessable Content" = "Unprocessable Content";
+
+/* HTTP 415 */
+"Unsupported Media Type" = "Unsupported Media Type";
+
+/* HTTP 426 */
+"Upgrade Required" = "Upgrade Required";
+
+/* HTTP 414 */
+"URI Too Long" = "URI Too Long";
+
+/* No comment provided by engineer. */
+"URL" = "URL";
+
+/* No comment provided by engineer. */
+"Use Built-in Endpoint" = "使用内置节点";
+
+/* HTTP 305 */
+"Use Proxy" = "Use Proxy";
+
+/* HTTP 506 */
+"Variant Also Negotiates" = "Variant Also Negotiates";
+
+/* No comment provided by engineer. */
+"Visualize your touch interactions!" = "可视化你的触摸交互！";
+
+/* No comment provided by engineer. */
+"Waiting for activation… %d/5" = "正在等待激活… %d/5";
+
+/* No comment provided by engineer. */
+"Faircopy" = "清稿";
+
+/* No comment provided by engineer. */
+"Faircopy Lite" = "清稿 Lite";
+
+/* No comment provided by engineer. */
+"Faircopy Lite is made for TrollStore with partial support for Faircopy, which is now free for everyone to try out." = "清稿 Lite 是为巨魔商店特殊制作的版本，支持清稿的部分功能。现可供所有人免费体验。";
+
+/* No comment provided by engineer. */
+"XXTouch Elite" = "XXTouch Elite";
+
+/* No comment provided by engineer. */
+"XXTouch Elite TS" = "XXTouch Elite TS";
+
+/* No comment provided by engineer. */
+"Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them." = "你的配置将被安全地存储，不会被应用程序访问。此服务将会代理你的请求从插件发送到服务器，并将响应发送回插件。";

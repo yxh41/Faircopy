@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ -f /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
+    launchctl unload -w /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
+elif [ -f /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
+    launchctl unload -w /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
+else
+    ROOTHIDE_PATH=$(ls -d /var/containers/Bundle/Application/.jbroot-*/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist)
+    launchctl unload -w $ROOTHIDE_PATH > /dev/null 2>&1
+fi
+
+exit 0

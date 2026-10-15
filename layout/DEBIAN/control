@@ -1,0 +1,9 @@
+Package: wiki.qaq.faircopy
+Name: Faircopy
+Version: 3.0.0-1
+Architecture: iphoneos-arm
+Description: AI tool within your hands.
+Maintainer: Lessica <82flex@gmail.com>
+Author: Lessica <82flex@gmail.com>
+Section: Tweaks
+Depends: firmware (>= 15.0), mobilesubstrate, preferenceloader

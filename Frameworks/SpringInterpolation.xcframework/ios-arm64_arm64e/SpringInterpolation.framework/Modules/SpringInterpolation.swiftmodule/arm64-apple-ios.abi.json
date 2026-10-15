@@ -1,0 +1,2790 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "TopLevel",
+    "printedName": "TopLevel",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "SpringInterpolation",
+        "printedName": "SpringInterpolation",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "config",
+            "printedName": "config",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Configuration",
+                "printedName": "SpringInterpolation.Configuration",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolationAAV6configAB13ConfigurationVvp",
+            "mangledName": "$s19SpringInterpolationAAV6configAB13ConfigurationVvp",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Configuration",
+                    "printedName": "SpringInterpolation.Configuration",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV6configAB13ConfigurationVvg",
+                "mangledName": "$s19SpringInterpolationAAV6configAB13ConfigurationVvg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Configuration",
+                    "printedName": "SpringInterpolation.Configuration",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV6configAB13ConfigurationVvs",
+                "mangledName": "$s19SpringInterpolationAAV6configAB13ConfigurationVvs",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV6configAB13ConfigurationVvM",
+                "mangledName": "$s19SpringInterpolationAAV6configAB13ConfigurationVvM",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "context",
+            "printedName": "context",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Context",
+                "printedName": "SpringInterpolation.Context",
+                "usr": "s:19SpringInterpolationAAV7ContextV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolationAAV7contextAB7ContextVvp",
+            "mangledName": "$s19SpringInterpolationAAV7contextAB7ContextVvp",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Context",
+                    "printedName": "SpringInterpolation.Context",
+                    "usr": "s:19SpringInterpolationAAV7ContextV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV7contextAB7ContextVvg",
+                "mangledName": "$s19SpringInterpolationAAV7contextAB7ContextVvg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Context",
+                    "printedName": "SpringInterpolation.Context",
+                    "usr": "s:19SpringInterpolationAAV7ContextV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV7contextAB7ContextVvs",
+                "mangledName": "$s19SpringInterpolationAAV7contextAB7ContextVvs",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV7contextAB7ContextVvM",
+                "mangledName": "$s19SpringInterpolationAAV7contextAB7ContextVvM",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "value",
+            "printedName": "value",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolationAAV5valueSdvp",
+            "mangledName": "$s19SpringInterpolationAAV5valueSdvp",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV5valueSdvg",
+                "mangledName": "$s19SpringInterpolationAAV5valueSdvg",
+                "moduleName": "SpringInterpolation",
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(config:context:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation",
+                "printedName": "SpringInterpolation",
+                "usr": "s:19SpringInterpolationAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Configuration",
+                "printedName": "SpringInterpolation.Configuration",
+                "hasDefaultArg": true,
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Context",
+                "printedName": "SpringInterpolation.Context",
+                "hasDefaultArg": true,
+                "usr": "s:19SpringInterpolationAAV7ContextV"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:19SpringInterpolationAAV6config7contextA2B13ConfigurationV_AB7ContextVtcfc",
+            "mangledName": "$s19SpringInterpolationAAV6config7contextA2B13ConfigurationV_AB7ContextVtcfc",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "update",
+            "printedName": "update(withDeltaTime:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV6update13withDeltaTimeS2d_tF",
+            "mangledName": "$s19SpringInterpolationAAV6update13withDeltaTimeS2d_tF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl",
+              "DiscardableResult"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setCurrent",
+            "printedName": "setCurrent(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "hasDefaultArg": true,
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV10setCurrentyySd_SdtF",
+            "mangledName": "$s19SpringInterpolationAAV10setCurrentyySd_SdtF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setTarget",
+            "printedName": "setTarget(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV9setTargetyySdF",
+            "mangledName": "$s19SpringInterpolationAAV9setTargetyySdF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setThreshold",
+            "printedName": "setThreshold(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV12setThresholdyySdF",
+            "mangledName": "$s19SpringInterpolationAAV12setThresholdyySdF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "==",
+            "printedName": "==(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation",
+                "printedName": "SpringInterpolation",
+                "usr": "s:19SpringInterpolationAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation",
+                "printedName": "SpringInterpolation",
+                "usr": "s:19SpringInterpolationAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV2eeoiySbAB_ABtFZ",
+            "mangledName": "$s19SpringInterpolationAAV2eeoiySbAB_ABtFZ",
+            "moduleName": "SpringInterpolation",
+            "static": true,
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "hashValue",
+            "printedName": "hashValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolationAAV9hashValueSivp",
+            "mangledName": "$s19SpringInterpolationAAV9hashValueSivp",
+            "moduleName": "SpringInterpolation",
+            "implicit": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolationAAV9hashValueSivg",
+                "mangledName": "$s19SpringInterpolationAAV9hashValueSivg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "hash",
+            "printedName": "hash(into:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Hasher",
+                "printedName": "Swift.Hasher",
+                "paramValueOwnership": "InOut",
+                "usr": "s:s6HasherV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolationAAV4hash4intoys6HasherVz_tF",
+            "mangledName": "$s19SpringInterpolationAAV4hash4intoys6HasherVz_tF",
+            "moduleName": "SpringInterpolation",
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "Configuration",
+            "printedName": "Configuration",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "angularFrequency",
+                "printedName": "angularFrequency",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvp",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvg",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvs",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvM",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV16angularFrequencySdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "dampingRatio",
+                "printedName": "dampingRatio",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvp",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvs",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvM",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV12dampingRatioSdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "threshold",
+                "printedName": "threshold",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV9thresholdSdvp",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9thresholdSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV9thresholdSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9thresholdSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV9thresholdSdvs",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9thresholdSdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV9thresholdSdvM",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9thresholdSdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "stopWhenHitTarget",
+                "printedName": "stopWhenHitTarget",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvp",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Bool",
+                        "printedName": "Swift.Bool",
+                        "usr": "s:Sb"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvg",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Bool",
+                        "printedName": "Swift.Bool",
+                        "usr": "s:Sb"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvs",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvM",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV17stopWhenHitTargetSbvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "defaultAngularFrequency",
+                "printedName": "defaultAngularFrequency",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV23defaultAngularFrequencySdvpZ",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV23defaultAngularFrequencySdvpZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "declAttributes": [
+                  "HasInitialValue",
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV23defaultAngularFrequencySdvgZ",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV23defaultAngularFrequencySdvgZ",
+                    "moduleName": "SpringInterpolation",
+                    "static": true,
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "defaultDampingRatio",
+                "printedName": "defaultDampingRatio",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV19defaultDampingRatioSdvpZ",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV19defaultDampingRatioSdvpZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "declAttributes": [
+                  "HasInitialValue",
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV19defaultDampingRatioSdvgZ",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV19defaultDampingRatioSdvgZ",
+                    "moduleName": "SpringInterpolation",
+                    "static": true,
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(angularFrequency:dampingRatio:threshold:stopWhenHitTarget:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Configuration",
+                    "printedName": "SpringInterpolation.Configuration",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV16angularFrequency12dampingRatio9threshold17stopWhenHitTargetADSd_S2dSbtcfc",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV16angularFrequency12dampingRatio9threshold17stopWhenHitTargetADSd_S2dSbtcfc",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "AccessControl"
+                ],
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Function",
+                "name": "==",
+                "printedName": "==(_:_:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Configuration",
+                    "printedName": "SpringInterpolation.Configuration",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Configuration",
+                    "printedName": "SpringInterpolation.Configuration",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV2eeoiySbAD_ADtFZ",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV2eeoiySbAD_ADtFZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Var",
+                "name": "hashValue",
+                "printedName": "hashValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV9hashValueSivp",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9hashValueSivp",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV13ConfigurationV9hashValueSivg",
+                    "mangledName": "$s19SpringInterpolationAAV13ConfigurationV9hashValueSivg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Function",
+                "name": "hash",
+                "printedName": "hash(into:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Hasher",
+                    "printedName": "Swift.Hasher",
+                    "paramValueOwnership": "InOut",
+                    "usr": "s:s6HasherV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV4hash4intoys6HasherVz_tF",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV4hash4intoys6HasherVz_tF",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Function",
+                "name": "generateParameters",
+                "printedName": "generateParameters(deltaTime:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Parameters",
+                    "printedName": "SpringInterpolation.Parameters",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV18generateParameters9deltaTimeAB0E0VSd_tF",
+                "mangledName": "$s19SpringInterpolationAAV13ConfigurationV18generateParameters9deltaTimeAB0E0VSd_tF",
+                "moduleName": "SpringInterpolation",
+                "isFromExtension": true,
+                "funcSelfKind": "NonMutating"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:19SpringInterpolationAAV13ConfigurationV",
+            "mangledName": "$s19SpringInterpolationAAV13ConfigurationV",
+            "moduleName": "SpringInterpolation",
+            "isFromExtension": true,
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              }
+            ]
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "Context",
+            "printedName": "Context",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "currentPos",
+                "printedName": "currentPos",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV7ContextV10currentPosSdvp",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV10currentPosSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentPosSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentPosSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentPosSdvs",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentPosSdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentPosSdvM",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentPosSdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "currentVel",
+                "printedName": "currentVel",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV7ContextV10currentVelSdvp",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV10currentVelSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentVelSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentVelSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentVelSdvs",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentVelSdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV10currentVelSdvM",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV10currentVelSdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "targetPos",
+                "printedName": "targetPos",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV7ContextV9targetPosSdvp",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV9targetPosSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV9targetPosSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV9targetPosSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Set",
+                    "printedName": "Set()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV9targetPosSdvs",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV9targetPosSdvs",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "set"
+                  },
+                  {
+                    "kind": "Accessor",
+                    "name": "Modify",
+                    "printedName": "Modify()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV9targetPosSdvM",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV9targetPosSdvM",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "_modify"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(currentPos:currentVel:targetPos:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Context",
+                    "printedName": "SpringInterpolation.Context",
+                    "usr": "s:19SpringInterpolationAAV7ContextV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "hasDefaultArg": true,
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:19SpringInterpolationAAV7ContextV10currentPos0D3Vel06targetE0ADSd_S2dtcfc",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV10currentPos0D3Vel06targetE0ADSd_S2dtcfc",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "AccessControl"
+                ],
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Function",
+                "name": "==",
+                "printedName": "==(_:_:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Context",
+                    "printedName": "SpringInterpolation.Context",
+                    "usr": "s:19SpringInterpolationAAV7ContextV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Context",
+                    "printedName": "SpringInterpolation.Context",
+                    "usr": "s:19SpringInterpolationAAV7ContextV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV7ContextV2eeoiySbAD_ADtFZ",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV2eeoiySbAD_ADtFZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Var",
+                "name": "hashValue",
+                "printedName": "hashValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV7ContextV9hashValueSivp",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV9hashValueSivp",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV7ContextV9hashValueSivg",
+                    "mangledName": "$s19SpringInterpolationAAV7ContextV9hashValueSivg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Function",
+                "name": "hash",
+                "printedName": "hash(into:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Hasher",
+                    "printedName": "Swift.Hasher",
+                    "paramValueOwnership": "InOut",
+                    "usr": "s:s6HasherV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV7ContextV4hash4intoys6HasherVz_tF",
+                "mangledName": "$s19SpringInterpolationAAV7ContextV4hash4intoys6HasherVz_tF",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:19SpringInterpolationAAV7ContextV",
+            "mangledName": "$s19SpringInterpolationAAV7ContextV",
+            "moduleName": "SpringInterpolation",
+            "isFromExtension": true,
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              }
+            ]
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "Parameters",
+            "printedName": "Parameters",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "deltaTime",
+                "printedName": "deltaTime",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV9deltaTimeSdvp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV9deltaTimeSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV9deltaTimeSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV9deltaTimeSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "posPosCoef",
+                "printedName": "posPosCoef",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV10posPosCoefSdvp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV10posPosCoefSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV10posPosCoefSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV10posPosCoefSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "posVelCoef",
+                "printedName": "posVelCoef",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV10posVelCoefSdvp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV10posVelCoefSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV10posVelCoefSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV10posVelCoefSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "velPosCoef",
+                "printedName": "velPosCoef",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV10velPosCoefSdvp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV10velPosCoefSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV10velPosCoefSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV10velPosCoefSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "velVelCoef",
+                "printedName": "velVelCoef",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV10velVelCoefSdvp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV10velVelCoefSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV10velVelCoefSdvg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV10velVelCoefSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(deltaTime:posPosCoef:posVelCoef:velPosCoef:velVelCoef:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Parameters",
+                    "printedName": "SpringInterpolation.Parameters",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:19SpringInterpolationAAV10ParametersV9deltaTime10posPosCoef0f3VelH003velgH00jiH0ADSd_S4dtcfc",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV9deltaTime10posPosCoef0f3VelH003velgH00jiH0ADSd_S4dtcfc",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "AccessControl"
+                ],
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Function",
+                "name": "==",
+                "printedName": "==(_:_:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Parameters",
+                    "printedName": "SpringInterpolation.Parameters",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Parameters",
+                    "printedName": "SpringInterpolation.Parameters",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV10ParametersV2eeoiySbAD_ADtFZ",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV2eeoiySbAD_ADtFZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Var",
+                "name": "hashValue",
+                "printedName": "hashValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolationAAV10ParametersV9hashValueSivp",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV9hashValueSivp",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolationAAV10ParametersV9hashValueSivg",
+                    "mangledName": "$s19SpringInterpolationAAV10ParametersV9hashValueSivg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Function",
+                "name": "hash",
+                "printedName": "hash(into:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Hasher",
+                    "printedName": "Swift.Hasher",
+                    "paramValueOwnership": "InOut",
+                    "usr": "s:s6HasherV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolationAAV10ParametersV4hash4intoys6HasherVz_tF",
+                "mangledName": "$s19SpringInterpolationAAV10ParametersV4hash4intoys6HasherVz_tF",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:19SpringInterpolationAAV10ParametersV",
+            "mangledName": "$s19SpringInterpolationAAV10ParametersV",
+            "moduleName": "SpringInterpolation",
+            "isFromExtension": true,
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              }
+            ]
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:19SpringInterpolationAAV",
+        "mangledName": "$s19SpringInterpolationAAV",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "SpringInterpolation2D",
+        "printedName": "SpringInterpolation2D",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "x",
+            "printedName": "x",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation",
+                "printedName": "SpringInterpolation",
+                "usr": "s:19SpringInterpolationAAV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV1xA2AVvp",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1xA2AVvp",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpringInterpolation",
+                    "printedName": "SpringInterpolation",
+                    "usr": "s:19SpringInterpolationAAV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1xA2AVvg",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1xA2AVvg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpringInterpolation",
+                    "printedName": "SpringInterpolation",
+                    "usr": "s:19SpringInterpolationAAV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1xA2AVvs",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1xA2AVvs",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1xA2AVvM",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1xA2AVvM",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "y",
+            "printedName": "y",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation",
+                "printedName": "SpringInterpolation",
+                "usr": "s:19SpringInterpolationAAV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV1yA2AVvp",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1yA2AVvp",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpringInterpolation",
+                    "printedName": "SpringInterpolation",
+                    "usr": "s:19SpringInterpolationAAV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1yA2AVvg",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1yA2AVvg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpringInterpolation",
+                    "printedName": "SpringInterpolation",
+                    "usr": "s:19SpringInterpolationAAV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1yA2AVvs",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1yA2AVvs",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV1yA2AVvM",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV1yA2AVvM",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "Vec2D",
+            "printedName": "Vec2D",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "x",
+                "printedName": "x",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV1xSdvp",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV1xSdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV1xSdvg",
+                    "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV1xSdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "y",
+                "printedName": "y",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV1ySdvp",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV1ySdvp",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "HasStorage",
+                  "AccessControl"
+                ],
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV1ySdvg",
+                    "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV1ySdvg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(x:y:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Vec2D",
+                    "printedName": "SpringInterpolation2D.Vec2D",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV1x1yAESd_Sdtcfc",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV1x1yAESd_Sdtcfc",
+                "moduleName": "SpringInterpolation",
+                "declAttributes": [
+                  "AccessControl"
+                ],
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Function",
+                "name": "==",
+                "printedName": "==(_:_:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Vec2D",
+                    "printedName": "SpringInterpolation2D.Vec2D",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Vec2D",
+                    "printedName": "SpringInterpolation2D.Vec2D",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV2eeoiySbAE_AEtFZ",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV2eeoiySbAE_AEtFZ",
+                "moduleName": "SpringInterpolation",
+                "static": true,
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Var",
+                "name": "hashValue",
+                "printedName": "hashValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV9hashValueSivp",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV9hashValueSivp",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV9hashValueSivg",
+                    "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV9hashValueSivg",
+                    "moduleName": "SpringInterpolation",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Function",
+                "name": "hash",
+                "printedName": "hash(into:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Hasher",
+                    "printedName": "Swift.Hasher",
+                    "paramValueOwnership": "InOut",
+                    "usr": "s:s6HasherV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV4hash4intoys6HasherVz_tF",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV4hash4intoys6HasherVz_tF",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV5Vec2DV",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation2D",
+                "printedName": "SpringInterpolation2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Configuration",
+                "printedName": "SpringInterpolation.Configuration",
+                "hasDefaultArg": true,
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Context",
+                "printedName": "SpringInterpolation.Context",
+                "hasDefaultArg": true,
+                "usr": "s:19SpringInterpolationAAV7ContextV"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DVyAc2AV13ConfigurationV_AD7ContextVtcfc",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DVyAc2AV13ConfigurationV_AD7ContextVtcfc",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "update",
+            "printedName": "update(withDeltaTime:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Vec2D",
+                "printedName": "SpringInterpolation2D.Vec2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV6update13withDeltaTimeAC5Vec2DVSd_tF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV6update13withDeltaTimeAC5Vec2DVSd_tF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl",
+              "DiscardableResult"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setCurrent",
+            "printedName": "setCurrent(_:vel:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Vec2D",
+                "printedName": "SpringInterpolation2D.Vec2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Vec2D",
+                "printedName": "SpringInterpolation2D.Vec2D",
+                "hasDefaultArg": true,
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV10setCurrent_3velyAC5Vec2DV_AGtF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV10setCurrent_3velyAC5Vec2DV_AGtF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setTarget",
+            "printedName": "setTarget(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Vec2D",
+                "printedName": "SpringInterpolation2D.Vec2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV5Vec2DV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV9setTargetyyAC5Vec2DVF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV9setTargetyyAC5Vec2DVF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setThreshold",
+            "printedName": "setThreshold(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV12setThresholdyySdF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV12setThresholdyySdF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "setConfig",
+            "printedName": "setConfig(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Configuration",
+                "printedName": "SpringInterpolation.Configuration",
+                "usr": "s:19SpringInterpolationAAV13ConfigurationV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV9setConfigyyA2AV13ConfigurationVF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV9setConfigyyA2AV13ConfigurationVF",
+            "moduleName": "SpringInterpolation",
+            "declAttributes": [
+              "Mutating",
+              "AccessControl"
+            ],
+            "funcSelfKind": "Mutating"
+          },
+          {
+            "kind": "Function",
+            "name": "==",
+            "printedName": "==(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation2D",
+                "printedName": "SpringInterpolation2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "SpringInterpolation2D",
+                "printedName": "SpringInterpolation2D",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV2eeoiySbAC_ACtFZ",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV2eeoiySbAC_ACtFZ",
+            "moduleName": "SpringInterpolation",
+            "static": true,
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "hashValue",
+            "printedName": "hashValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV9hashValueSivp",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV9hashValueSivp",
+            "moduleName": "SpringInterpolation",
+            "implicit": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:19SpringInterpolation0A15Interpolation2DV9hashValueSivg",
+                "mangledName": "$s19SpringInterpolation0A15Interpolation2DV9hashValueSivg",
+                "moduleName": "SpringInterpolation",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "hash",
+            "printedName": "hash(into:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Hasher",
+                "printedName": "Swift.Hasher",
+                "paramValueOwnership": "InOut",
+                "usr": "s:s6HasherV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:19SpringInterpolation0A15Interpolation2DV4hash4intoys6HasherVz_tF",
+            "mangledName": "$s19SpringInterpolation0A15Interpolation2DV4hash4intoys6HasherVz_tF",
+            "moduleName": "SpringInterpolation",
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:19SpringInterpolation0A15Interpolation2DV",
+        "mangledName": "$s19SpringInterpolation0A15Interpolation2DV",
+        "moduleName": "SpringInterpolation",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": [
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Configuration.swift",
+      "kind": "IntegerLiteral",
+      "offset": 442,
+      "length": 1,
+      "value": "4"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Configuration.swift",
+      "kind": "IntegerLiteral",
+      "offset": 500,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Configuration.swift",
+      "kind": "FloatLiteral",
+      "offset": 676,
+      "length": 6,
+      "value": "0.0001"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Configuration.swift",
+      "kind": "BooleanLiteral",
+      "offset": 722,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Context.swift",
+      "kind": "IntegerLiteral",
+      "offset": 373,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Context.swift",
+      "kind": "IntegerLiteral",
+      "offset": 409,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation+Context.swift",
+      "kind": "IntegerLiteral",
+      "offset": 444,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1256,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation2D.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1051,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/SpringInterpolation\/Sources\/SpringInterpolation\/SpringInterpolation2D.swift",
+      "kind": "IntegerLiteral",
+      "offset": 1057,
+      "length": 1,
+      "value": "0"
+    }
+  ]
+}

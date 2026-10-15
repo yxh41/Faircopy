@@ -1,0 +1,28 @@
+[update]
+tasks = ["code", "normalize"]
+
+[update.code]
+codePaths = ["AIGate"]
+subpathsToIgnore = [".git", "carthage", "pods", "build", ".build", "docs"]
+localizablePaths = ["AIGate"]
+defaultToKeys = true
+additive = true
+customFunction = "LocalizedStringResource"
+unstripped = false
+plistArguments = true
+ignoreKeys = ["#bartycrouch-ignore!", "#bc-ignore!", "#i!"]
+overrideComments = false
+
+[update.normalize]
+paths = ["AIGate"]
+subpathsToIgnore = [".git", "carthage", "pods", "build", ".build", "docs"]
+sourceLocale = "en"
+harmonizeWithSource = true
+sortByKeys = true
+separateWithEmptyLine = true
+
+[lint]
+paths = ["AIGate"]
+subpathsToIgnore = [".git", "carthage", "pods", "build", ".build", "docs"]
+duplicateKeys = true
+emptyValues = true

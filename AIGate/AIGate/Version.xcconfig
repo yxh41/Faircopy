@@ -1,0 +1,12 @@
+//
+//  Version.xcconfig
+//  AIGate
+//
+//  Created by Lessica on 2024/8/24.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://help.apple.com/xcode/#/dev745c5c974
+
+VERSION = 3.0.0
+BUILD_NUMBER = 1

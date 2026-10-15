@@ -1,0 +1,117 @@
+//
+//  WritingToolsView.swift
+//  WritingTools
+//
+//  Created by 秋星桥 on 2024/8/8.
+//
+
+import SwiftUI
+
+struct WritingToolsView: View {
+    @StateObject var cfg = Configurator.shared
+    @StateObject var context: Presenter.Context
+    @StateObject var textProxy: TextProxy
+
+    @Environment(\.dismiss) var dismiss
+
+    @State var isRunning: Bool = false
+
+    @State var isRetrying: Bool = false
+    @State var shouldRetryWhenActive: Bool = false
+
+    @State var model: String = ""
+    @State var modelList: ModelTree = .init(values: [:])
+    @State var output: String = ""
+
+    @State var headerDescription: String = ""
+    @State var isHeaderDescriptionAnimated: Bool = true
+
+    @State var error: Error? = nil
+    @State var taskPrompt: Prompt = .rewrite
+
+    @State var customPrompts: [CustomPromptEntry] = []
+    @State var activeCustomPrompt: CustomPromptEntry? = nil
+
+    @State var initialAnimation: CGFloat = 0
+    @State var isClosePressed: Bool = false
+
+    var shouldShowError: Bool {
+        error != nil
+    }
+
+    var shouldShowOutput: Bool {
+        isRunning || !output.isEmpty
+    }
+
+    var shouldShowSelectiveButtons: Bool {
+        !shouldShowError && !shouldShowOutput
+    }
+
+    let spacing: CGFloat = 16
+    let innerSpacing: CGFloat = 8
+
+    let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
+
+    init(context: Presenter.Context) {
+        _context = .init(wrappedValue: context)
+        _textProxy = .init(wrappedValue: context.textProxy)
+    }
+
+    public var body: some View {
+        VStack(spacing: 16) {
+            title
+            if shouldShowError {
+                errorView
+            } else if shouldShowOutput {
+                outputPanel
+            } else {
+                selectiveButtonPanels
+            }
+        }
+        .animation(.spring, value: isRunning)
+        .animation(.spring, value: output)
+        .animation(.spring, value: error?.localizedDescription)
+        .padding(16)
+        .background(background)
+        .foregroundStyle(.white)
+        .onAppear {
+            initialAnimation = 1
+        }
+        .onChange(of: context.scenePhase) { phase in
+            switch phase {
+            case .active:
+                if shouldRetryWhenActive {
+                    error = nil
+                    isRetrying = true
+                    shouldRetryWhenActive = false
+                    executeCurrentTask(delayedForRetry: true)
+                }
+            default:
+                break
+            }
+        }
+        .onChange(of: shouldShowSelectiveButtons) { animated in
+            isHeaderDescriptionAnimated = animated
+        }
+    }
+}
+
+extension WritingToolsView {
+    struct ModelHandler: Codable, Identifiable, Equatable {
+        let id: UUID
+        let model: String
+        let url: URL
+    }
+
+    /// A user-defined prompt fetched from the gate daemon.
+    struct CustomPromptEntry: Codable, Identifiable, Equatable {
+        let id: UUID
+        let title: String
+        let prompt: String
+    }
+
+    struct ModelTree: Codable, Equatable {
+        var keys: [String] { Array(values.keys) }
+        let values: [String: [ModelHandler]]
+    }
+}

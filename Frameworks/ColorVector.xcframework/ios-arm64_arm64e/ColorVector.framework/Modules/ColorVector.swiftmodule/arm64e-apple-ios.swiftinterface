@@ -1,0 +1,85 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
+// swift-module-flags: -target arm64e-apple-ios14.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name ColorVector
+import Foundation
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+public enum ColorConversion {
+  public static func initialize()
+  public static func convert(_ color: ColorVector, to: ColorVector.Space) -> ColorVector
+}
+extension ColorVector {
+  public var labo: (l: Double, a: Double, b: Double, o: Double) {
+    get
+  }
+  public var lab: (l: Double, a: Double, b: Double) {
+    get
+  }
+}
+extension ColorVector {
+  public var lcho: (l: Double, c: Double, h: Double, o: Double) {
+    get
+  }
+  public var lcha: (l: Double, c: Double, h: Double, a: Double) {
+    get
+  }
+  public var lch: (l: Double, c: Double, h: Double) {
+    get
+  }
+}
+extension ColorVector {
+  public var rgbo: (r: Double, g: Double, b: Double, o: Double) {
+    get
+  }
+  public var rgba: (r: Double, g: Double, b: Double, a: Double) {
+    get
+  }
+  public var rgb: (r: Double, g: Double, b: Double) {
+    get
+  }
+}
+extension ColorVector {
+  public var xyzo: (x: Double, y: Double, z: Double, o: Double) {
+    get
+  }
+  public var xyza: (x: Double, y: Double, z: Double, a: Double) {
+    get
+  }
+  public var xyz: (x: Double, y: Double, z: Double) {
+    get
+  }
+}
+public struct ColorVector : Codable, Equatable, Hashable {
+  public var v: SIMD4<Double>
+  public var opacity: Double {
+    get
+  }
+  public enum Space : String, Codable, Equatable, Hashable, CaseIterable {
+    case rgb
+    case lch
+    case lab
+    case xyz
+    public init?(rawValue: Swift.String)
+    public typealias AllCases = [ColorVector.Space]
+    public typealias RawValue = Swift.String
+    public static var allCases: [ColorVector.Space] {
+      get
+    }
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public var space: Space
+  public init(v: SIMD4<Double> = .init(0, 0, 0, 0), space: Space = .rgb)
+  public func color(in space: Space) -> ColorVector
+  public static func == (a: ColorVector, b: ColorVector) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public var hashValue: Swift.Int {
+    get
+  }
+  public init(from decoder: any Swift.Decoder) throws
+}
+extension ColorVector.Space : Swift.RawRepresentable {}

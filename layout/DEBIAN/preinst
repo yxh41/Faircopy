@@ -1,0 +1,14 @@
+#!/bin/sh
+
+AIGATE_PATH=$(uicache -l | grep wiki.qaq.AIGate)
+echo $AIGATE_PATH | grep /containers/
+IS_AIGATE=$?
+
+if [ $IS_AIGATE -eq 0 ]; then
+    echo $AIGATE_PATH | grep .jbroot-
+    IS_ROOTHIDE_AIGATE=$?
+    if [ $IS_ROOTHIDE_AIGATE -ne 0 ]; then
+        echo "Faircopy is already installed from TrollStore, please uninstall it first."
+        exit 1
+    fi
+fi

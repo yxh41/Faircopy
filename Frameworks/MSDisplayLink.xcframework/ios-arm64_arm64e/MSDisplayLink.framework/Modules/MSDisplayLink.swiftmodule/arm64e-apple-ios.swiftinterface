@@ -1,0 +1,25 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
+// swift-module-flags: -target arm64e-apple-ios14.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name MSDisplayLink
+import Combine
+import Foundation
+import Swift
+import SwiftUI
+import UIKit
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+public struct DisplayLinkModifier : ViewModifier {
+  public init(scheduleToMainThread: Bool = true, _ callback: @escaping () -> Void)
+  @_Concurrency.MainActor(unsafe) public func body(content: Content) -> some View
+  
+  public typealias Body = @_opaqueReturnTypeOf("$s13MSDisplayLink07DisplayB8ModifierV4body7contentQr7SwiftUI05_ViewD8_ContentVyACG_tF", 0) __
+}
+public protocol DisplayLinkDelegate : AnyObject {
+  func synchronization()
+}
+public class DisplayLink {
+  public init()
+  @objc deinit
+  public func delegatingObject(_ object: DisplayLinkDelegate?)
+}

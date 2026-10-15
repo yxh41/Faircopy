@@ -1,0 +1,97 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
+// swift-module-flags: -target arm64-apple-ios14.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name SpringInterpolation
+import Foundation
+import Swift
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+extension SpringInterpolation {
+  public struct Configuration : Equatable, Hashable {
+    public var angularFrequency: Double
+    public var dampingRatio: Double
+    public var threshold: Double
+    public var stopWhenHitTarget: Bool
+    public static let defaultAngularFrequency: Double
+    public static let defaultDampingRatio: Double
+    public init(angularFrequency: Double = defaultAngularFrequency, dampingRatio: Double = defaultDampingRatio, threshold: Double = 0.0001, stopWhenHitTarget: Bool = false)
+    public static func == (a: SpringInterpolation.Configuration, b: SpringInterpolation.Configuration) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+}
+extension SpringInterpolation {
+  public struct Context : Equatable, Hashable {
+    public var currentPos: Double
+    public var currentVel: Double
+    public var targetPos: Double
+    public init(currentPos: Double = 0, currentVel: Double = 0, targetPos: Double = 0)
+    public static func == (a: SpringInterpolation.Context, b: SpringInterpolation.Context) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+}
+extension SpringInterpolation.Configuration {
+  public func generateParameters(deltaTime: Double) -> SpringInterpolation.Parameters
+}
+extension SpringInterpolation {
+  public struct Parameters : Equatable, Hashable {
+    public let deltaTime: Double
+    public let posPosCoef: Double, posVelCoef: Double
+    public let velPosCoef: Double, velVelCoef: Double
+    public init(deltaTime: Double, posPosCoef: Double, posVelCoef: Double, velPosCoef: Double, velVelCoef: Double)
+    public static func == (a: SpringInterpolation.Parameters, b: SpringInterpolation.Parameters) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+}
+public struct SpringInterpolation : Equatable, Hashable {
+  public var config: Configuration
+  public var context: Context
+  public var value: Double {
+    get
+  }
+  public init(config: Configuration = .init(), context: Context = .init())
+  @discardableResult
+  public mutating func update(withDeltaTime interval: TimeInterval) -> Double
+  public mutating func setCurrent(_ pos: Double, _ vel: Double = 0)
+  public mutating func setTarget(_ pos: Double)
+  public mutating func setThreshold(_ threshold: Double)
+  public static func == (a: SpringInterpolation, b: SpringInterpolation) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+public struct SpringInterpolation2D : Equatable, Hashable {
+  public var x: SpringInterpolation
+  public var y: SpringInterpolation
+  public struct Vec2D : Equatable, Hashable {
+    public let x: Double
+    public let y: Double
+    public init(x: Double, y: Double)
+    public static func == (a: SpringInterpolation2D.Vec2D, b: SpringInterpolation2D.Vec2D) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  public init(_ config: SpringInterpolation.Configuration = .init(), _ context: SpringInterpolation.Context = .init())
+  @discardableResult
+  public mutating func update(withDeltaTime interval: TimeInterval) -> Vec2D
+  public mutating func setCurrent(_ pos: Vec2D, vel: Vec2D = .init(x: 0, y: 0))
+  public mutating func setTarget(_ pos: Vec2D)
+  public mutating func setThreshold(_ threshold: Double)
+  public mutating func setConfig(_ config: SpringInterpolation.Configuration)
+  public static func == (a: SpringInterpolation2D, b: SpringInterpolation2D) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}

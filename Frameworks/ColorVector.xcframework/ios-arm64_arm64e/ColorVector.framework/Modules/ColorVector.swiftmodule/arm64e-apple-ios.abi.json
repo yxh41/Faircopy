@@ -1,0 +1,2515 @@
+{
+  "ABIRoot": {
+    "kind": "Root",
+    "name": "TopLevel",
+    "printedName": "TopLevel",
+    "children": [
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "ColorConversion",
+        "printedName": "ColorConversion",
+        "children": [
+          {
+            "kind": "TypeDecl",
+            "name": "SpaceTuple",
+            "printedName": "SpaceTuple",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "from",
+                "printedName": "from",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV4fromA2AV0D0Ovp",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV4fromA2AV0D0Ovp",
+                "moduleName": "ColorVector",
+                "declAttributes": [
+                  "HasStorage",
+                  "RawDocComment"
+                ],
+                "fixedbinaryorder": 0,
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV4fromA2AV0D0Ovg",
+                    "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV4fromA2AV0D0Ovg",
+                    "moduleName": "ColorVector",
+                    "implicit": true,
+                    "declAttributes": [
+                      "Transparent"
+                    ],
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Var",
+                "name": "to",
+                "printedName": "to",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV2toA2AV0D0Ovp",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV2toA2AV0D0Ovp",
+                "moduleName": "ColorVector",
+                "declAttributes": [
+                  "HasStorage",
+                  "RawDocComment"
+                ],
+                "fixedbinaryorder": 1,
+                "isLet": true,
+                "hasStorage": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV2toA2AV0D0Ovg",
+                    "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV2toA2AV0D0Ovg",
+                    "moduleName": "ColorVector",
+                    "implicit": true,
+                    "declAttributes": [
+                      "Transparent"
+                    ],
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(from:to:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpaceTuple",
+                    "printedName": "ColorVector.ColorConversion.SpaceTuple",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV4from2toAe2AV0D0O_AJtcfc",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV4from2toAe2AV0D0O_AJtcfc",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(from:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpaceTuple",
+                    "printedName": "ColorVector.ColorConversion.SpaceTuple",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Decoder",
+                    "printedName": "any Swift.Decoder",
+                    "usr": "s:s7DecoderP"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV4fromAEs7Decoder_p_tKcfc",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV4fromAEs7Decoder_p_tKcfc",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "throwing": true,
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Function",
+                "name": "encode",
+                "printedName": "encode(to:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Encoder",
+                    "printedName": "any Swift.Encoder",
+                    "usr": "s:s7EncoderP"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV6encode2toys7Encoder_p_tKF",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV6encode2toys7Encoder_p_tKF",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "throwing": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Function",
+                "name": "==",
+                "printedName": "==(_:_:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpaceTuple",
+                    "printedName": "ColorVector.ColorConversion.SpaceTuple",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SpaceTuple",
+                    "printedName": "ColorVector.ColorConversion.SpaceTuple",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV2eeoiySbAE_AEtFZ",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV2eeoiySbAE_AEtFZ",
+                "moduleName": "ColorVector",
+                "static": true,
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              },
+              {
+                "kind": "Var",
+                "name": "hashValue",
+                "printedName": "hashValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV9hashValueSivp",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV9hashValueSivp",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV9hashValueSivg",
+                    "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV9hashValueSivg",
+                    "moduleName": "ColorVector",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Function",
+                "name": "hash",
+                "printedName": "hash(into:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Hasher",
+                    "printedName": "Swift.Hasher",
+                    "paramValueOwnership": "InOut",
+                    "usr": "s:s6HasherV"
+                  }
+                ],
+                "declKind": "Func",
+                "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV4hash4intoys6HasherVz_tF",
+                "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV4hash4intoys6HasherVz_tF",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "funcSelfKind": "NonMutating"
+              }
+            ],
+            "declKind": "Struct",
+            "usr": "s:11ColorVector0A10ConversionO10SpaceTupleV",
+            "mangledName": "$s11ColorVector0A10ConversionO10SpaceTupleV",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "RawDocComment"
+            ],
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "Decodable",
+                "printedName": "Decodable",
+                "usr": "s:Se",
+                "mangledName": "$sSe"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Encodable",
+                "printedName": "Encodable",
+                "usr": "s:SE",
+                "mangledName": "$sSE"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "initialize",
+            "printedName": "initialize()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO10initializeyyFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO10initializeyyFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "declAttributes": [
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert",
+            "printedName": "convert(_:to:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Space",
+                "printedName": "ColorVector.Space",
+                "usr": "s:11ColorVectorAAV5SpaceO"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO7convert_2toA2AVAF_AF5SpaceOtFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO7convert_2toA2AVAF_AF5SpaceOtFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "declAttributes": [
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_lab_to_lch",
+            "printedName": "convert_from_lab_to_lch(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_lab_to_lchyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_lab_to_lchyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_lab_to_xyz",
+            "printedName": "convert_from_lab_to_xyz(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_lab_to_xyzyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_lab_to_xyzyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_lch_to_lab",
+            "printedName": "convert_from_lch_to_lab(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_lch_to_labyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_lch_to_labyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_rgb_to_xyz",
+            "printedName": "convert_from_rgb_to_xyz(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_rgb_to_xyzyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_rgb_to_xyzyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_xyz_to_lab",
+            "printedName": "convert_from_xyz_to_lab(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_xyz_to_labyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_xyz_to_labyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "convert_from_xyz_to_rgb",
+            "printedName": "convert_from_xyz_to_rgb(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVector0A10ConversionO23convert_from_xyz_to_rgbyA2AVAEFZ",
+            "mangledName": "$s11ColorVector0A10ConversionO23convert_from_xyz_to_rgbyA2AVAEFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "isFromExtension": true,
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:11ColorVector0A10ConversionO",
+        "mangledName": "$s11ColorVector0A10ConversionO",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "AccessControl"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "RawDocComment"
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "ColorVector",
+        "printedName": "ColorVector",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "v",
+            "printedName": "v",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "SIMD4",
+                "printedName": "Swift.SIMD4<Swift.Double>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "usr": "s:s5SIMD4V"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV1vs5SIMD4VySdGvp",
+            "mangledName": "$s11ColorVectorAAV1vs5SIMD4VySdGvp",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SIMD4",
+                    "printedName": "Swift.SIMD4<Swift.Double>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "usr": "s:s5SIMD4V"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV1vs5SIMD4VySdGvg",
+                "mangledName": "$s11ColorVectorAAV1vs5SIMD4VySdGvg",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "SIMD4",
+                    "printedName": "Swift.SIMD4<Swift.Double>",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ],
+                    "usr": "s:s5SIMD4V"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV1vs5SIMD4VySdGvs",
+                "mangledName": "$s11ColorVectorAAV1vs5SIMD4VySdGvs",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV1vs5SIMD4VySdGvM",
+                "mangledName": "$s11ColorVectorAAV1vs5SIMD4VySdGvM",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "opacity",
+            "printedName": "opacity",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV7opacitySdvp",
+            "mangledName": "$s11ColorVectorAAV7opacitySdvp",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV7opacitySdvg",
+                "mangledName": "$s11ColorVectorAAV7opacitySdvg",
+                "moduleName": "ColorVector",
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "TypeDecl",
+            "name": "Space",
+            "printedName": "Space",
+            "children": [
+              {
+                "kind": "Var",
+                "name": "rgb",
+                "printedName": "rgb",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(ColorVector.Space.Type) -> ColorVector.Space",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Metatype",
+                        "printedName": "ColorVector.Space.Type",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "EnumElement",
+                "usr": "s:11ColorVectorAAV5SpaceO3rgbyA2DmF",
+                "mangledName": "$s11ColorVectorAAV5SpaceO3rgbyA2DmF",
+                "moduleName": "ColorVector"
+              },
+              {
+                "kind": "Var",
+                "name": "lch",
+                "printedName": "lch",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(ColorVector.Space.Type) -> ColorVector.Space",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Metatype",
+                        "printedName": "ColorVector.Space.Type",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "EnumElement",
+                "usr": "s:11ColorVectorAAV5SpaceO3lchyA2DmF",
+                "mangledName": "$s11ColorVectorAAV5SpaceO3lchyA2DmF",
+                "moduleName": "ColorVector"
+              },
+              {
+                "kind": "Var",
+                "name": "lab",
+                "printedName": "lab",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(ColorVector.Space.Type) -> ColorVector.Space",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Metatype",
+                        "printedName": "ColorVector.Space.Type",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "EnumElement",
+                "usr": "s:11ColorVectorAAV5SpaceO3labyA2DmF",
+                "mangledName": "$s11ColorVectorAAV5SpaceO3labyA2DmF",
+                "moduleName": "ColorVector"
+              },
+              {
+                "kind": "Var",
+                "name": "xyz",
+                "printedName": "xyz",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(ColorVector.Space.Type) -> ColorVector.Space",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Metatype",
+                        "printedName": "ColorVector.Space.Type",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "EnumElement",
+                "usr": "s:11ColorVectorAAV5SpaceO3xyzyA2DmF",
+                "mangledName": "$s11ColorVectorAAV5SpaceO3xyzyA2DmF",
+                "moduleName": "ColorVector"
+              },
+              {
+                "kind": "Var",
+                "name": "allCases",
+                "printedName": "allCases",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Array",
+                    "printedName": "[ColorVector.Space]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      }
+                    ],
+                    "usr": "s:Sa"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:11ColorVectorAAV5SpaceO8allCasesSayADGvpZ",
+                "mangledName": "$s11ColorVectorAAV5SpaceO8allCasesSayADGvpZ",
+                "moduleName": "ColorVector",
+                "static": true,
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Array",
+                        "printedName": "[ColorVector.Space]",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ],
+                        "usr": "s:Sa"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:11ColorVectorAAV5SpaceO8allCasesSayADGvgZ",
+                    "mangledName": "$s11ColorVectorAAV5SpaceO8allCasesSayADGvgZ",
+                    "moduleName": "ColorVector",
+                    "static": true,
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              },
+              {
+                "kind": "Constructor",
+                "name": "init",
+                "printedName": "init(rawValue:)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "ColorVector.Space?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Space",
+                        "printedName": "ColorVector.Space",
+                        "usr": "s:11ColorVectorAAV5SpaceO"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Constructor",
+                "usr": "s:11ColorVectorAAV5SpaceO8rawValueADSgSS_tcfc",
+                "mangledName": "$s11ColorVectorAAV5SpaceO8rawValueADSgSS_tcfc",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "init_kind": "Designated"
+              },
+              {
+                "kind": "Var",
+                "name": "rawValue",
+                "printedName": "rawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Var",
+                "usr": "s:11ColorVectorAAV5SpaceO8rawValueSSvp",
+                "mangledName": "$s11ColorVectorAAV5SpaceO8rawValueSSvp",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessors": [
+                  {
+                    "kind": "Accessor",
+                    "name": "Get",
+                    "printedName": "Get()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "declKind": "Accessor",
+                    "usr": "s:11ColorVectorAAV5SpaceO8rawValueSSvg",
+                    "mangledName": "$s11ColorVectorAAV5SpaceO8rawValueSSvg",
+                    "moduleName": "ColorVector",
+                    "implicit": true,
+                    "accessorKind": "get"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Enum",
+            "usr": "s:11ColorVectorAAV5SpaceO",
+            "mangledName": "$s11ColorVectorAAV5SpaceO",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "enumRawTypeName": "String",
+            "conformances": [
+              {
+                "kind": "Conformance",
+                "name": "RawRepresentable",
+                "printedName": "RawRepresentable",
+                "children": [
+                  {
+                    "kind": "TypeWitness",
+                    "name": "RawValue",
+                    "printedName": "RawValue",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ]
+                  }
+                ],
+                "usr": "s:SY",
+                "mangledName": "$sSY"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Decodable",
+                "printedName": "Decodable",
+                "usr": "s:Se",
+                "mangledName": "$sSe"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Encodable",
+                "printedName": "Encodable",
+                "usr": "s:SE",
+                "mangledName": "$sSE"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Equatable",
+                "printedName": "Equatable",
+                "usr": "s:SQ",
+                "mangledName": "$sSQ"
+              },
+              {
+                "kind": "Conformance",
+                "name": "Hashable",
+                "printedName": "Hashable",
+                "usr": "s:SH",
+                "mangledName": "$sSH"
+              },
+              {
+                "kind": "Conformance",
+                "name": "CaseIterable",
+                "printedName": "CaseIterable",
+                "children": [
+                  {
+                    "kind": "TypeWitness",
+                    "name": "AllCases",
+                    "printedName": "AllCases",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Array",
+                        "printedName": "[ColorVector.Space]",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Space",
+                            "printedName": "ColorVector.Space",
+                            "usr": "s:11ColorVectorAAV5SpaceO"
+                          }
+                        ],
+                        "usr": "s:Sa"
+                      }
+                    ]
+                  }
+                ],
+                "usr": "s:s12CaseIterableP",
+                "mangledName": "$ss12CaseIterableP"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "space",
+            "printedName": "space",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Space",
+                "printedName": "ColorVector.Space",
+                "usr": "s:11ColorVectorAAV5SpaceO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV5spaceAB5SpaceOvp",
+            "mangledName": "$s11ColorVectorAAV5spaceAB5SpaceOvp",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV5spaceAB5SpaceOvg",
+                "mangledName": "$s11ColorVectorAAV5spaceAB5SpaceOvg",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Space",
+                    "printedName": "ColorVector.Space",
+                    "usr": "s:11ColorVectorAAV5SpaceO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV5spaceAB5SpaceOvs",
+                "mangledName": "$s11ColorVectorAAV5spaceAB5SpaceOvs",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV5spaceAB5SpaceOvM",
+                "mangledName": "$s11ColorVectorAAV5spaceAB5SpaceOvM",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(v:space:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "SIMD4",
+                "printedName": "Swift.SIMD4<Swift.Double>",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:s5SIMD4V"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Space",
+                "printedName": "ColorVector.Space",
+                "hasDefaultArg": true,
+                "usr": "s:11ColorVectorAAV5SpaceO"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:11ColorVectorAAV1v5spaceABs5SIMD4VySdG_AB5SpaceOtcfc",
+            "mangledName": "$s11ColorVectorAAV1v5spaceABs5SIMD4VySdG_AB5SpaceOtcfc",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "color",
+            "printedName": "color(in:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Space",
+                "printedName": "ColorVector.Space",
+                "usr": "s:11ColorVectorAAV5SpaceO"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVectorAAV5color2inA2B5SpaceO_tF",
+            "mangledName": "$s11ColorVectorAAV5color2inA2B5SpaceO_tF",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(from:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Decoder",
+                "printedName": "any Swift.Decoder",
+                "usr": "s:s7DecoderP"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:11ColorVectorAAV4fromABs7Decoder_p_tKcfc",
+            "mangledName": "$s11ColorVectorAAV4fromABs7Decoder_p_tKcfc",
+            "moduleName": "ColorVector",
+            "implicit": true,
+            "throwing": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Function",
+            "name": "encode",
+            "printedName": "encode(to:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Encoder",
+                "printedName": "any Swift.Encoder",
+                "usr": "s:s7EncoderP"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVectorAAV6encode2toys7Encoder_p_tKF",
+            "mangledName": "$s11ColorVectorAAV6encode2toys7Encoder_p_tKF",
+            "moduleName": "ColorVector",
+            "implicit": true,
+            "throwing": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "==",
+            "printedName": "==(_:_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "ColorVector",
+                "printedName": "ColorVector",
+                "usr": "s:11ColorVectorAAV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVectorAAV2eeoiySbAB_ABtFZ",
+            "mangledName": "$s11ColorVectorAAV2eeoiySbAB_ABtFZ",
+            "moduleName": "ColorVector",
+            "static": true,
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "hashValue",
+            "printedName": "hashValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV9hashValueSivp",
+            "mangledName": "$s11ColorVectorAAV9hashValueSivp",
+            "moduleName": "ColorVector",
+            "implicit": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV9hashValueSivg",
+                "mangledName": "$s11ColorVectorAAV9hashValueSivg",
+                "moduleName": "ColorVector",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "hash",
+            "printedName": "hash(into:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Hasher",
+                "printedName": "Swift.Hasher",
+                "paramValueOwnership": "InOut",
+                "usr": "s:s6HasherV"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:11ColorVectorAAV4hash4intoys6HasherVz_tF",
+            "mangledName": "$s11ColorVectorAAV4hash4intoys6HasherVz_tF",
+            "moduleName": "ColorVector",
+            "implicit": true,
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Var",
+            "name": "labo",
+            "printedName": "labo",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(l: Swift.Double, a: Swift.Double, b: Swift.Double, o: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4laboSd1l_Sd1aSd1bSd1otvp",
+            "mangledName": "$s11ColorVectorAAV4laboSd1l_Sd1aSd1bSd1otvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(l: Swift.Double, a: Swift.Double, b: Swift.Double, o: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4laboSd1l_Sd1aSd1bSd1otvg",
+                "mangledName": "$s11ColorVectorAAV4laboSd1l_Sd1aSd1bSd1otvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "lab",
+            "printedName": "lab",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(l: Swift.Double, a: Swift.Double, b: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV3labSd1l_Sd1aSd1btvp",
+            "mangledName": "$s11ColorVectorAAV3labSd1l_Sd1aSd1btvp",
+            "moduleName": "ColorVector",
+            "declAttributes": [
+              "RawDocComment"
+            ],
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(l: Swift.Double, a: Swift.Double, b: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV3labSd1l_Sd1aSd1btvg",
+                "mangledName": "$s11ColorVectorAAV3labSd1l_Sd1aSd1btvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "lcho",
+            "printedName": "lcho",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double, o: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4lchoSd1l_Sd1cSd1hSd1otvp",
+            "mangledName": "$s11ColorVectorAAV4lchoSd1l_Sd1cSd1hSd1otvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double, o: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4lchoSd1l_Sd1cSd1hSd1otvg",
+                "mangledName": "$s11ColorVectorAAV4lchoSd1l_Sd1cSd1hSd1otvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "lcha",
+            "printedName": "lcha",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double, a: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4lchaSd1l_Sd1cSd1hSd1atvp",
+            "mangledName": "$s11ColorVectorAAV4lchaSd1l_Sd1cSd1hSd1atvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double, a: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4lchaSd1l_Sd1cSd1hSd1atvg",
+                "mangledName": "$s11ColorVectorAAV4lchaSd1l_Sd1cSd1hSd1atvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "lch",
+            "printedName": "lch",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV3lchSd1l_Sd1cSd1htvp",
+            "mangledName": "$s11ColorVectorAAV3lchSd1l_Sd1cSd1htvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(l: Swift.Double, c: Swift.Double, h: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV3lchSd1l_Sd1cSd1htvg",
+                "mangledName": "$s11ColorVectorAAV3lchSd1l_Sd1cSd1htvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "rgbo",
+            "printedName": "rgbo",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double, o: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4rgboSd1r_Sd1gSd1bSd1otvp",
+            "mangledName": "$s11ColorVectorAAV4rgboSd1r_Sd1gSd1bSd1otvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double, o: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4rgboSd1r_Sd1gSd1bSd1otvg",
+                "mangledName": "$s11ColorVectorAAV4rgboSd1r_Sd1gSd1bSd1otvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "rgba",
+            "printedName": "rgba",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double, a: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4rgbaSd1r_Sd1gSd1bSd1atvp",
+            "mangledName": "$s11ColorVectorAAV4rgbaSd1r_Sd1gSd1bSd1atvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double, a: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4rgbaSd1r_Sd1gSd1bSd1atvg",
+                "mangledName": "$s11ColorVectorAAV4rgbaSd1r_Sd1gSd1bSd1atvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "rgb",
+            "printedName": "rgb",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV3rgbSd1r_Sd1gSd1btvp",
+            "mangledName": "$s11ColorVectorAAV3rgbSd1r_Sd1gSd1btvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(r: Swift.Double, g: Swift.Double, b: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV3rgbSd1r_Sd1gSd1btvg",
+                "mangledName": "$s11ColorVectorAAV3rgbSd1r_Sd1gSd1btvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "xyzo",
+            "printedName": "xyzo",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double, o: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4xyzoSd1x_Sd1ySd1zSd1otvp",
+            "mangledName": "$s11ColorVectorAAV4xyzoSd1x_Sd1ySd1zSd1otvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double, o: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4xyzoSd1x_Sd1ySd1zSd1otvg",
+                "mangledName": "$s11ColorVectorAAV4xyzoSd1x_Sd1ySd1zSd1otvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "xyza",
+            "printedName": "xyza",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double, a: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV4xyzaSd1x_Sd1ySd1zSd1atvp",
+            "mangledName": "$s11ColorVectorAAV4xyzaSd1x_Sd1ySd1zSd1atvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double, a: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV4xyzaSd1x_Sd1ySd1zSd1atvg",
+                "mangledName": "$s11ColorVectorAAV4xyzaSd1x_Sd1ySd1zSd1atvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "xyz",
+            "printedName": "xyz",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Tuple",
+                "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double)",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ]
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:11ColorVectorAAV3xyzSd1x_Sd1ySd1ztvp",
+            "mangledName": "$s11ColorVectorAAV3xyzSd1x_Sd1ySd1ztvp",
+            "moduleName": "ColorVector",
+            "isFromExtension": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Tuple",
+                    "printedName": "(x: Swift.Double, y: Swift.Double, z: Swift.Double)",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Double",
+                        "printedName": "Swift.Double",
+                        "usr": "s:Sd"
+                      }
+                    ]
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:11ColorVectorAAV3xyzSd1x_Sd1ySd1ztvg",
+                "mangledName": "$s11ColorVectorAAV3xyzSd1x_Sd1ySd1ztvg",
+                "moduleName": "ColorVector",
+                "isFromExtension": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Struct",
+        "usr": "s:11ColorVectorAAV",
+        "mangledName": "$s11ColorVectorAAV",
+        "moduleName": "ColorVector",
+        "declAttributes": [
+          "AccessControl"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Decodable",
+            "printedName": "Decodable",
+            "usr": "s:Se",
+            "mangledName": "$sSe"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Encodable",
+            "printedName": "Encodable",
+            "usr": "s:SE",
+            "mangledName": "$sSE"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          }
+        ]
+      }
+    ],
+    "json_format_version": 8
+  },
+  "ConstValues": [
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/ColorVector\/Sources\/ColorVector\/ColorConversion\/ColorConversion.swift",
+      "kind": "Dictionary",
+      "offset": 2326,
+      "length": 3,
+      "value": "[]"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/ColorVector\/Sources\/ColorVector\/ColorVector.swift",
+      "kind": "IntegerLiteral",
+      "offset": 456,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/ColorVector\/Sources\/ColorVector\/ColorVector.swift",
+      "kind": "IntegerLiteral",
+      "offset": 459,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/ColorVector\/Sources\/ColorVector\/ColorVector.swift",
+      "kind": "IntegerLiteral",
+      "offset": 462,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "\/Users\/82flex\/Projects\/WriteNow\/Library\/ColorVector\/Sources\/ColorVector\/ColorVector.swift",
+      "kind": "IntegerLiteral",
+      "offset": 465,
+      "length": 1,
+      "value": "0"
+    }
+  ]
+}

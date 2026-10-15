@@ -1,0 +1,269 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)
+// swift-module-flags: -target arm64e-apple-ios14.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -enforce-exclusivity=checked -O -enable-bare-slash-regex -module-name ColorfulX
+import ColorVector
+import CoreFoundation
+import CoreGraphics
+import Foundation
+import MSDisplayLink
+import MetalKit
+import SpringInterpolation
+import Swift
+import SwiftUI
+import UIKit
+import UIKit
+import UIKit
+import UIKit
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+extension AnimatedMulticolorGradientView {
+  public struct Speckle {
+    public var enabled: Bool
+    public var targetColor: ColorVector {
+      get
+      set
+    }
+    public var previousColor: ColorVector {
+      get
+      set
+    }
+    public var transitionProgress: SpringInterpolation
+    public var position: SpringInterpolation2D
+    public var isTransitionCompleted: Bool {
+      get
+    }
+    public var color: ColorVector {
+      get
+    }
+    public init(enabled: Bool = false, targetColor: ColorVector = .init(space: .lab), previousColor: ColorVector = .init(space: .lab), transitionProgress: Double = 1, position: SpringInterpolation2D = .init())
+  }
+}
+extension AnimatedMulticolorGradientView {
+  @_Concurrency.MainActor(unsafe) public func setColors(_ colors: [ColorVector], animated: Bool = true, repeats: Bool = true)
+}
+extension AnimatedMulticolorGradientView {
+  @_Concurrency.MainActor(unsafe) public func setColors(_ preset: ColorfulPreset, animated: Bool = true, repeats: Bool = true)
+  @_Concurrency.MainActor(unsafe) public func setColors(_ preset: ColorfulColors, animated: Bool = true, repeats: Bool = true)
+  @_Concurrency.MainActor(unsafe) public func setColors(_ colors: [ColorElement], animated: Bool = true, repeats: Bool = true)
+}
+public struct AnimatedMulticolorGradientViewRepresentable {
+  public init(color: Binding<[ColorVector]>, speed: Binding<Double> = .constant(1), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(3.25), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+  public func updatePropertyToView(_ view: AnimatedMulticolorGradientView, initialSetup: Bool)
+}
+extension AnimatedMulticolorGradientViewRepresentable : UIViewRepresentable {
+  @_Concurrency.MainActor(unsafe) public func makeUIView(context _: Context) -> AnimatedMulticolorGradientView
+  @_Concurrency.MainActor(unsafe) public func updateUIView(_ uiView: AnimatedMulticolorGradientView, context _: Context)
+  public typealias Body = Swift.Never
+  public typealias Coordinator = Swift.Void
+  public typealias UIViewType = ColorfulX.AnimatedMulticolorGradientView
+}
+@objc @_inheritsConvenienceInitializers @_Concurrency.MainActor(unsafe) open class AnimatedMulticolorGradientView : MulticolorGradientView {
+  @_Concurrency.MainActor(unsafe) public var lastRenderParametersUpdate: Double {
+    get
+  }
+  @_Concurrency.MainActor(unsafe) public var lastRenderExecution: Double {
+    get
+  }
+  @_Concurrency.MainActor(unsafe) public var renderInputWasModified: Bool {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var speckles: [Speckle] {
+    get
+  }
+  @_Concurrency.MainActor(unsafe) public var speed: Double {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var bias: Double {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var noise: Double {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var transitionSpeed: Double {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var frameLimit: Int {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public init()
+  @inline(__always) @_Concurrency.MainActor(unsafe) public func shouldRenderNextFrameWithinSynchornization() -> Bool
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func layoutSublayers(of layer: CALayer)
+  @objc deinit
+}
+public typealias ColorSpace = ColorVector.Space
+public typealias ColorElement = UIColor
+extension ColorVector {
+  public init(_ color: ColorElement, usingSpace space: Space = .rgb)
+}
+public protocol ColorfulColors {
+  var colors: [ColorElement] { get }
+  func make(_ r: Int, _ g: Int, _ b: Int, _ a: Int) -> ColorElement
+}
+extension ColorfulColors {
+  public func make(_ r: Int, _ g: Int, _ b: Int, _ a: Int = 255) -> ColorElement
+}
+public enum ColorfulPreset : String, CaseIterable, ColorfulColors {
+  case sunrise
+  case sunset
+  case love
+  case ocean
+  case barbie
+  case starry
+  case jelly
+  case lavandula
+  case watermelon
+  case dandelion
+  case lemon
+  case spring
+  case summer
+  case autumn
+  case winter
+  case neon
+  case aurora
+  case appleIntelligence
+  case colorful
+  public var hint: String {
+    get
+  }
+  public var colors: [ColorElement] {
+    get
+  }
+  public init?(rawValue: Swift.String)
+  public typealias AllCases = [ColorfulX.ColorfulPreset]
+  public typealias RawValue = Swift.String
+  public static var allCases: [ColorfulX.ColorfulPreset] {
+    get
+  }
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public struct ColorfulView : View {
+  public init(color: Binding<[Color]>, speed: Binding<Double> = .constant(1.0), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(5), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1.0), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+  @_Concurrency.MainActor(unsafe) public var body: some View {
+    get
+  }
+  public typealias Body = @_opaqueReturnTypeOf("$s9ColorfulX0A4ViewV4bodyQrvp", 0) __
+}
+extension ColorfulView {
+  public init(color: [Color], speed: Binding<Double> = .constant(1.0), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(5), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1.0), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+  public init(color: Binding<ColorfulPreset>, speed: Binding<Double> = .constant(1.0), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(5), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1.0), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+  public init(color: ColorfulPreset, speed: Binding<Double> = .constant(1.0), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(5), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1.0), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+  public init(color: ColorfulColors, speed: Binding<Double> = .constant(1.0), bias: Binding<Double> = .constant(0.01), noise: Binding<Double> = .constant(0), transitionSpeed: Binding<Double> = .constant(5), frameLimit: Binding<Int> = .constant(0), renderScale: Binding<Double> = .constant(1.0), pauseRender: Binding<Bool> = .constant(false), repeats: Bool = true)
+}
+extension MTLDevice {
+  public func createColorfulLibrary() throws -> MTLLibrary
+}
+@objc @_hasMissingDesignatedInitializers @_Concurrency.MainActor(unsafe) open class UIMetalView : UIView {
+  @available(*, unavailable)
+  @_Concurrency.MainActor(unsafe) @objc required dynamic public init?(coder _: NSCoder)
+  @objc deinit
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open var frame: CGRect {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open var isHidden: Bool {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open var alpha: CGFloat {
+    @objc get
+    @objc set
+  }
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open func didMoveToWindow()
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open func didMoveToSuperview()
+  @_Concurrency.MainActor(unsafe) @objc override dynamic open func layoutSubviews()
+}
+public typealias MetalView = UIMetalView
+extension MulticolorGradientView.Parameters.ColorStop.CoordinateVec2D {
+  public func lerp(to newValue: `Self`, percent delta: Double) -> ColorfulX.MulticolorGradientView.Parameters.ColorStop.CoordinateVec2D
+}
+extension MulticolorGradientView {
+  public struct Parameters : Equatable {
+    public var points: [ColorStop]
+    public var bias: Double
+    public var power: Double
+    public var noise: Double
+    public init(points: [ColorStop] = [], bias: Double = 0.01, power: Double = 4, noise: Double = 0)
+    public static func == (a: ColorfulX.MulticolorGradientView.Parameters, b: ColorfulX.MulticolorGradientView.Parameters) -> Swift.Bool
+  }
+}
+extension MulticolorGradientView.Parameters {
+  public struct ColorStop : Equatable {
+    public let color: ColorVector
+    public let position: CoordinateVec2D
+    public init(color: ColorVector, position: CoordinateVec2D)
+    public static func == (a: ColorfulX.MulticolorGradientView.Parameters.ColorStop, b: ColorfulX.MulticolorGradientView.Parameters.ColorStop) -> Swift.Bool
+  }
+}
+extension MulticolorGradientView.Parameters.ColorStop {
+  public struct CoordinateVec2D : Equatable {
+    public let x: Double
+    public let y: Double
+    public init(x: Double, y: Double)
+    public static func == (a: ColorfulX.MulticolorGradientView.Parameters.ColorStop.CoordinateVec2D, b: ColorfulX.MulticolorGradientView.Parameters.ColorStop.CoordinateVec2D) -> Swift.Bool
+  }
+}
+public struct MulticolorGradient : View {
+  public init(parameters: Binding<MulticolorGradientView.Parameters>)
+  public init(parameters: MulticolorGradientView.Parameters)
+  @_Concurrency.MainActor(unsafe) public var body: some View {
+    get
+  }
+  public typealias Body = @_opaqueReturnTypeOf("$s9ColorfulX18MulticolorGradientV4bodyQrvp", 0) __
+}
+public struct MulticolorGradientViewRepresentable {
+  public init(parameters: Binding<MulticolorGradientView.Parameters>)
+  public func updatePropertyToView(_ view: MulticolorGradientView)
+}
+extension MulticolorGradientViewRepresentable : UIViewRepresentable {
+  @_Concurrency.MainActor(unsafe) public func makeUIView(context _: Context) -> MulticolorGradientView
+  @_Concurrency.MainActor(unsafe) public func updateUIView(_ view: MulticolorGradientView, context _: Context)
+  public typealias Body = Swift.Never
+  public typealias Coordinator = Swift.Void
+  public typealias UIViewType = ColorfulX.MulticolorGradientView
+}
+@objc @_inheritsConvenienceInitializers @_Concurrency.MainActor(unsafe) open class MulticolorGradientView : MetalView {
+  @_Concurrency.MainActor(unsafe) public var parameters: Parameters {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) public var currentDrawable: CAMetalDrawable? {
+    get
+  }
+  @_Concurrency.MainActor(unsafe) public var currentTexture: MTLTexture? {
+    get
+  }
+  @_Concurrency.MainActor(unsafe) public var captureImage: CGImage? {
+    get
+  }
+  public enum RenderExecutionStatus {
+    case normal
+    case temporaryStopped
+    public static func == (a: ColorfulX.MulticolorGradientView.RenderExecutionStatus, b: ColorfulX.MulticolorGradientView.RenderExecutionStatus) -> Swift.Bool
+    public func hash(into hasher: inout Swift.Hasher)
+    public var hashValue: Swift.Int {
+      get
+    }
+  }
+  @_Concurrency.MainActor(unsafe) public var renderExecutionStatus: RenderExecutionStatus
+  @_Concurrency.MainActor(unsafe) public var renderScale: Double {
+    get
+    set
+  }
+  @_Concurrency.MainActor(unsafe) @objc dynamic public init()
+  @_Concurrency.MainActor(unsafe) @objc override dynamic public func layoutSublayers(of layer: CALayer)
+  @objc deinit
+}
+extension ColorfulX.ColorfulPreset : Swift.Equatable {}
+extension ColorfulX.ColorfulPreset : Swift.Hashable {}
+extension ColorfulX.ColorfulPreset : Swift.RawRepresentable {}
+extension ColorfulX.MulticolorGradientView.RenderExecutionStatus : Swift.Equatable {}
+extension ColorfulX.MulticolorGradientView.RenderExecutionStatus : Swift.Hashable {}
