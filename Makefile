@@ -62,7 +62,7 @@ export DEBUG
 before-all::
 	devkit/print-version.sh
 	devkit/standardize-entitlements.sh
-	devkit/build-spm.sh
+	devkit/build-spm.sh OpenAI
 
 export THEOS_OBJ_DIR
 export THEOS_STAGING_DIR
