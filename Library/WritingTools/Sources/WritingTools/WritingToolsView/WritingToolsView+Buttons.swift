@@ -105,27 +105,34 @@ extension WritingToolsView {
     /// do NOT read the `@State` property directly inside this `@ViewBuilder`
     /// method, otherwise SwiftUI projects it as a `Binding` and the `ForEach`
     /// overload resolution breaks.
+    /// A single language chip. Extracted into its own @ViewBuilder helper so the
+    /// ForEach closure in `translateLanguagePicker` stays trivial and the Swift
+    /// type checker does not time out on the combined expression.
+    @ViewBuilder
+    private func languageChip(_ item: TranslateLanguage, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Capsule()
+            .fill(isSelected ? Color.white : Color.white.opacity(0.12))
+            .frame(minWidth: 52, height: 30)
+            .overlay(
+                Text(item.display)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.black : Color.white)
+            )
+            .contentShape(Capsule())
+            .onTapGesture(perform: action)
+    }
+
     @ViewBuilder
     func translateLanguagePicker(target: String, rerunOnSelect: Bool = true) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(kTranslateLanguages, id: \.key) { (item: TranslateLanguage) in
-                    let selected = item.key == target
-                    Capsule()
-                        .fill(selected ? Color.white : Color.white.opacity(0.12))
-                        .frame(minWidth: 52, height: 30)
-                        .overlay(
-                            Text(item.display)
-                                .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                                .foregroundStyle(selected ? Color.black : Color.white)
-                        )
-                        .contentShape(Capsule())
-                        .onTapGesture {
-                            self.translateTarget = item.key
-                            if rerunOnSelect, self.taskPrompt == .translate {
-                                self.executeCurrentTask()
-                            }
+                    languageChip(item, isSelected: item.key == target) {
+                        self.translateTarget = item.key
+                        if rerunOnSelect, self.taskPrompt == .translate {
+                            self.executeCurrentTask()
                         }
+                    }
                 }
             }
             .padding(.horizontal, 2)
