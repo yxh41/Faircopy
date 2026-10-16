@@ -281,6 +281,11 @@ private final class SegmentEngine {
 /// A single word chip. Standalone struct keeps the enclosing expressions
 /// small enough for the Swift type checker. The Text drives the layout size
 /// (predictable in HStacks); the capsule is purely a background.
+/// Uses a plain Button (NOT onTapGesture): the output area lives inside a
+/// ScrollView, whose pan gesture cancels SwiftUI TapGestures on the slightest
+/// finger drift — users reported chips needing several taps. A UIButton has a
+/// proper touch slop and cleanly separates light taps (select) from drags
+/// (scroll), same as every UITableView cell.
 struct SegmentChip: View {
     let text: String
     let isSelected: Bool
@@ -288,20 +293,22 @@ struct SegmentChip: View {
     let action: () -> Void
 
     var body: some View {
-        Text(text)
-            .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-            .foregroundStyle(isSelected ? Color.black : Color.white)
-            .lineLimit(1)
-            .truncationMode(.middle)
-            .frame(maxWidth: maxWidth - 20)
-            .padding(.horizontal, 10)
-            .frame(minHeight: 30)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Color.white : Color.white.opacity(0.12))
-            )
-            .contentShape(Capsule())
-            .onTapGesture(perform: action)
+        Button(action: action) {
+            Text(text)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.black : Color.white)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: maxWidth - 20)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 34)
+                .background(
+                    Capsule()
+                        .fill(isSelected ? Color.white : Color.white.opacity(0.12))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -453,6 +460,16 @@ extension WritingToolsView {
 
     func copySegmentResult() {
         UIPasteboard.general.string = segmentSpacedText
+        // Clear the selection so the next batch of words can be picked without
+        // manually deselecting first.
+        selectedSegmentIndexes.removeAll()
+    }
+
+    /// Share the current selection (or all tokens). Clears the selection after
+    /// handing the text off, mirroring copySegmentResult.
+    func shareSegmentResult() {
+        shareText(segmentSpacedText)
+        selectedSegmentIndexes.removeAll()
     }
 
     func acceptSegmentResult() {

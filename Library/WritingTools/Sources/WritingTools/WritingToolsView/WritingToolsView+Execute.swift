@@ -162,17 +162,28 @@ extension WritingToolsView {
             activityItems: [text],
             applicationActivities: nil
         )
+        // Present from the top-most view controller. The writing panel itself
+        // is a popover presented from parentController (i.e. parentController
+        // already has a presentedViewController). Presenting straight from
+        // parentController while its popover is up silently no-ops, so walk
+        // the presented chain first.
+        var presenter: UIViewController = context.parentController
+        while let presented = presenter.presentedViewController,
+              !presented.isBeingDismissed
+        {
+            presenter = presented
+        }
         if let popover = activityController.popoverPresentationController {
-            popover.sourceView = context.parentController.view
+            popover.sourceView = presenter.view
             popover.sourceRect = CGRect(
-                x: context.parentController.view.bounds.midX,
-                y: context.parentController.view.bounds.midY,
+                x: presenter.view.bounds.midX,
+                y: presenter.view.bounds.midY,
                 width: 0,
                 height: 0
             )
             popover.permittedArrowDirections = []
         }
-        context.parentController.present(activityController, animated: true)
+        presenter.present(activityController, animated: true)
     }
 
     static let spawnURL = URL(string: "faircopy://spawn")

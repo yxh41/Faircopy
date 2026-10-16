@@ -59,7 +59,7 @@ extension WritingToolsView {
                     BeautifulButton(title: "Cancel".localized) { cancelActiveStream() }
                 } else if taskPrompt == .segment {
                     BeautifulButton(title: "Copy".localized) { copySegmentResult() }
-                    BeautifulButton(title: "Share".localized) { shareText(segmentSpacedText) }
+                    BeautifulButton(title: "Share".localized) { shareSegmentResult() }
                     BeautifulButton(title: "Discard".localized) { discard() }
                     if !selectedSegmentIndexes.isEmpty {
                         BeautifulButton(title: "Accept".localized) { acceptSegmentResult() }
