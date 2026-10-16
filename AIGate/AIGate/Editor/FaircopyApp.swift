@@ -19,11 +19,27 @@ struct FaircopyApp: App {
 
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                FaircopyRootView()
+            Group {
+                if vm.suppressSettingsUI {
+                    panelEntryPlaceholder
+                } else {
+                    NavigationView {
+                        FaircopyRootView()
+                    }
+                    .navigationViewStyle(.stack)
+                }
             }
-            .navigationViewStyle(.stack)
         }
+    }
+
+    /// Placeholder shown instead of the settings UI while a `faircopy://panel`
+    /// invocation is in flight: fully transparent, so the user sees their
+    /// launcher / home screen instead of an AIGate flash. The accessibility
+    /// identifier doubles as a build-time proof that this code shipped.
+    private var panelEntryPlaceholder: some View {
+        Color.clear
+            .ignoresSafeArea()
+            .accessibilityIdentifier("faircopy.panel.suppressed")
     }
 }
 
@@ -49,6 +65,12 @@ final class FaircopyAppModel: ObservableObject {
 
     @Published var isLiteEdition = false
     @Published var isJailbroken = false
+
+    /// True while AIGate must not paint its settings UI — currently only
+    /// during a `faircopy://panel` invocation that is bouncing back to the
+    /// caller. Sticky across foregrounds: it is cleared only when the user
+    /// opens AIGate normally (see `SceneDelegate.scheduleSettingsUIRestore`).
+    @Published var suppressSettingsUI = false
 
     private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
 
@@ -94,8 +116,13 @@ extension FaircopyRootView {
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        true
+    func application(_: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Earliest possible point: a cold `faircopy://panel` launch must never
+        // paint the settings UI, not even for a single frame.
+        if let url = launchOptions?[.url] as? URL, url.host == "panel" {
+            FaircopyAppModel.shared.suppressSettingsUI = true
+        }
+        return true
     }
 
     func application(_: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options _: UIScene.ConnectionOptions) -> UISceneConfiguration {
@@ -111,6 +138,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     var window: UIWindow?
 
+    /// True while a `faircopy://panel` bounce back to the caller is in
+    /// flight. The settings UI stays suppressed until it lands.
+    private var panelBounceInFlight = false
+
+    /// Deferred "restore the settings UI" work, scheduled when the scene
+    /// becomes active without a URL. Cancelled if a URL activation (e.g. a
+    /// warm `faircopy://panel`) arrives instead of a plain user open.
+    private var restoreWorkItem: DispatchWorkItem?
+
     func scene(_ scene: UIScene, willConnectTo _: UISceneSession,
                options connectionOptions: UIScene.ConnectionOptions)
     {
@@ -122,11 +158,37 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
 
     func sceneDidBecomeActive(_: UIScene) {
         FaircopyAppModel.shared.endBackgroundTask()
+        scheduleSettingsUIRestore()
+    }
+
+    func sceneDidEnterBackground(_: UIScene) {
+        // The bounce has landed (or AIGate was backgrounded for another
+        // reason): clear the in-flight flag so a later foreground can restore
+        // the settings UI.
+        panelBounceInFlight = false
     }
 
     func scene(_: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        // A URL activation is never a plain user open: keep the settings UI
+        // suppressed while it is handled.
+        restoreWorkItem?.cancel()
+        restoreWorkItem = nil
         guard let url = URLContexts.first?.url else { return }
         handleOpenURL(url, sourceApplication: URLContexts.first?.options.sourceApplication)
+    }
+
+    /// Restore the settings UI shortly after the scene becomes active, unless
+    /// a URL activation (warm `faircopy://panel`) arrives first. The delay
+    /// covers the gap between `sceneDidBecomeActive` and the delivery of
+    /// `scene(_:openURLContexts:)`.
+    private func scheduleSettingsUIRestore() {
+        restoreWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self = self, !self.panelBounceInFlight else { return }
+            FaircopyAppModel.shared.suppressSettingsUI = false
+        }
+        restoreWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     private func handleOpenURL(_ url: URL, sourceApplication src: String?) {
@@ -142,9 +204,12 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             }
         }
         if url.host == "panel" {
-            // External panel entry: bounce back to the caller first, then post
+            // External panel entry: suppress the settings UI first so the user
+            // never sees an AIGate flash, bounce back to the caller, then post
             // the Darwin notification the tweak listens for. See
             // kFCExternalPresentNotification in WritingToolsInjector.h.
+            FaircopyAppModel.shared.suppressSettingsUI = true
+            panelBounceInFlight = true
             FaircopyAppModel.shared.beginBackgroundTask()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
@@ -153,6 +218,16 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 // Keep in sync with kFCExternalPresentNotification in
                 // Library/WritingTools/Sources/WritingToolsInjector.h
                 fc_notify_post("wiki.qaq.faircopy.present")
+            }
+            // Safety net: if the bounce failed and AIGate is still the active
+            // app, restore the settings UI instead of stranding the user on a
+            // transparent screen.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+                guard let self = self, self.panelBounceInFlight else { return }
+                self.panelBounceInFlight = false
+                if UIApplication.shared.applicationState == .active {
+                    FaircopyAppModel.shared.suppressSettingsUI = false
+                }
             }
         }
     }
