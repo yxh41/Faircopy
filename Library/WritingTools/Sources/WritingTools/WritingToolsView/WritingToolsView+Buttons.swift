@@ -109,7 +109,7 @@ extension WritingToolsView {
     func translateLanguagePicker(target: String, rerunOnSelect: Bool = true) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                ForEach(kTranslateLanguages, id: \.key) { item in
+                ForEach(kTranslateLanguages, id: \.key) { (item: TranslateLanguage) in
                     let selected = item.key == target
                     Capsule()
                         .fill(selected ? Color.white : Color.white.opacity(0.12))
