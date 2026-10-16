@@ -99,7 +99,9 @@ static UITextView *FC_CreateStandaloneTextView(UIWindow *window) {
     );
     [rootController.view addSubview:textView];
 
-    NSString *clipboard = UIPasteboard.general.string;
+    // NOTE: ObjC has no UIPasteboard.general (Swift-only overlay name);
+    // the Objective-C API is +generalPasteboard.
+    NSString *clipboard = [UIPasteboard generalPasteboard].string;
     if (clipboard.length > 0) {
         textView.text = clipboard;
         UITextPosition *start = textView.beginningOfDocument;
