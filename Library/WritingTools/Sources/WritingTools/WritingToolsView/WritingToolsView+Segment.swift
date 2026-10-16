@@ -261,7 +261,7 @@ private final class SegmentEngine {
         ]
         for (low, high) in ranges {
             guard let lowScalar = Unicode.Scalar(low), let highScalar = Unicode.Scalar(high) else { continue }
-            set.insert(charactersIn: CharacterSet(charactersIn: lowScalar ... highScalar))
+            set.insert(charactersIn: lowScalar ... highScalar)
         }
         return set
     }()
