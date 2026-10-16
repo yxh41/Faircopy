@@ -16,6 +16,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)writingToolMenuName;
 - (void)presentToolController:(UIResponder *)responder;
 - (void)presentToolControllerFromExternalSource:(UIResponder *)responder;
+- (void)presentToolControllerStandalone:(UIResponder *)responder;
 - (void)presentUnavailable:(UIResponder *)responder;
 @end
 

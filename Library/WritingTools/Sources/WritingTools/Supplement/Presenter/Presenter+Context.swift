@@ -23,6 +23,12 @@ extension Presenter {
         let decorationViews: [UIView]
 
         let textProxy: TextProxy
+
+        /// True when the target view was synthesized by the external-trigger
+        /// path (no host text input was available). The controller removes
+        /// such a view on dismiss instead of restoring first responder.
+        let isStandalone: Bool
+
         @Published var scenePhase: ScenePhase = .active
 
         /// Set when the active stream must stop (panel dismissed, cancelled).
@@ -36,7 +42,8 @@ extension Presenter {
             anchorView: UIView,
             anchorRects: [CGRect],
             decorationViews: [UIView],
-            textProxy: TextProxy
+            textProxy: TextProxy,
+            isStandalone: Bool = false
         ) {
             self.parentView = parentView
             self.parentController = parentController
@@ -45,6 +52,7 @@ extension Presenter {
             self.anchorRects = anchorRects
             self.decorationViews = decorationViews
             self.textProxy = textProxy
+            self.isStandalone = isStandalone
 
             super.init()
 
@@ -96,7 +104,7 @@ extension Presenter {
 }
 
 extension Presenter {
-    func buildContext(fromResponder responder: UIResponder) -> Context? {
+    func buildContext(fromResponder responder: UIResponder, standalone: Bool = false) -> Context? {
         guard let fatherView = responder as? UIView else { return nil }
         guard let parentView = fatherView.superview else { return nil }
         guard let parentController = fatherView.parentViewController else { return nil }
@@ -145,7 +153,8 @@ extension Presenter {
             anchorView: anchorView,
             anchorRects: preparedRects,
             decorationViews: decorationViews,
-            textProxy: textProxy
+            textProxy: textProxy,
+            isStandalone: standalone
         )
     }
 

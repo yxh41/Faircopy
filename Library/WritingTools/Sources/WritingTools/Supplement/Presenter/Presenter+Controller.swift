@@ -66,6 +66,13 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         super.viewDidDisappear(animated)
         context.anchorView.removeFromSuperview()
         context.decorationViews.forEach { $0.removeFromSuperview() }
+        if context.isStandalone {
+            // The target view was synthesized for this invocation only; drop it
+            // instead of restoring first responder to the host app.
+            context.targetView.resignFirstResponder()
+            context.targetView.removeFromSuperview()
+            return
+        }
         if let textInput = context.targetView as? UITextInput {
             textInput.selectedTextRange = context.textProxy.replacedRange
         }

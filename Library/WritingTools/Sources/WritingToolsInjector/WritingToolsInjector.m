@@ -77,6 +77,38 @@ static UIWindow *FC_ForegroundKeyWindow(void) {
     return nil;
 }
 
+/// Build the scratch text view used when the foreground app has no editable
+/// text to attach to. It is prefilled with the clipboard (if any) so the
+/// copy → invoke → rewrite → copy-back flow needs no typing, and removed by
+/// the controller when the panel is dismissed.
+static UITextView *FC_CreateStandaloneTextView(UIWindow *window) {
+    UIViewController *rootController = window.rootViewController;
+    if (!rootController) { return nil; }
+
+    UITextView *textView = [[UITextView alloc] initWithFrame:rootController.view.bounds];
+    textView.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.96];
+    textView.textColor = UIColor.whiteColor;
+    textView.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    textView.layer.cornerRadius = 20;
+    textView.clipsToBounds = YES;
+    textView.alwaysBounceVertical = YES;
+    textView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
+    // Keep the first lines below the centered card area.
+    textView.textContainerInset = UIEdgeInsetsMake(
+        rootController.view.bounds.size.height * 0.30, 20, 24, 20
+    );
+    [rootController.view addSubview:textView];
+
+    NSString *clipboard = UIPasteboard.general.string;
+    if (clipboard.length > 0) {
+        textView.text = clipboard;
+        UITextPosition *start = textView.beginningOfDocument;
+        UITextPosition *end = textView.endOfDocument;
+        textView.selectedTextRange = [textView textRangeFromPosition:start toPosition:end];
+    }
+    return textView;
+}
+
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
@@ -87,18 +119,29 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
     dispatch_async(dispatch_get_main_queue(), ^{
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         UIResponder *responder = FC_FindEditingResponder();
-        if (!responder) {
-            // No editable text on screen. The panel needs a text target, so
-            // fail loudly (shake the window, same language as the menu path's
-            // "unavailable" feedback) instead of silently doing nothing.
-            UIWindow *keyWindow = FC_ForegroundKeyWindow();
-            if (keyWindow) {
+        if (responder) {
+            if ([presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
+                [presenter presentToolControllerFromExternalSource:responder];
+            }
+            return;
+        }
+        // No editable text on screen: fall back to a standalone scratch view
+        // (prefilled with the clipboard) so the panel can still be summoned
+        // from anywhere — home screen, Settings, Safari without focus.
+        UIWindow *keyWindow = FC_ForegroundKeyWindow();
+        UITextView *standalone = keyWindow ? FC_CreateStandaloneTextView(keyWindow) : nil;
+        if (standalone) {
+            if ([presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
+                [presenter presentToolControllerStandalone:standalone];
+            } else {
+                [standalone removeFromSuperview];
                 [presenter presentUnavailable:keyWindow];
             }
             return;
         }
-        if ([presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
-            [presenter presentToolControllerFromExternalSource:responder];
+        // Nothing to anchor to at all: fail loudly instead of silently.
+        if (keyWindow) {
+            [presenter presentUnavailable:keyWindow];
         }
     });
 }

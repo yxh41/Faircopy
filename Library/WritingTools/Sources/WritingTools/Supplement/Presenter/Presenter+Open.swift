@@ -54,6 +54,19 @@ public extension Presenter {
     /// animation instead of pointing at the selection.
     @objc(presentToolControllerFromExternalSource:)
     func presentToolControllerFromExternalSource(_ responder: UIResponder) {
+        presentCenteredCard(fromResponder: responder, standalone: false)
+    }
+
+    /// Standalone entry point: the target view was synthesized by the
+    /// injector (prefilled with clipboard content) because the foreground
+    /// app had no editable text. Same centered rounded card, but the
+    /// controller removes the synthesized view on dismiss.
+    @objc(presentToolControllerStandalone:)
+    func presentToolControllerStandalone(_ responder: UIResponder) {
+        presentCenteredCard(fromResponder: responder, standalone: true)
+    }
+
+    private func presentCenteredCard(fromResponder responder: UIResponder, standalone: Bool) {
         guard let parentController = (responder as? UIView)?.parentViewController else {
             presentUnavailable(responder)
             return
@@ -63,7 +76,7 @@ public extension Presenter {
         // views to the text input, which must not leak if we bail out here.
         guard parentController.presentedViewController == nil else { return }
 
-        guard let context = buildContext(fromResponder: responder) else {
+        guard let context = buildContext(fromResponder: responder, standalone: standalone) else {
             presentUnavailable(responder)
             return
         }
