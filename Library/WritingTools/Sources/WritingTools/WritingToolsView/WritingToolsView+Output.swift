@@ -32,7 +32,7 @@ extension WritingToolsView {
                 .transition(.opacity.combined(with: .scale))
             }
             if taskPrompt == .translate {
-                translateLanguagePicker(rerunOnSelect: true)
+                translateLanguagePicker(target: translateTarget, rerunOnSelect: true)
             }
             if usage != nil || (isRunning && liveSpeed > 0) {
                 HStack(spacing: 8) {

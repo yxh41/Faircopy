@@ -101,12 +101,12 @@ extension WritingToolsView {
     /// the user can switch the destination language without leaving the panel.
     /// Implemented with `Capsule` + `.onTapGesture` (not `Button`) because
     /// `Button` inside a `ScrollView` fails to receive taps on iOS.
+    /// `target` is passed as a plain `String` (the current `translateTarget`);
+    /// do NOT read the `@State` property directly inside this `@ViewBuilder`
+    /// method, otherwise SwiftUI projects it as a `Binding` and the `ForEach`
+    /// overload resolution breaks.
     @ViewBuilder
-    func translateLanguagePicker(rerunOnSelect: Bool = true) -> some View {
-        // Capture the @State wrapped value into a local so the ForEach closure
-        // reads a plain String (SwiftUI's builder context otherwise projects the
-        // property as a Binding, which breaks the ForEach overload resolution).
-        let target = translateTarget
+    func translateLanguagePicker(target: String, rerunOnSelect: Bool = true) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(kTranslateLanguages, id: \.key) { item in
