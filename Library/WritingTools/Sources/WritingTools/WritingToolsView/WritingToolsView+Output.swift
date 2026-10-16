@@ -12,7 +12,9 @@ import SwiftUI
 extension WritingToolsView {
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
-            if output.isEmpty {
+            if taskPrompt == .segment {
+                segmentOutputArea
+            } else if output.isEmpty {
                 ProgressView()
                     .tint(.white)
                     .progressViewStyle(.circular)
@@ -34,7 +36,9 @@ extension WritingToolsView {
             if taskPrompt == .translate {
                 translateLanguagePicker(target: translateTarget, rerunOnSelect: true)
             }
-            if usage != nil || (isRunning && liveSpeed > 0) {
+            if taskPrompt == .segment {
+                segmentStatsLine
+            } else if usage != nil || (isRunning && liveSpeed > 0) {
                 HStack(spacing: 8) {
                     if isRunning, liveSpeed > 0 {
                         Image(systemName: "bolt.fill")
@@ -53,6 +57,13 @@ extension WritingToolsView {
             HStack(spacing: innerSpacing) {
                 if isRunning {
                     BeautifulButton(title: "Cancel".localized) { cancelActiveStream() }
+                } else if taskPrompt == .segment {
+                    BeautifulButton(title: "Copy".localized) { copySegmentResult() }
+                    BeautifulButton(title: "Share".localized) { shareText(segmentSpacedText) }
+                    BeautifulButton(title: "Discard".localized) { discard() }
+                    if !selectedSegmentIndexes.isEmpty {
+                        BeautifulButton(title: "Accept".localized) { acceptSegmentResult() }
+                    }
                 } else {
                     BeautifulButton(title: "Copy".localized) { copyOutput() }
                     BeautifulButton(title: "Share".localized) { shareOutput() }

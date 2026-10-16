@@ -17,6 +17,7 @@ public enum Prompt: String, CaseIterable, Codable {
     case translate
     case expand
     case summarize
+    case segment
 }
 
 /// Sampling configuration for different writing modes
@@ -228,6 +229,9 @@ public extension Prompt {
             SamplingConfig(temperature: 0.5)
         case .summarize:
             SamplingConfig(temperature: 0.2)
+        case .segment:
+            // Local mode: no model call is made, sampling is unused.
+            SamplingConfig(temperature: 0)
         }
     }
 
@@ -267,6 +271,9 @@ public extension Prompt {
         case .summarize:
             // Summarization stays conservative; minimal adjustment
             if veryLong { temperature = clamp(base.temperature - 0.02) }
+        case .segment:
+            // Local mode: no sampling adjustment
+            break
         }
 
         // Ensure a reasonable floor for determinism on long contexts
@@ -315,6 +322,9 @@ public extension Prompt {
             """
             Summarize the text into a shorter version that keeps the key information and intent. Use plain sentences, or a compact list only if the original is a list. Do not add new information or opinions. \(generalPrompt)
             """
+        case .segment:
+            // Local mode: runs the on-device tokenizer, never sent to a model.
+            ""
         }
     }
 
@@ -707,6 +717,12 @@ public extension Prompt {
                     """
                 )),
             ] + humanAlignedExample
+
+            // MARK: - Segment
+
+        case .segment:
+            // Local mode: no few-shot examples
+            []
         }
     }
 }

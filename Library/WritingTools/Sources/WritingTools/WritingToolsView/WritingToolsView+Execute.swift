@@ -14,6 +14,11 @@ import WritingToolsLocalizable
 extension WritingToolsView {
     func executeCurrentTask(delayedForRetry: Bool = false) {
         activeCustomPrompt = nil
+        if taskPrompt == .segment {
+            // Local mode: tokenize on-device, no gateway request.
+            runSegmentation()
+            return
+        }
         executeTask(
             systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
             examples: taskPrompt.chatExamplesAfterSystemMessage,
@@ -56,6 +61,9 @@ extension WritingToolsView {
 
         isRunning = true
         output = ""
+        segmentActive = false
+        segmentTokens = []
+        selectedSegmentIndexes = []
         liveChars = 0
         liveSpeed = 0
         context.streamCancelled = false
@@ -145,9 +153,13 @@ extension WritingToolsView {
     }
 
     func shareOutput() {
-        guard !output.isEmpty else { return }
+        shareText(output)
+    }
+
+    func shareText(_ text: String) {
+        guard !text.isEmpty else { return }
         let activityController = UIActivityViewController(
-            activityItems: [output],
+            activityItems: [text],
             applicationActivities: nil
         )
         if let popover = activityController.popoverPresentationController {
@@ -247,6 +259,9 @@ extension WritingToolsView {
     func discard() {
         cancelActiveStream()
         output = ""
+        segmentActive = false
+        segmentTokens = []
+        selectedSegmentIndexes = []
     }
 
     func accept() {

@@ -69,6 +69,13 @@ extension WritingToolsView {
                     taskPrompt = .summarize
                     executeCurrentTask()
                 }
+                BeautifulButton(title: "Segment".localized, icon: "scissors") {
+                    taskPrompt = .segment
+                    executeCurrentTask()
+                }
+            }
+            .frame(height: 60)
+            HStack(spacing: innerSpacing) {
                 customPromptButton
             }
             .frame(height: 60)

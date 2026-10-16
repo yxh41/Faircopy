@@ -38,6 +38,12 @@ struct WritingToolsView: View {
     @State var liveSpeed: Double = 0
     @State var usage: PanelUsage? = nil
 
+    // Word segmentation (分词) state
+    @State var segmentTokens: [SegmentToken] = []
+    @State var selectedSegmentIndexes: Set<Int> = []
+    @State var segmentActive: Bool = false
+    @State var segmentTruncated: Bool = false
+
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
 
@@ -46,7 +52,7 @@ struct WritingToolsView: View {
     }
 
     var shouldShowOutput: Bool {
-        isRunning || !output.isEmpty
+        isRunning || !output.isEmpty || segmentActive
     }
 
     var shouldShowSelectiveButtons: Bool {

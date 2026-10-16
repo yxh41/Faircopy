@@ -26,6 +26,10 @@ extension WritingToolsLocalizable {
             "Translate": "翻译",
             "Expand": "扩写",
             "Summarize": "总结",
+            "Segment": "分词",
+            "%d words": "%d 词",
+            "%d selected": "已选 %d",
+            "First %d chars": "仅前 %d 字",
             "Custom": "自定义",
             "Manage Custom Prompts": "管理自定义提示词",
 
