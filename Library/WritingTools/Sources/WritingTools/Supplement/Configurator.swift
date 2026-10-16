@@ -37,6 +37,12 @@ public class Configurator: ObservableObject {
         return request
     }()
 
+    public let gateUsageCheckRequest: URLRequest = {
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:5540/metrics?query=usage")!)
+        request.httpMethod = "GET"
+        return request
+    }()
+
     public let gateModelSetRequest: URLRequest = {
         var request = URLRequest(url: URL(string: "http://127.0.0.1:5540/action?command=set&keyword=model")!)
         request.httpMethod = "GET"

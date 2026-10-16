@@ -31,6 +31,22 @@ extension WritingToolsView {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .transition(.opacity.combined(with: .scale))
             }
+            if usage != nil || (isRunning && liveSpeed > 0) {
+                HStack(spacing: 8) {
+                    if isRunning, liveSpeed > 0 {
+                        Image(systemName: "bolt.fill")
+                        Text("\(max(1, Int(liveSpeed / 4))) tok/s")
+                    }
+                    if let usage {
+                        Image(systemName: "chart.bar.fill")
+                        Text("\(usage.totalTokens) tokens · \(usage.requestCount) req")
+                    }
+                    Spacer()
+                }
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.55))
+                .transition(.opacity)
+            }
             HStack(spacing: innerSpacing) {
                 if isRunning {
                     BeautifulButton(title: "Cancel".localized) { cancelActiveStream() }

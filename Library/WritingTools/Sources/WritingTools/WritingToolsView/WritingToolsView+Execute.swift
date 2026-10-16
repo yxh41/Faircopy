@@ -24,11 +24,24 @@ extension WritingToolsView {
 
     func executeCustomPrompt(_ entry: CustomPromptEntry) {
         activeCustomPrompt = entry
+        let selection = context.textProxy.selectedText
+        let clipboard = UIPasteboard.general.string ?? ""
+        let language = Self.detectLanguage(selection)
+        let resolvedPrompt = Self.resolvePlaceholders(
+            in: entry.prompt,
+            selection: selection,
+            clipboard: clipboard,
+            language: language
+        )
+        // When the user embeds {{selection}} themselves, don't also append the
+        // selection as a separate user turn (avoids duplicating the text).
+        let userText = entry.prompt.contains("{{selection}}") ? "" : nil
         executeTask(
-            systemPrompt: entry.prompt + "\n\n" + Prompt.sharedRules,
+            systemPrompt: resolvedPrompt + "\n\n" + Prompt.sharedRules,
             examples: [],
             sampling: SamplingConfig(temperature: 0.4),
-            delayedForRetry: false
+            delayedForRetry: false,
+            userText: userText
         )
     }
 
@@ -36,25 +49,30 @@ extension WritingToolsView {
         systemPrompt: String,
         examples: [ChatQuery.ChatCompletionMessageParam],
         sampling: SamplingConfig,
-        delayedForRetry: Bool
+        delayedForRetry: Bool,
+        userText: String? = nil
     ) {
         let shouldDelayForAnimation = !output.isEmpty
 
         isRunning = true
         output = ""
+        liveChars = 0
+        liveSpeed = 0
         context.streamCancelled = false
 
-        let text = context.textProxy.selectedText
-        let query = ChatQuery(
-            messages: [.system(.init(content: systemPrompt))]
-                + examples
-                + [.user(.init(content: .init(string:
-                    """
-                    \(Prompt.userContentHeader)
+        let resolvedUserText = userText ?? context.textProxy.selectedText
+        var messages: [ChatQuery.ChatCompletionMessageParam] = [.system(.init(content: systemPrompt))] + examples
+        if !resolvedUserText.isEmpty {
+            messages.append(.user(.init(content: .init(string:
+                """
+                \(Prompt.userContentHeader)
 
-                    \(text)
-                    """
-                )))],
+                \(resolvedUserText)
+                """
+            ))))
+        }
+        let query = ChatQuery(
+            messages: messages,
             model: cfg.mid,
             temperature: sampling.temperature,
             topP: sampling.topP
@@ -71,6 +89,8 @@ extension WritingToolsView {
                 output = $0.trimmingCharacters(in: .whitespacesAndNewlines)
             }
 
+        let streamStart = Date()
+        var receivedChars = 0
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + (shouldDelayForAnimation ? 0.25 : 0) + (delayedForRetry ? 2 : 0)) {
             guard !context.streamCancelled else { return }
             cfg.openAI.chatsStream(query: query) { partialResult in
@@ -78,6 +98,13 @@ extension WritingToolsView {
                 switch partialResult {
                 case let .success(result):
                     let newToken = result.choices.compactMap(\.delta.content).joined()
+                    receivedChars += newToken.count
+                    let elapsed = Date().timeIntervalSince(streamStart)
+                    let speed = elapsed > 0 ? Double(receivedChars) / elapsed : 0
+                    DispatchQueue.main.async {
+                        self.liveChars = receivedChars
+                        self.liveSpeed = speed
+                    }
                     let value = outputSender.value + newToken
                     outputSender.send(value)
                 default: break
@@ -92,6 +119,8 @@ extension WritingToolsView {
                 let finalValue = outputSender.value.trimmingCharacters(in: .whitespacesAndNewlines)
                 DispatchQueue.main.async {
                     output = finalValue
+                    self.liveChars = receivedChars
+                    self.liveSpeed = 0
                 }
 
                 DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + 0.1) {
@@ -184,6 +213,8 @@ extension WritingToolsView {
         DispatchQueue.main.async {
             isRunning = false
             error = nil
+            liveSpeed = 0
+            fetchUsage()
         }
     }
 
@@ -208,6 +239,7 @@ extension WritingToolsView {
                 self.setNeedsRetryWhenActive()
             }
             isRunning = false
+            self.liveSpeed = 0
             self.error = error
         }
     }
@@ -238,5 +270,39 @@ extension WritingToolsView {
         let location = location(forTextRagne: textRange, inTextView: textView)
         let length = length(forTextRange: textRange, inTextView: textView)
         return NSRange(location: location, length: length)
+    }
+}
+
+// MARK: - Placeholder resolution for custom prompts
+
+private extension WritingToolsView {
+    /// Substitutes runtime context into a user-defined prompt template.
+    /// Supported tokens: {{selection}} {{clipboard}} {{language}}
+    static func resolvePlaceholders(
+        in prompt: String,
+        selection: String,
+        clipboard: String,
+        language: String
+    ) -> String {
+        prompt
+            .replacingOccurrences(of: "{{selection}}", with: selection)
+            .replacingOccurrences(of: "{{clipboard}}", with: clipboard)
+            .replacingOccurrences(of: "{{language}}", with: language)
+    }
+
+    /// Best-effort language detection for the {{language}} token.
+    static func detectLanguage(_ text: String) -> String {
+        guard !text.isEmpty else { return "unknown" }
+        guard let tag = NSLinguisticTagger.dominantLanguage(for: text) else { return "unknown" }
+        switch tag {
+        case "zh-Hans", "zh-Hant", "zh", "yue": return "Chinese"
+        case "ja": return "Japanese"
+        case "ko": return "Korean"
+        case "fr": return "French"
+        case "de": return "German"
+        case "es": return "Spanish"
+        case "en": return "English"
+        default: return tag
+        }
     }
 }

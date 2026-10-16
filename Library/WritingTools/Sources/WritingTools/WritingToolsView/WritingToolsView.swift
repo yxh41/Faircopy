@@ -32,6 +32,11 @@ struct WritingToolsView: View {
     @State var customPrompts: [CustomPromptEntry] = []
     @State var activeCustomPrompt: CustomPromptEntry? = nil
 
+    // Live streaming metrics (Feature: real-time token speed + cumulative usage)
+    @State var liveChars: Int = 0
+    @State var liveSpeed: Double = 0
+    @State var usage: PanelUsage? = nil
+
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
 
@@ -113,5 +118,13 @@ extension WritingToolsView {
     struct ModelTree: Codable, Equatable {
         var keys: [String] { Array(values.keys) }
         let values: [String: [ModelHandler]]
+    }
+
+    /// Cumulative token usage reported by the gate daemon (`/metrics?query=usage`).
+    struct PanelUsage: Codable, Equatable {
+        let promptTokens: Int
+        let completionTokens: Int
+        let requestCount: Int
+        var totalTokens: Int { promptTokens + completionTokens }
     }
 }

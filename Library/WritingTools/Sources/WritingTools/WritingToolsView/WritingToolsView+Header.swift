@@ -50,10 +50,12 @@ extension WritingToolsView {
         .animation(.spring, value: selectedTextCount)
         .onAppear {
             checkModelName()
+            fetchUsage()
             reloadHeaderDescription()
         }
         .onReceive(timer) { _ in
             checkModelName()
+            fetchUsage()
         }
     }
 
@@ -199,6 +201,18 @@ extension WritingToolsView {
                 if dirty { reloadHeaderDescription() }
             }
         }
+    }
+
+    /// Polls cumulative token usage from the gate daemon and surfaces it in the panel.
+    func fetchUsage() {
+        let request = Configurator.shared.gateUsageCheckRequest
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data,
+                  let stats = try? JSONDecoder().decode(PanelUsage.self, from: data) else { return }
+            DispatchQueue.main.async {
+                usage = stats
+            }
+        }.resume()
     }
 
     func setModel(_ model: ModelHandler) {

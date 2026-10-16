@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
 
 struct CustomPromptsView: View {
     @StateObject var configuration = Configuration.shared
@@ -13,6 +15,10 @@ struct CustomPromptsView: View {
 
     @State var editingPrompt: CustomPrompt?
     @State var isAddingPrompt = false
+
+    @State var showExport = false
+    @State var showImport = false
+    @State var exportURL: URL?
 
     var body: some View {
         Form {
@@ -53,6 +59,41 @@ struct CustomPromptsView: View {
                 ))
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    Button {
+                        exportPrompts()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    Button {
+                        showImport = true
+                    } label: {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showExport) {
+            if let exportURL {
+                ShareSheet(items: [exportURL])
+            }
+        }
+        .fileImporter(
+            isPresented: $showImport,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            do {
+                guard let url = try result.get().first else { return }
+                let data = try Data(contentsOf: url)
+                let prompts = try JSONDecoder().decode([CustomPrompt].self, from: data)
+                configuration.importCustomPrompts(prompts)
+            } catch {
+                print("[*] import custom prompts failed: \(error)")
+            }
+        }
         .sheet(isPresented: $isAddingPrompt) {
             NavigationView {
                 CustomPromptEditor(prompt: CustomPrompt(title: "", prompt: ""))
@@ -71,6 +112,30 @@ struct CustomPromptsView: View {
             }
         }
     }
+
+    private func exportPrompts() {
+        let prompts = configuration.allCustomPrompts
+        guard let data = try? JSONEncoder().encode(prompts),
+              let url = FileManager.default
+                  .urls(for: .documentDirectory, in: .userDomainMask)
+                  .first?
+                  .appendingPathComponent("faircopy-prompts.json")
+        else { return }
+        try? data.write(to: url, options: .atomic)
+        exportURL = url
+        showExport = true
+    }
+}
+
+/// Wraps UIActivityViewController for sharing the exported prompts file.
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 struct CustomPromptEditor: View {
@@ -94,11 +159,15 @@ struct CustomPromptEditor: View {
             } header: {
                 Text(NSLocalizedString("Prompt", bundle: Bundle.wrti_support, comment: ""))
             } footer: {
-                Text(NSLocalizedString(
-                    "Write the instruction for the model. Keep it self-contained; the selected text is appended after it.",
-                    bundle: Bundle.wrti_support,
-                    comment: ""
-                ))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(NSLocalizedString(
+                        "Write the instruction for the model. Keep it self-contained; the selected text is appended after it.",
+                        bundle: Bundle.wrti_support,
+                        comment: ""
+                    ))
+                    Text("可用占位符：\("{{selection}}") 选中文本 · \("{{clipboard}}") 剪贴板 · \("{{language}}") 自动检测语言")
+                        .font(.caption)
+                }
             }
         }
         .navigationTitle(prompt.title.isEmpty

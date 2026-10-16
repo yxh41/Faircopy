@@ -85,6 +85,15 @@ class Configuration: NSObject, ObservableObject {
         saveCustomPrompts()
     }
 
+    /// Merges an imported set of prompts by id (imported entries overwrite
+    /// same-id local entries, new ids are appended).
+    func importCustomPrompts(_ prompts: [CustomPrompt]) {
+        for prompt in prompts {
+            customPrompts[prompt.id] = prompt
+        }
+        saveCustomPrompts()
+    }
+
     private func saveCustomPrompts() {
         _customPrompts.saveNow()
         reloadViewModel()
