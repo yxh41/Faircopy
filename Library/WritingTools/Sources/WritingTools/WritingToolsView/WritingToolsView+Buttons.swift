@@ -103,7 +103,7 @@ extension WritingToolsView {
                         }
                     } label: {
                         Text(language)
-                            .font(.system(.caption2, weight: selected ? .semibold : .regular))
+                            .font(.system(size: 11, weight: selected ? .semibold : .regular))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(
