@@ -55,7 +55,11 @@ class Configuration: NSObject, ObservableObject {
     @PublishedPersist(key: "ConfiguredEndpoints", defaultValue: [:])
     private var configuredEndpoints: [Endpoint.ID: Endpoint]
 
-    @Persist(key: "CustomPrompts", defaultValue: [:])
+    // Must be @PublishedPersist: the gate daemon caches Persist values in memory
+    // and only refreshes them on the .reload command, which is emitted from
+    // objectWillChange. Plain @Persist here would leave the daemon serving a
+    // stale (empty) custom_prompts list to the writing panel forever.
+    @PublishedPersist(key: "CustomPrompts", defaultValue: [:])
     private var customPrompts: [UUID: CustomPrompt]
 
     var allCustomPrompts: [CustomPrompt] {
