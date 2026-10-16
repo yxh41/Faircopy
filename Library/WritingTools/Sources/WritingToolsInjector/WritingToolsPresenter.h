@@ -11,7 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @class WritingToolsPresenter;
 
-@interface WritingToolsPresenter
+@interface WritingToolsPresenter : NSObject
 + (instancetype)sharedInstance;
 - (NSString *)writingToolMenuName;
 - (void)presentToolController:(UIResponder *)responder;
