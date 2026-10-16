@@ -61,9 +61,11 @@ extension WritingToolsView {
                     BeautifulButton(title: "Copy".localized) { copySegmentResult() }
                     BeautifulButton(title: "Share".localized) { shareSegmentResult() }
                     BeautifulButton(title: "Discard".localized) { discard() }
-                    if !selectedSegmentIndexes.isEmpty {
-                        BeautifulButton(title: "Accept".localized) { acceptSegmentResult() }
-                    }
+                    // The 4th slot always exists so inserting/removing Accept
+                    // never re-flows the row (previously the other buttons
+                    // visibly squeezed/shifted when a selection appeared).
+                    segmentAcceptSlot()
+                        .frame(maxWidth: .infinity)
                 } else {
                     BeautifulButton(title: "Copy".localized) { copyOutput() }
                     BeautifulButton(title: "Share".localized) { shareOutput() }
@@ -79,7 +81,22 @@ extension WritingToolsView {
                 }
             }
             .frame(height: 40)
+            .animation(.easeOut(duration: 0.15), value: selectedSegmentIndexes.isEmpty)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.85)))
+    }
+
+    /// The trailing slot of the segment button row. While nothing is selected
+    /// it holds an invisible placeholder so the row keeps a stable 4-slot
+    /// layout; the Accept button only cross-fades in and out.
+    @ViewBuilder
+    private func segmentAcceptSlot() -> some View {
+        if !selectedSegmentIndexes.isEmpty {
+            BeautifulButton(title: "Accept".localized) { acceptSegmentResult() }
+                .transition(.opacity)
+        } else {
+            Color.clear
+                .accessibilityHidden(true)
+        }
     }
 }
