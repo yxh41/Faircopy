@@ -33,6 +33,15 @@ enum ServiceStatus: Equatable {
     }
 }
 
+/// Darwin notification other tweaks post to summon the writing panel.
+/// Keep in sync with kFCExternalPresentNotification in
+/// Library/WritingTools/Sources/WritingToolsInjector.h.
+let kFCExternalPresentNotificationName = "wiki.qaq.faircopy.present"
+
+/// URL scheme handled by AIGate (bounces back to the caller, then posts the
+/// notification above). Keep in sync with SceneDelegate.handleOpenURL.
+let kFCExternalPanelURLScheme = "faircopy://panel"
+
 struct FaircopyRootView: View {
     @StateObject var appViewModel = FaircopyAppModel.shared
     @StateObject var configuration = Configuration.shared
@@ -43,6 +52,7 @@ struct FaircopyRootView: View {
 
     @State var openAddSheet = false
     @State var quickLookExport: URL?
+    @State var copiedInvocationID: String?
 
     @State var serviceStatus: ServiceStatus = .unknown
     @State var usageStats: UsageStats?
@@ -111,6 +121,7 @@ struct FaircopyRootView: View {
             endpointListSection
             builtInEndpointSection
             customPromptsSection
+            externalInvocationSection
             usageSection
 
             if appViewModel.isLiteEdition { supportTweakSection }
@@ -231,6 +242,57 @@ struct FaircopyRootView: View {
                 comment: ""
             ))
         }
+    }
+
+    var externalInvocationSection: some View {
+        Section {
+            invocationCopyRow(
+                id: "notification",
+                title: NSLocalizedString("Darwin Notification", bundle: Bundle.wrti_support, comment: ""),
+                value: "notify_post(\"\(kFCExternalPresentNotificationName)\")"
+            )
+            invocationCopyRow(
+                id: "url",
+                title: NSLocalizedString("URL Scheme", bundle: Bundle.wrti_support, comment: ""),
+                value: kFCExternalPanelURLScheme
+            )
+        } header: {
+            Text(NSLocalizedString("External Invocation", bundle: Bundle.wrti_support, comment: ""))
+        } footer: {
+            Text(NSLocalizedString(
+                "Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it.",
+                bundle: Bundle.wrti_support,
+                comment: ""
+            ))
+        }
+        .animation(.smooth, value: copiedInvocationID)
+    }
+
+    private func invocationCopyRow(id: String, title: String, value: String) -> some View {
+        Button {
+            UIPasteboard.general.string = value
+            copiedInvocationID = id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                if copiedInvocationID == id { copiedInvocationID = nil }
+            }
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                    Text(value)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if copiedInvocationID == id {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color.accent)
+                        .transition(.opacity)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     var usageSection: some View {

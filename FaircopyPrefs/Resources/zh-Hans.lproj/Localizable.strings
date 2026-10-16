@@ -86,6 +86,9 @@
 "Delete" = "删除";
 
 /* No comment provided by engineer. */
+"Darwin Notification" = "Darwin 通知";
+
+/* No comment provided by engineer. */
 "Dynamic wallpaper with colorful effects." = "多彩效果的动态光影壁纸。";
 
 /* HTTP 103 */
@@ -120,6 +123,9 @@
 
 /* No comment provided by engineer. */
 "Export Support Tweak" = "导出支持插件";
+
+/* No comment provided by engineer. */
+"External Invocation" = "外部调用";
 
 /* HTTP 424 */
 "Failed Dependency" = "Failed Dependency";
@@ -249,6 +255,9 @@
 
 /* HTTP 200 */
 "OK" = "OK";
+
+/* No comment provided by engineer. */
+"Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it." = "其他插件或快捷指令可以通过以下方式唤出妙写面板：在前台使用妙写时发送该 Darwin 通知，或打开该 URL Scheme。点按任意一行即可复制。";
 
 /* HTTP 206 */
 "Partial Content" = "Partial Content";
@@ -435,6 +444,9 @@
 
 /* No comment provided by engineer. */
 "URL" = "URL";
+
+/* No comment provided by engineer. */
+"URL Scheme" = "URL 方案";
 
 /* No comment provided by engineer. */
 "Use Built-in Endpoint" = "使用内置节点";

@@ -86,6 +86,9 @@
 "Delete" = "Delete";
 
 /* No comment provided by engineer. */
+"Darwin Notification" = "Darwin Notification";
+
+/* No comment provided by engineer. */
 "Dynamic wallpaper with colorful effects." = "Dynamic wallpaper with colorful effects.";
 
 /* HTTP 103 */
@@ -120,6 +123,9 @@
 
 /* No comment provided by engineer. */
 "Export Support Tweak" = "Export Support Tweak";
+
+/* No comment provided by engineer. */
+"External Invocation" = "External Invocation";
 
 /* HTTP 424 */
 "Failed Dependency" = "Failed Dependency";
@@ -249,6 +255,9 @@
 
 /* HTTP 200 */
 "OK" = "OK";
+
+/* No comment provided by engineer. */
+"Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it." = "Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it.";
 
 /* HTTP 206 */
 "Partial Content" = "Partial Content";
@@ -435,6 +444,9 @@
 
 /* No comment provided by engineer. */
 "URL" = "URL";
+
+/* No comment provided by engineer. */
+"URL Scheme" = "URL Scheme";
 
 /* No comment provided by engineer. */
 "Use Built-in Endpoint" = "Use Built-in Endpoint";
