@@ -25,6 +25,10 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
     private let usageScanLimit = 65_536
     private static let usageMarker = Data("\"usage\"".utf8)
 
+    /// Upstream response code, parsed once from the header. Cached because
+    /// `writeToDownstream` drains `headerBuffer` after the first chunk.
+    private var upstreamCode: Int? = nil
+
     init(downstream: ChannelHandlerContext) {
         self.downstream = downstream
     }
@@ -34,25 +38,30 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
         guard let inputRead = inputBuffer.readBytes(length: inputBuffer.readableBytes) else { return }
         let inputData = Data(inputRead)
 
-        switch headerCompleted {
-        case false:
+        if headerCompleted {
+            // Body chunk after the header was consumed: keep buffering and keep
+            // scanning. The trailing usage object of a streaming (SSE) response
+            // arrives in one of these later chunks, so scanUsage MUST run here
+            // too — returning early used to drop every usage report.
+            bodyBuffer.append(inputData)
+        } else {
             assert(bodyBuffer.isEmpty)
-
             let parts = splitInputDataForHTTP(currentData: headerBuffer, incomingData: inputData)
             headerBuffer = parts.header
             bodyBuffer = parts.body
             headerCompleted = parts.headerCompleted
-
-        case true:
-            // into body status, header must be processed before
-            bodyBuffer.append(inputData)
-            writeToDownstream(context: context)
-            return
         }
 
         guard headerCompleted else { return }
 
-        guard let code = codeFromHeader() else {
+        if upstreamCode == nil {
+            guard let code = codeFromHeader() else {
+                context.terminateChannel(reason: .upstreamUnrecognizedResponse)
+                return
+            }
+            upstreamCode = code
+        }
+        guard let code = upstreamCode else {
             context.terminateChannel(reason: .upstreamUnrecognizedResponse)
             return
         }
@@ -60,6 +69,7 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
             context.terminateChannel(reason: .upstreamPassedError(code: code))
             return
         }
+
         scanUsage(from: bodyBuffer)
         writeToDownstream(context: context)
     }
@@ -142,6 +152,15 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
     }
 
     func channelInactive(context: ChannelHandlerContext) {
+        // Fallback accounting: a 200 response that never carried a parsable
+        // usage object (relay without include_usage support, or a stream cut
+        // short) still consumed a request. Count it with zero tokens so the
+        // usage panel's request count stays honest; tokens stay 0 because the
+        // provider never reported them.
+        if !usageRecorded, upstreamCode == 200 {
+            UsageStatistics.shared.record(promptTokens: 0, completionTokens: 0)
+            usageRecorded = true
+        }
         writeToDownstream(context: context)
         downstream.close(promise: nil)
     }

@@ -38,7 +38,7 @@ extension WritingToolsView {
                 HStack(spacing: 8) {
                     if isRunning, liveSpeed > 0 {
                         Image(systemName: "bolt.fill")
-                        Text("\(max(1, Int(liveSpeed / 4))) tok/s")
+                        Text("\(max(1, Int(liveSpeed))) 字/s")
                     }
                     if let usage {
                         Image(systemName: "chart.bar.fill")

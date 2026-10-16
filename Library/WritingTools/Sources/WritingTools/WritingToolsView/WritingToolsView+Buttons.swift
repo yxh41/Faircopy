@@ -99,8 +99,9 @@ extension WritingToolsView {
     /// Horizontal language chip strip for the Translate task. Selecting a chip
     /// updates `translateTarget` and immediately re-runs the translate task so
     /// the user can switch the destination language without leaving the panel.
-    /// Implemented with `Capsule` + `.onTapGesture` (not `Button`) because
-    /// `Button` inside a `ScrollView` fails to receive taps on iOS.
+    /// Laid out as a fixed 2-row grid (NOT a ScrollView): a horizontal scroll
+    /// view competes with taps via its pan gesture and was reported as hard to
+    /// hit; a grid makes every language visible with a large tap target.
     /// `target` is passed as a plain `String` (the current `translateTarget`);
     /// do NOT read the `@State` property directly inside this `@ViewBuilder`
     /// method, otherwise SwiftUI projects it as a `Binding` and the `ForEach`
@@ -112,7 +113,7 @@ extension WritingToolsView {
     private func languageChip(_ item: TranslateLanguage, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Capsule()
             .fill(isSelected ? Color.white : Color.white.opacity(0.12))
-            .frame(minWidth: 52, minHeight: 30)
+            .frame(height: 40)
             .overlay(
                 Text(item.display)
                     .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
@@ -124,20 +125,17 @@ extension WritingToolsView {
 
     @ViewBuilder
     func translateLanguagePicker(target: String, rerunOnSelect: Bool = true) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(kTranslateLanguages, id: \.key) { (item: TranslateLanguage) in
-                    languageChip(item, isSelected: item.key == target) {
-                        self.translateTarget = item.key
-                        if rerunOnSelect, self.taskPrompt == .translate {
-                            self.executeCurrentTask()
-                        }
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 5)
+        LazyVGrid(columns: columns, spacing: 6) {
+            ForEach(kTranslateLanguages, id: \.key) { (item: TranslateLanguage) in
+                languageChip(item, isSelected: item.key == target) {
+                    self.translateTarget = item.key
+                    if rerunOnSelect, self.taskPrompt == .translate {
+                        self.executeCurrentTask()
                     }
                 }
             }
-            .padding(.horizontal, 2)
         }
-        .frame(height: 34)
         .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 
