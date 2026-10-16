@@ -14,7 +14,10 @@
 #import <dlfcn.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
-#import <notify/notify.h>
+
+// NOTE: no <notify/notify.h> here — the iOS SDK does not ship it, and the
+// Darwin notification observer below only needs CoreFoundation
+// (CFNotificationCenter*), which UIKit already links.
 
 // MARK: - External Trigger (Darwin notification)
 

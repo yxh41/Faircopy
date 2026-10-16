@@ -5,8 +5,12 @@
 //  Created by 秋星桥 on 2024/8/15.
 //
 
-import Darwin
 import SwiftUI
+
+/// The iOS SDK ships no <notify/notify.h>, so declare the symbol we need the
+/// same way TaskProcess+ObjC.swift declares its private POSIX entry points.
+@_silgen_name("notify_post")
+private func fc_notify_post(_ name: UnsafePointer<CChar>?) -> UInt32
 
 struct FaircopyApp: App {
     @StateObject var vm = FaircopyAppModel.shared
@@ -149,7 +153,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 // Keep in sync with kFCExternalPresentNotification in
                 // Library/WritingTools/Sources/WritingToolsInjector.h
-                notify_post("wiki.qaq.faircopy.present")
+                fc_notify_post("wiki.qaq.faircopy.present")
             }
         }
     }
