@@ -115,10 +115,8 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                options connectionOptions: UIScene.ConnectionOptions)
     {
         guard let _ = scene as? UIWindowScene else { return }
-        if let url = connectionOptions.urlContexts.first?.url,
-           let src = connectionOptions.urlContexts.first?.options.sourceApplication
-        {
-            handleOpenURL(url, sourceApplication: src)
+        if let url = connectionOptions.urlContexts.first?.url {
+            handleOpenURL(url, sourceApplication: connectionOptions.urlContexts.first?.options.sourceApplication)
         }
     }
 
@@ -127,19 +125,20 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     }
 
     func scene(_: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        guard let url = URLContexts.first?.url,
-              let src = URLContexts.first?.options.sourceApplication
-        else {
-            return
-        }
-        handleOpenURL(url, sourceApplication: src)
+        guard let url = URLContexts.first?.url else { return }
+        handleOpenURL(url, sourceApplication: URLContexts.first?.options.sourceApplication)
     }
 
-    private func handleOpenURL(_ url: URL, sourceApplication src: String) {
+    private func handleOpenURL(_ url: URL, sourceApplication src: String?) {
+        // iOS 16 often reports a nil source application (Shortcuts, third-party
+        // launchers). Never strand the user on the AIGate settings UI: fall
+        // back to the home screen when the caller is unknown.
+        let bounceTarget = (src?.isEmpty == false) ? src! : "com.apple.SpringBoard"
+
         if url.host == "spawn" {
             FaircopyAppModel.shared.beginBackgroundTask()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                LSApplicationWorkspace.default().openApplication(withBundleID: src)
+                LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
             }
         }
         if url.host == "panel" {
@@ -148,7 +147,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // kFCExternalPresentNotification in WritingToolsInjector.h.
             FaircopyAppModel.shared.beginBackgroundTask()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                LSApplicationWorkspace.default().openApplication(withBundleID: src)
+                LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 // Keep in sync with kFCExternalPresentNotification in

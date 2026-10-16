@@ -68,6 +68,9 @@
 "Continue" = "Continue";
 
 /* No comment provided by engineer. */
+"Copy Invocation Code" = "复制调用代码";
+
+/* No comment provided by engineer. */
 "Copy Model" = "复制模型";
 
 /* No comment provided by engineer. */
@@ -257,7 +260,10 @@
 "OK" = "OK";
 
 /* No comment provided by engineer. */
-"Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it." = "其他插件或快捷指令可以通过以下方式唤出妙写面板：在前台使用妙写时发送该 Darwin 通知，或打开该 URL Scheme。点按任意一行即可复制。";
+"Open" = "打开";
+
+/* No comment provided by engineer. */
+"Other tweaks or Shortcuts can summon the writing panel with these entries. URL Scheme: open it in Safari or a Shortcuts “Open URL” action while a text field is focused, and the panel pops back over that app. Darwin Notification: post it from another tweak’s code (Objective-C: notify_post(\"wiki.qaq.faircopy.present\")); only the foreground app responds. Tap a row to copy, long press for more options." = "其他插件或快捷指令可通过以下方式唤出妙写面板。URL Scheme：在任意输入框获得焦点时，通过 Safari 或快捷指令「打开 URL」打开，面板会弹回该 App。Darwin 通知：在其他插件代码中发送（Objective-C：notify_post(\"wiki.qaq.faircopy.present\")），仅前台 App 响应。点按复制，长按查看更多操作。";
 
 /* HTTP 206 */
 "Partial Content" = "Partial Content";

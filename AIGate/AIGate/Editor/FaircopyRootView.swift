@@ -247,20 +247,32 @@ struct FaircopyRootView: View {
     var externalInvocationSection: some View {
         Section {
             invocationCopyRow(
-                id: "notification",
-                title: NSLocalizedString("Darwin Notification", bundle: Bundle.wrti_support, comment: ""),
-                value: "notify_post(\"\(kFCExternalPresentNotificationName)\")"
-            )
-            invocationCopyRow(
                 id: "url",
                 title: NSLocalizedString("URL Scheme", bundle: Bundle.wrti_support, comment: ""),
-                value: kFCExternalPanelURLScheme
+                value: kFCExternalPanelURLScheme,
+                extraActions: [
+                    InvocationExtraAction(title: NSLocalizedString("Open", bundle: Bundle.wrti_support, comment: "")) {
+                        if let url = URL(string: kFCExternalPanelURLScheme) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                ]
+            )
+            invocationCopyRow(
+                id: "notification",
+                title: NSLocalizedString("Darwin Notification", bundle: Bundle.wrti_support, comment: ""),
+                value: kFCExternalPresentNotificationName,
+                extraActions: [
+                    InvocationExtraAction(title: NSLocalizedString("Copy Invocation Code", bundle: Bundle.wrti_support, comment: "")) {
+                        UIPasteboard.general.string = "notify_post(\"\(kFCExternalPresentNotificationName)\")"
+                    }
+                ]
             )
         } header: {
             Text(NSLocalizedString("External Invocation", bundle: Bundle.wrti_support, comment: ""))
         } footer: {
             Text(NSLocalizedString(
-                "Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it.",
+                "Other tweaks or Shortcuts can summon the writing panel with these entries. URL Scheme: open it in Safari or a Shortcuts “Open URL” action while a text field is focused, and the panel pops back over that app. Darwin Notification: post it from another tweak’s code (Objective-C: notify_post(\"wiki.qaq.faircopy.present\")); only the foreground app responds. Tap a row to copy, long press for more options.",
                 bundle: Bundle.wrti_support,
                 comment: ""
             ))
@@ -268,13 +280,28 @@ struct FaircopyRootView: View {
         .animation(.smooth, value: copiedInvocationID)
     }
 
-    private func invocationCopyRow(id: String, title: String, value: String) -> some View {
+    private struct InvocationExtraAction: Identifiable {
+        let id = UUID()
+        let title: String
+        let perform: () -> Void
+    }
+
+    private func flashCopied(_ id: String) {
+        copiedInvocationID = id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            if copiedInvocationID == id { copiedInvocationID = nil }
+        }
+    }
+
+    private func invocationCopyRow(
+        id: String,
+        title: String,
+        value: String,
+        extraActions: [InvocationExtraAction] = []
+    ) -> some View {
         Button {
             UIPasteboard.general.string = value
-            copiedInvocationID = id
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                if copiedInvocationID == id { copiedInvocationID = nil }
-            }
+            flashCopied(id)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -293,6 +320,11 @@ struct FaircopyRootView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            ForEach(extraActions) { action in
+                Button(action.title) { action.perform() }
+            }
+        }
     }
 
     var usageSection: some View {

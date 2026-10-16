@@ -68,6 +68,9 @@
 "Continue" = "Continue";
 
 /* No comment provided by engineer. */
+"Copy Invocation Code" = "Copy Invocation Code";
+
+/* No comment provided by engineer. */
 "Copy Model" = "Copy Model";
 
 /* No comment provided by engineer. */
@@ -257,7 +260,10 @@
 "OK" = "OK";
 
 /* No comment provided by engineer. */
-"Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it." = "Other tweaks or Shortcuts can summon the writing panel with these entries: post the Darwin notification while Faircopy is active in front, or open the URL scheme. Tap a row to copy it.";
+"Open" = "Open";
+
+/* No comment provided by engineer. */
+"Other tweaks or Shortcuts can summon the writing panel with these entries. URL Scheme: open it in Safari or a Shortcuts “Open URL” action while a text field is focused, and the panel pops back over that app. Darwin Notification: post it from another tweak’s code (Objective-C: notify_post(\"wiki.qaq.faircopy.present\")); only the foreground app responds. Tap a row to copy, long press for more options." = "Other tweaks or Shortcuts can summon the writing panel with these entries. URL Scheme: open it in Safari or a Shortcuts “Open URL” action while a text field is focused, and the panel pops back over that app. Darwin Notification: post it from another tweak’s code (Objective-C: notify_post(\"wiki.qaq.faircopy.present\")); only the foreground app responds. Tap a row to copy, long press for more options.";
 
 /* HTTP 206 */
 "Partial Content" = "Partial Content";

@@ -65,6 +65,18 @@ static UIResponder *FC_FindEditingResponder(void) {
     return nil;
 }
 
+static UIWindow *FC_ForegroundKeyWindow(void) {
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState != UISceneActivationStateForegroundActive) { continue; }
+        for (UIWindow *window in windowScene.windows) {
+            if (window.isKeyWindow) { return window; }
+        }
+    }
+    return nil;
+}
+
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
@@ -73,9 +85,18 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
         return;
     }
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIResponder *responder = FC_FindEditingResponder();
-        if (!responder) { return; }
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
+        UIResponder *responder = FC_FindEditingResponder();
+        if (!responder) {
+            // No editable text on screen. The panel needs a text target, so
+            // fail loudly (shake the window, same language as the menu path's
+            // "unavailable" feedback) instead of silently doing nothing.
+            UIWindow *keyWindow = FC_ForegroundKeyWindow();
+            if (keyWindow) {
+                [presenter presentUnavailable:keyWindow];
+            }
+            return;
+        }
         if ([presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
             [presenter presentToolControllerFromExternalSource:responder];
         }
