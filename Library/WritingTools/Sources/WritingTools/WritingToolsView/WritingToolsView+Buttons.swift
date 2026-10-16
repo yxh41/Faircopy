@@ -8,6 +8,12 @@
 import Foundation
 import SwiftUI
 
+private let kTranslateLanguages = [
+    "English", "中文", "日本語", "한국어",
+    "Français", "Deutsch", "Español", "Русский",
+    "Italiano", "Português"
+]
+
 extension WritingToolsView {
     @ViewBuilder
     var selectiveButtonPanels: some View {
@@ -54,6 +60,9 @@ extension WritingToolsView {
                 customPromptButton
             }
             .frame(height: 60)
+            if taskPrompt == .translate {
+                translateLanguagePicker(rerunOnSelect: false)
+            }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.85)))
         .scaleEffect(initialAnimation * 0.25 + 0.75)
@@ -76,6 +85,44 @@ extension WritingToolsView {
         .font(.footnote)
         .opacity(0.25)
         .transition(.opacity)
+    }
+
+    /// Horizontal language chip strip for the Translate task. Selecting a chip
+    /// updates `translateTarget` and immediately re-runs the translate task so
+    /// the user can switch the destination language without leaving the panel.
+    @ViewBuilder
+    func translateLanguagePicker(rerunOnSelect: Bool = true) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(kTranslateLanguages, id: \.self) { language in
+                    let selected = language == translateTarget
+                    Button {
+                        translateTarget = language
+                        if rerunOnSelect, taskPrompt == .translate {
+                            executeCurrentTask()
+                        }
+                    } label: {
+                        Text(language)
+                            .font(.system(.caption2, weight: selected ? .semibold : .regular))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .foregroundStyle(selected ? .white : .white.opacity(0.12))
+                            )
+                            .foregroundStyle(selected ? .black : .white)
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(.white.opacity(0.25), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+        .frame(height: 34)
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 
     /// Opens the AIGate companion app, where custom prompts are managed.

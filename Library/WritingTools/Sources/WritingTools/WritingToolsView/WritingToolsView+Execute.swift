@@ -15,7 +15,7 @@ extension WritingToolsView {
     func executeCurrentTask(delayedForRetry: Bool = false) {
         activeCustomPrompt = nil
         executeTask(
-            systemPrompt: taskPrompt.prompt,
+            systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
             examples: taskPrompt.chatExamplesAfterSystemMessage,
             sampling: taskPrompt.sampling(for: context.textProxy.selectedText.count),
             delayedForRetry: delayedForRetry

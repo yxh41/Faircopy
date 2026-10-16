@@ -31,6 +31,9 @@ extension WritingToolsView {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .transition(.opacity.combined(with: .scale))
             }
+            if taskPrompt == .translate {
+                translateLanguagePicker(rerunOnSelect: true)
+            }
             if usage != nil || (isRunning && liveSpeed > 0) {
                 HStack(spacing: 8) {
                     if isRunning, liveSpeed > 0 {

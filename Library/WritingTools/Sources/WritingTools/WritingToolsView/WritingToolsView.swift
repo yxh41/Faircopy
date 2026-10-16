@@ -28,6 +28,7 @@ struct WritingToolsView: View {
 
     @State var error: Error? = nil
     @State var taskPrompt: Prompt = .rewrite
+    @State var translateTarget: String = "English"
 
     @State var customPrompts: [CustomPromptEntry] = []
     @State var activeCustomPrompt: CustomPromptEntry? = nil

@@ -305,7 +305,7 @@ public extension Prompt {
             """
         case .translate:
             """
-            Translate the text between Chinese and English, keeping any existing language mix intact. Preserve meaning, tone, names, numbers, code, and quotations; do not add or omit content. Output only the translated text. \(generalPrompt)
+            Translate the text into the user-selected target language, detecting the source language automatically and keeping any existing language mix intact. Preserve meaning, tone, names, numbers, code, and quotations; do not add or omit content. Output only the translated text. \(generalPrompt)
             """
         case .expand:
             """
@@ -316,6 +316,18 @@ public extension Prompt {
             Summarize the text into a shorter version that keeps the key information and intent. Use plain sentences, or a compact list only if the original is a list. Do not add new information or opinions. \(generalPrompt)
             """
         }
+    }
+
+    /// Resolves the system prompt for the active mode. Translate is dynamic:
+    /// it targets the user-chosen language instead of the hardcoded zh↔en pair.
+    func resolvedPrompt(translateTarget target: String) -> String {
+        self == .translate ? Prompt.translationPrompt(target: target) : prompt
+    }
+
+    private static func translationPrompt(target: String) -> String {
+        """
+        Translate the following text into \(target). Detect the source language automatically and preserve all meaning, tone, names, numbers, code, and quotations; do not add or omit content. If the text is already in \(target), return it unchanged. Output only the translated text. \(generalPrompt)
+        """
     }
 }
 
