@@ -103,10 +103,14 @@ extension WritingToolsView {
     /// `Button` inside a `ScrollView` fails to receive taps on iOS.
     @ViewBuilder
     func translateLanguagePicker(rerunOnSelect: Bool = true) -> some View {
+        // Capture the @State wrapped value into a local so the ForEach closure
+        // reads a plain String (SwiftUI's builder context otherwise projects the
+        // property as a Binding, which breaks the ForEach overload resolution).
+        let target = translateTarget
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(kTranslateLanguages, id: \.key) { item in
-                    let selected = item.key == translateTarget
+                    let selected = item.key == target
                     Capsule()
                         .fill(selected ? Color.white : Color.white.opacity(0.12))
                         .frame(minWidth: 52, height: 30)
@@ -117,9 +121,9 @@ extension WritingToolsView {
                         )
                         .contentShape(Capsule())
                         .onTapGesture {
-                            translateTarget = item.key
-                            if rerunOnSelect, taskPrompt == .translate {
-                                executeCurrentTask()
+                            self.translateTarget = item.key
+                            if rerunOnSelect, self.taskPrompt == .translate {
+                                self.executeCurrentTask()
                             }
                         }
                 }
