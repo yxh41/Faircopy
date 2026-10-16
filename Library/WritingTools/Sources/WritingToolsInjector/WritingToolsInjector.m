@@ -14,6 +14,70 @@
 #import <dlfcn.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <notify/notify.h>
+
+// MARK: - External Trigger (Darwin notification)
+
+/// The most recent text input that became first responder for editing.
+/// Only ever touched on the main thread.
+static UIResponder *__fc_lastEditingResponder = nil;
+
+UIResponder *FC_LastEditingResponder(void) {
+    return __fc_lastEditingResponder;
+}
+
+void FC_SetLastEditingResponder(UIResponder *responder) {
+    __fc_lastEditingResponder = responder;
+}
+
+static UIView *FC_FindFirstResponderInView(UIView *view) {
+    if ([view isFirstResponder] && [view conformsToProtocol:@protocol(UITextInput)]) {
+        return view;
+    }
+    for (UIView *subview in view.subviews) {
+        UIView *found = FC_FindFirstResponderInView(subview);
+        if (found) { return found; }
+    }
+    return nil;
+}
+
+/// Best-effort target for an externally triggered panel: the last editing
+/// responder if its view is still on screen, otherwise the current first
+/// responder of the foreground key window.
+static UIResponder *FC_FindEditingResponder(void) {
+    UIResponder *last = FC_LastEditingResponder();
+    if ([last isKindOfClass:[UIView class]] && [(UIView *)last window]) {
+        return last;
+    }
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState != UISceneActivationStateForegroundActive) { continue; }
+        for (UIWindow *window in windowScene.windows) {
+            if (!window.isKeyWindow) { continue; }
+            UIView *found = FC_FindFirstResponderInView(window);
+            if (found) { return found; }
+        }
+    }
+    return nil;
+}
+
+static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
+                                     const void *object, CFDictionaryRef userInfo)
+{
+    // Only the foreground app should react; backgrounded apps cannot present.
+    if ([UIApplication sharedApplication].applicationState != UIApplicationStateActive) {
+        return;
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIResponder *responder = FC_FindEditingResponder();
+        if (!responder) { return; }
+        WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
+        if ([presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
+            [presenter presentToolControllerFromExternalSource:responder];
+        }
+    });
+}
 
 // MARK: - UIResponder
 
@@ -144,6 +208,18 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
 + (void)_initializeWritingTool {
     WTAddMessageExecute(NSClassFromString(@"UIResponder"), NSSelectorFromString(@kWritingToolSelectorName),
                         (IMP)add_UIResponder_openWriteTools, @"v@:");
+
+    // External trigger: other tweaks (or the faircopy://panel URL, forwarded
+    // by AIGate) post this Darwin notification to summon the panel in places
+    // the system edit menu injection does not reach.
+    CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        NULL,
+        FC_DarwinNotifyCallback,
+        CFSTR(kFCExternalPresentNotification),
+        NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
 
     if (@available(iOS 16, *)) {
         Class targetCls = NSClassFromString(@"_UIEditMenuContentPresentation");

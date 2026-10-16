@@ -47,6 +47,48 @@ public extension Presenter {
         context.parentController.present(toolController, animated: true)
     }
 
+    /// External entry point (Darwin notification `wiki.qaq.faircopy.present`
+    /// or the `faircopy://panel` URL forwarded by AIGate). Unlike the menu
+    /// path there is no selection anchor, so the panel is presented as a
+    /// centered rounded card (popover without arrow) with the standard pop
+    /// animation instead of pointing at the selection.
+    @objc(presentToolControllerFromExternalSource:)
+    func presentToolControllerFromExternalSource(_ responder: UIResponder) {
+        guard let parentController = (responder as? UIView)?.parentViewController else {
+            presentUnavailable(responder)
+            return
+        }
+        // Do not stack panels if something is already presented from the host.
+        // Checked before buildContext: building the context attaches decoration
+        // views to the text input, which must not leak if we bail out here.
+        guard parentController.presentedViewController == nil else { return }
+
+        guard let context = buildContext(fromResponder: responder) else {
+            presentUnavailable(responder)
+            return
+        }
+
+        let toolController = WritingToolController(context: context)
+        let contentSize = toolController.view.systemLayoutSizeFitting(.init(
+            width: 400,
+            height: CGFloat.greatestFiniteMagnitude
+        ))
+        toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
+        toolController.modalPresentationStyle = .popover
+        toolController.preferredContentSize = contentSize
+        toolController.popoverPresentationController?.delegate = context
+        toolController.popoverPresentationController?.sourceView = context.parentController.view
+        toolController.popoverPresentationController?.sourceRect = CGRect(
+            x: context.parentController.view.bounds.midX,
+            y: context.parentController.view.bounds.midY,
+            width: 0,
+            height: 0
+        )
+        toolController.popoverPresentationController?.canOverlapSourceViewRect = true
+        toolController.popoverPresentationController?.permittedArrowDirections = []
+        context.parentController.present(toolController, animated: true)
+    }
+
     private func obtainContextFor(_ view: UIView) -> Context? {
         if let context = buildContext(fromResponder: view) {
             return context

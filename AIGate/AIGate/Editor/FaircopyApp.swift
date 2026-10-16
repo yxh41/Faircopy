@@ -5,6 +5,7 @@
 //  Created by 秋星桥 on 2024/8/15.
 //
 
+import Darwin
 import SwiftUI
 
 struct FaircopyApp: App {
@@ -135,6 +136,20 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             FaircopyAppModel.shared.beginBackgroundTask()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 LSApplicationWorkspace.default().openApplication(withBundleID: src)
+            }
+        }
+        if url.host == "panel" {
+            // External panel entry: bounce back to the caller first, then post
+            // the Darwin notification the tweak listens for. See
+            // kFCExternalPresentNotification in WritingToolsInjector.h.
+            FaircopyAppModel.shared.beginBackgroundTask()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                LSApplicationWorkspace.default().openApplication(withBundleID: src)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // Keep in sync with kFCExternalPresentNotification in
+                // Library/WritingTools/Sources/WritingToolsInjector.h
+                notify_post("wiki.qaq.faircopy.present")
             }
         }
     }

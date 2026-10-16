@@ -5,9 +5,6 @@
 @import UIKit;
 @import WritingToolsInjector;
 
-
-static UIResponder *_lastResponderForEditing = nil;
-
 @interface UIResponder (Faircopy)
 - (id)_responderForEditing;
 @end
@@ -39,7 +36,7 @@ static UIResponder *_lastResponderForEditing = nil;
         return origRet;
     }
 
-    UIResponder *responder = _lastResponderForEditing;
+    UIResponder *responder = FC_LastEditingResponder();
     if ([responder isKindOfClass:[UITextView class]]) {
         UITextView *textView = (UITextView *)responder;
         return [textView isEditable];
@@ -57,7 +54,7 @@ static UIResponder *_lastResponderForEditing = nil;
 
 - (UIResponder *)_responderForEditing {
     UIResponder *responder = %orig;
-    _lastResponderForEditing = responder;
+    FC_SetLastEditingResponder(responder);
 
     HBLogDebug(@"_responderForEditing: %@", responder);
     return responder;
