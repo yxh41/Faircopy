@@ -112,7 +112,7 @@ extension WritingToolsView {
     private func languageChip(_ item: TranslateLanguage, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Capsule()
             .fill(isSelected ? Color.white : Color.white.opacity(0.12))
-            .frame(minWidth: 52, height: 30)
+            .frame(minWidth: 52, minHeight: 30)
             .overlay(
                 Text(item.display)
                     .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
