@@ -30,8 +30,18 @@ __attribute__((visibility("hidden")))
 /// The most recent text input that became first responder for editing.
 /// Recorded by the `_responderForEditing` hook in Faircopy.xm; used by the
 /// external trigger to know which field the panel should operate on.
+/// Declared extern "C" because Logos compiles .xm files as Objective-C++,
+/// which would otherwise mangle these symbols and break linking.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 UIResponder *_Nullable FC_LastEditingResponder(void);
 void FC_SetLastEditingResponder(UIResponder *_Nullable responder);
+
+#ifdef __cplusplus
+}
+#endif
 
 __attribute__((visibility("hidden")))
 @interface WKContentView : UIView <UITextInput>
