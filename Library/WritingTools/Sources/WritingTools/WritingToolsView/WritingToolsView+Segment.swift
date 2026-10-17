@@ -182,14 +182,12 @@ private final class SegmentEngine {
                 characterTokens(in: gap)
             }
 
-            let tokenText = source.substring(with: tokenRange)
-            if Self.containsCJK(tokenText) {
-                // CFStringTokenizer treats a CJK run as one token; Kayoko
-                // splits it per composed character instead.
-                characterTokens(in: tokenRange)
-            } else {
-                addToken(in: tokenRange)
-            }
+            // Keep consecutive non-CJK characters grouped (Latin words stay
+            // whole) while emitting each CJK character / CJK punctuation as its
+            // own token. Replaces the old behaviour where any CJK char in a
+            // token forced the entire token — adjacent Latin words included — to
+            // split per character.
+            emitMixedToken(in: tokenRange)
 
             cursor = NSMaxRange(tokenRange)
             tokenType = CFStringTokenizerAdvanceToNextToken(tokenizer)
@@ -199,6 +197,38 @@ private final class SegmentEngine {
             let remaining = NSRange(location: cursor, length: NSMaxRange(range) - cursor)
             characterTokens(in: remaining)
         }
+    }
+
+    /// Tokenizes a single CFStringTokenizer word unit without fragmenting Latin
+    /// runs. Walks the unit by composed character: consecutive non-CJK
+    /// characters accumulate into one token, while every CJK character (or CJK
+    /// punctuation) becomes its own token. Mixed text like "你hello好" therefore
+    /// yields "你", "hello", "好" instead of one glyph per character.
+    private func emitMixedToken(in range: NSRange) {
+        let substring = source.substring(with: range) as NSString
+        var runStart = range.location
+        var runLength = 0
+        let flush = {
+            if runLength > 0 {
+                self.addToken(in: NSRange(location: runStart, length: runLength))
+                runLength = 0
+            }
+        }
+        substring.enumerateSubstrings(
+            in: NSRange(location: 0, length: substring.length),
+            options: .byComposedCharacterSequences
+        ) { piece, pieceRange, _, _ in
+            guard let piece else { return }
+            if Self.containsCJK(piece) {
+                flush()
+                let actual = NSRange(location: range.location + pieceRange.location, length: pieceRange.length)
+                self.addToken(in: actual)
+            } else {
+                if runLength == 0 { runStart = range.location + pieceRange.location }
+                runLength += pieceRange.length
+            }
+        }
+        flush()
     }
 
     /// Emits one token per composed character sequence (punctuation, symbols,
@@ -291,6 +321,13 @@ struct SegmentChip: View {
     let isSelected: Bool
     let maxWidth: CGFloat
     let action: () -> Void
+    /// Content-space frames of every chip, for swipe-selection hit testing.
+    let allFrames: [Int: CGRect]
+    /// This chip's token id (also its key in `allFrames`).
+    let selfId: Int
+    /// Reports the finger position (content space) while a drag is in progress.
+    let onDragChanged: (CGPoint) -> Void
+    let onDragEnded: () -> Void
 
     var body: some View {
         Button(action: action) {
@@ -309,6 +346,22 @@ struct SegmentChip: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Swipe selection: a drag started on this chip keeps reporting the finger
+        // position relative to this chip's own frame, which the parent maps to a
+        // chip id and extends the selection range. A plain tap still toggles via
+        // `action` because the drag only acts once the finger actually moves.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    guard let my = allFrames[selfId] else { return }
+                    let absolute = CGPoint(
+                        x: my.origin.x + value.location.x,
+                        y: my.origin.y + value.location.y
+                    )
+                    onDragChanged(absolute)
+                }
+                .onEnded { _ in onDragEnded() }
+        )
     }
 }
 
@@ -317,7 +370,10 @@ struct SegmentRowView: View {
     let tokens: [SegmentToken]
     let selected: Set<Int>
     let maxWidth: CGFloat
+    let allFrames: [Int: CGRect]
     let onTap: (Int) -> Void
+    let onDragChanged: (CGPoint) -> Void
+    let onDragEnded: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -325,10 +381,13 @@ struct SegmentRowView: View {
                 SegmentChip(
                     text: token.text,
                     isSelected: selected.contains(token.id),
-                    maxWidth: maxWidth
-                ) {
-                    onTap(token.id)
-                }
+                    maxWidth: maxWidth,
+                    allFrames: allFrames,
+                    selfId: token.id,
+                    action: { onTap(token.id) },
+                    onDragChanged: onDragChanged,
+                    onDragEnded: onDragEnded
+                )
             }
         }
     }
@@ -340,19 +399,23 @@ extension WritingToolsView {
     /// iOS 15) and rendered through a LazyVStack so long inputs stay cheap.
     var segmentOutputArea: some View {
         GeometryReader { geometry in
+            let width = geometry.size.width
+            let frames = Self.segmentFrames(tokens: segmentTokens, availableWidth: width)
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     ForEach(
-                        Self.segmentRows(tokens: segmentTokens, availableWidth: geometry.size.width),
+                        Self.segmentRows(tokens: segmentTokens, availableWidth: width),
                         id: \.self
                     ) { row in
                         SegmentRowView(
                             tokens: row,
                             selected: selectedSegmentIndexes,
-                            maxWidth: geometry.size.width
-                        ) { index in
-                            toggleSegmentSelection(index)
-                        }
+                            maxWidth: width,
+                            allFrames: frames,
+                            onTap: toggleSegmentSelection,
+                            onDragChanged: { point in handleSegmentDrag(at: point, frames: frames) },
+                            onDragEnded: handleSegmentDragEnded
+                        )
                     }
                 }
                 .padding(.horizontal, 2)
@@ -360,37 +423,64 @@ extension WritingToolsView {
         }
     }
 
-    /// Greedy row packing of chips, honouring sentence line breaks.
-    static func segmentRows(tokens: [SegmentToken], availableWidth: CGFloat) -> [[SegmentToken]] {
-        guard availableWidth > 0 else { return [] }
+    /// Shared layout pass: packs tokens into rows (greedy, honouring sentence
+    /// line breaks) and records each token's content-space frame so swipe
+    /// selection can hit-test the finger against chips without runtime geometry.
+    private static func packSegmentRows(
+        tokens: [SegmentToken],
+        availableWidth: CGFloat
+    ) -> (rows: [[SegmentToken]], frames: [Int: CGRect]) {
+        guard availableWidth > 0 else { return ([], [:]) }
         let font = UIFont.systemFont(ofSize: 13)
         let spacing: CGFloat = 6
-        let chipPadding: CGFloat = 24 // 10pt each side plus slack
+        let chipPadding: CGFloat = 22
+        let rowPitch: CGFloat = 40 // chip minHeight 34 + row spacing 6
+        let rowInset: CGFloat = 2 // matches the LazyVStack's horizontal padding
 
+        let innerWidth = max(availableWidth - rowInset * 2, 0)
         var rows: [[SegmentToken]] = []
+        var frames: [Int: CGRect] = [:]
         var current: [SegmentToken] = []
         var currentWidth: CGFloat = 0
+        var y: CGFloat = 0
+        var x: CGFloat = rowInset
 
         for token in tokens {
             let textWidth = (token.text as NSString).size(withAttributes: [.font: font]).width
-            let chipWidth = min(textWidth + chipPadding, availableWidth)
+            let chipWidth = min(textWidth + chipPadding, innerWidth)
             let candidate = current.isEmpty ? chipWidth : currentWidth + spacing + chipWidth
-            if !current.isEmpty, candidate > availableWidth {
+            let newRow = !current.isEmpty && candidate > innerWidth
+            if newRow {
                 rows.append(current)
-                current = [token]
-                currentWidth = chipWidth
-            } else {
-                current.append(token)
-                currentWidth = candidate
+                current = []
+                currentWidth = 0
+                y += rowPitch
+                x = rowInset
             }
+            frames[token.id] = CGRect(x: x, y: y, width: chipWidth, height: 34)
+            current.append(token)
+            currentWidth = newRow ? chipWidth : candidate
+            x += chipWidth + spacing
             if token.lineBreakAfter {
                 rows.append(current)
                 current = []
                 currentWidth = 0
+                y += rowPitch
+                x = rowInset
             }
         }
         if !current.isEmpty { rows.append(current) }
-        return rows
+        return (rows, frames)
+    }
+
+    /// Greedy row packing of chips, honouring sentence line breaks.
+    static func segmentRows(tokens: [SegmentToken], availableWidth: CGFloat) -> [[SegmentToken]] {
+        packSegmentRows(tokens: tokens, availableWidth: availableWidth).rows
+    }
+
+    /// Content-space frames for every chip, used by swipe selection hit-testing.
+    static func segmentFrames(tokens: [SegmentToken], availableWidth: CGFloat) -> [Int: CGRect] {
+        packSegmentRows(tokens: tokens, availableWidth: availableWidth).frames
     }
 
     var segmentStatsLine: some View {
@@ -426,6 +516,42 @@ extension WritingToolsView {
         } else {
             selectedSegmentIndexes.insert(index)
         }
+    }
+
+    // MARK: - Swipe Selection
+
+    /// Extends the selection to form a contiguous range from the chip where the
+    /// drag began to the chip currently under the finger. The first contact only
+    /// records the anchor; an actual movement (past a small threshold) engages
+    /// range selection so an ordinary tap still toggles via the chip button.
+    func handleSegmentDrag(at point: CGPoint, frames: [Int: CGRect]) {
+        guard let hit = frames.first(where: { $0.value.insetBy(dx: -8, dy: -8).contains(point) }) else { return }
+        let index = hit.key
+
+        if segmentDragAnchor == nil {
+            segmentDragAnchor = index
+            segmentDragStartPoint = point
+            return
+        }
+
+        if !segmentIsDragging {
+            let dx = point.x - segmentDragStartPoint.x
+            let dy = point.y - segmentDragStartPoint.y
+            guard (dx * dx + dy * dy) > 64 else { return }
+            segmentIsDragging = true
+            selectedSegmentIndexes = [segmentDragAnchor!]
+        }
+
+        guard let anchor = segmentDragAnchor else { return }
+        let lo = min(anchor, index)
+        let hi = max(anchor, index)
+        selectedSegmentIndexes = Set(lo...hi)
+    }
+
+    func handleSegmentDragEnded() {
+        segmentIsDragging = false
+        segmentDragAnchor = nil
+        segmentDragStartPoint = .zero
     }
 
     var segmentSelectedTokens: [SegmentToken] {

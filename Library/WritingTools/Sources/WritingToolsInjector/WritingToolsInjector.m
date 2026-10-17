@@ -172,32 +172,30 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
 static void FC_PresentPanelInPlace(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
+        // Prefer the real, focused text input so "accept" writes the result
+        // back into the field. The external-source entry never shakes: it
+        // returns NO when it cannot present (no parent controller, or the
+        // selection is ineligible even after a select-all), and we then fall
+        // back to a standalone scratch view so the panel always appears.
         UIResponder *responder = FC_FindEditingResponder();
-        if (responder) {
-            if ([presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
-                [presenter presentToolControllerFromExternalSource:responder];
+        if (responder && [presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
+            if ([presenter presentToolControllerFromExternalSource:responder]) {
+                return;
             }
-            return;
         }
-        // No editable text on screen: fall back to a standalone scratch view
-        // (prefilled with the clipboard) so the panel can still be summoned
-        // from anywhere — home screen, Settings, Safari without focus. The
-        // anchor is fully transparent, so no dark backing is shown.
+        // No usable focused responder (or the external path declined): fall back
+        // to a standalone scratch view prefilled with the clipboard. The anchor
+        // is fully transparent and always has a parentViewController, so the
+        // standalone path presents without shaking.
         UIWindow *keyWindow = FC_ForegroundKeyWindow();
         UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
         if (anchor) {
-            // Present via the standalone path; the anchor always has a
-            // parentViewController (synthesized stand-in host when needed), so
-            // the presenter never falls back to a "shake" unavailability signal.
-            // If the selector were somehow missing we fail silently — never shake.
             if ([presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                 [presenter presentToolControllerStandalone:anchor];
             }
             return;
         }
-        // No foreground window to anchor into: there is nothing to present into,
-        // so do NOT signal "unavailable" (that would shake the host). Fail
-        // silently instead.
+        // Nothing to present into: fail silently, never shake.
     });
 }
 

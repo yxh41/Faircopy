@@ -15,8 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (instancetype)sharedInstance;
 - (NSString *)writingToolMenuName;
 - (void)presentToolController:(UIResponder *)responder;
-- (void)presentToolControllerFromExternalSource:(UIResponder *)responder;
-- (void)presentToolControllerStandalone:(UIResponder *)responder;
+- (BOOL)presentToolControllerFromExternalSource:(UIResponder *)responder;
+- (BOOL)presentToolControllerStandalone:(UIResponder *)responder;
 - (void)presentUnavailable:(UIResponder *)responder;
 @end
 

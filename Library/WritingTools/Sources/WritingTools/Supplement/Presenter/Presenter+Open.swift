@@ -52,8 +52,12 @@ public extension Presenter {
     /// path there is no selection anchor, so the panel is presented as a
     /// centered rounded card (popover without arrow) with the standard pop
     /// animation instead of pointing at the selection.
+    ///
+    /// Returns `true` if the panel was presented. Returns `false` — never a
+    /// shake — when the target cannot be used, so the caller can fall back to a
+    /// standalone scratch anchor instead of signalling "unavailable".
     @objc(presentToolControllerFromExternalSource:)
-    func presentToolControllerFromExternalSource(_ responder: UIResponder) {
+    func presentToolControllerFromExternalSource(_ responder: UIResponder) -> Bool {
         presentCenteredCard(fromResponder: responder, standalone: false)
     }
 
@@ -61,23 +65,26 @@ public extension Presenter {
     /// injector (prefilled with clipboard content) because the foreground
     /// app had no editable text. Same centered rounded card, but the
     /// controller removes the synthesized view on dismiss.
+    ///
+    /// Returns `true` if the panel was presented, `false` — never a shake —
+    /// when even the standalone anchor could not be presented.
     @objc(presentToolControllerStandalone:)
-    func presentToolControllerStandalone(_ responder: UIResponder) {
+    func presentToolControllerStandalone(_ responder: UIResponder) -> Bool {
         presentCenteredCard(fromResponder: responder, standalone: true)
     }
 
-    private func presentCenteredCard(fromResponder responder: UIResponder, standalone: Bool) {
+    private func presentCenteredCard(fromResponder responder: UIResponder, standalone: Bool) -> Bool {
         guard let parentController = (responder as? UIView)?.parentViewController else {
             // External / standalone triggers must never signal "unavailable"
-            // (the shake animation) — fail silently instead.
-            if standalone { return }
-            presentUnavailable(responder)
-            return
+            // (the shake animation). Signal failure so the caller can fall back
+            // to a standalone scratch anchor (external source) or fail silently
+            // (standalone).
+            return false
         }
         // Do not stack panels if something is already presented from the host.
         // Checked before buildContext: building the context attaches decoration
         // views to the text input, which must not leak if we bail out here.
-        guard parentController.presentedViewController == nil else { return }
+        guard parentController.presentedViewController == nil else { return false }
 
         // Build the context, retrying once after a select-all. External triggers
         // often fire while a field is merely focused (collapsed selection) or, in
@@ -89,9 +96,11 @@ public extension Presenter {
             context = buildContext(fromResponder: responder, standalone: standalone)
         }
         guard let context else {
-            if standalone { return }
-            presentUnavailable(responder)
-            return
+            // Could not build a context (no parent controller reachable, or the
+            // selection is still ineligible after select-all). For external /
+            // standalone triggers this is a graceful no-shake failure — the
+            // caller falls back to a standalone anchor or fails silently.
+            return false
         }
 
         let toolController = WritingToolController(context: context)
@@ -113,6 +122,7 @@ public extension Presenter {
         toolController.popoverPresentationController?.canOverlapSourceViewRect = true
         toolController.popoverPresentationController?.permittedArrowDirections = []
         context.parentController.present(toolController, animated: true)
+        return true
     }
 
     private func obtainContextFor(_ view: UIView) -> Context? {
