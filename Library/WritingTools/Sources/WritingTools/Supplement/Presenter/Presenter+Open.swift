@@ -135,6 +135,16 @@ public extension Presenter {
         toolController.popoverPresentationController?.canOverlapSourceViewRect = true
         toolController.popoverPresentationController?.permittedArrowDirections = []
         context.parentController.present(toolController, animated: true)
+
+        // `present(_:animated:)` is synchronous in setting up the relationship but
+        // silently gives up when the host controller is no longer in the window
+        // hierarchy (a stale responder pointing at a popped screen, for example) —
+        // UIKit only logs a warning. Reporting success in that case would make the
+        // caller skip its standalone fallback, so the trigger would vanish with no
+        // trace at all. Verify the relationship actually formed.
+        let didPresent = context.parentController.presentedViewController === toolController
+            || toolController.presentingViewController != nil
+        guard didPresent else { return false }
         return true
     }
 

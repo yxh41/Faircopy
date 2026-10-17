@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import WritingToolsInjector
 
 class WritingToolController: UIHostingController<WritingToolsView> {
     let context: Presenter.Context
@@ -68,6 +69,10 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        // Release the external-trigger lock: the next trigger is free to present
+        // again. Failing to do this would make the plugin stop responding after
+        // the first dismiss.
+        FC_UnlockPanelPresentation()
         context.anchorView.removeFromSuperview()
         context.decorationViews.forEach { $0.removeFromSuperview() }
         if context.isStandalone {

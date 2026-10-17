@@ -33,6 +33,71 @@ void FC_SetLastEditingResponder(UIResponder *responder) {
     __fc_lastEditingResponder = responder;
 }
 
+// MARK: - Presentation bookkeeping
+
+/// Tag for the scratch text view synthesized by FC_MakeStandaloneAnchor. Tagging
+/// lets stale anchors be swept without keeping a reference to them (this file is
+/// compiled without ARC, so a raw static pointer could dangle).
+static NSInteger const kFCStandaloneAnchorTag = 0xF0C0;
+
+/// True while a panel is on screen. Two triggers arriving in the same run loop
+/// turn used to both enter presentation; UIKit drops one of them, and the loser's
+/// scratch view stayed on the window forever — invisible, but it swallowed every
+/// touch on the screen. Locked by the injector, released by the panel controller
+/// on dismissal.
+static BOOL __fc_panelPresentationLocked = NO;
+static CFAbsoluteTime __fc_panelPresentationLockedAt = 0;
+
+/// Safety valve: if the unlock never arrives (the system tore the panel down
+/// without a viewDidDisappear) a plain boolean would silence external triggers
+/// until the app restarts.
+static const NSTimeInterval kFCStalePresentationLockTimeout = 120;
+
+BOOL FC_PanelPresentationIsLocked(void) {
+    if (!__fc_panelPresentationLocked) { return NO; }
+    if (CFAbsoluteTimeGetCurrent() - __fc_panelPresentationLockedAt > kFCStalePresentationLockTimeout) {
+        __fc_panelPresentationLocked = NO;
+        __fc_panelPresentationLockedAt = 0;
+        return NO;
+    }
+    return YES;
+}
+
+void FC_LockPanelPresentation(void) {
+    __fc_panelPresentationLocked = YES;
+    __fc_panelPresentationLockedAt = CFAbsoluteTimeGetCurrent();
+}
+
+void FC_UnlockPanelPresentation(void) {
+    __fc_panelPresentationLocked = NO;
+    __fc_panelPresentationLockedAt = 0;
+}
+
+/// Removes every leftover scratch anchor under `root`.
+///
+/// Depth-first over the live subview list, then a restart-on-removal loop for the
+/// tagged children: `removeFromSuperview` mutates the list, and this file is MRC
+/// (no ARC flag in Package.swift), so taking a `copy` snapshot would leak.
+static void FC_RemoveStaleStandaloneAnchors(UIView *root) {
+    if (!root) { return; }
+    for (UIView *subview in root.subviews) {
+        if (subview.tag != kFCStandaloneAnchorTag) {
+            FC_RemoveStaleStandaloneAnchors(subview);
+        }
+    }
+    for (NSInteger guard = 0; guard < 1024; guard++) {
+        UIView *victim = nil;
+        for (UIView *subview in root.subviews) {
+            if (subview.tag == kFCStandaloneAnchorTag) {
+                victim = subview;
+                break;
+            }
+        }
+        if (!victim) { break; }
+        [victim removeFromSuperview];
+    }
+}
+
 static UIView *FC_FindFirstResponderInView(UIView *view) {
     if ([view isFirstResponder] && [view conformsToProtocol:@protocol(UITextInput)]) {
         return view;
@@ -120,6 +185,11 @@ static void FC_RegisterStandInCleanup(void) {
 static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
     if (!window) { return nil; }
 
+    // Sweep leftovers first. A previous attempt whose panel never appeared (UIKit
+    // dropped the presentation) leaves its scratch view behind, because
+    // viewDidDisappear never runs for a controller that was never shown.
+    FC_RemoveStaleStandaloneAnchors(window);
+
     UIViewController *host = window.rootViewController;
     UIView *hostView = host.view;
 
@@ -135,6 +205,7 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
     }
 
     UITextView *textView = [[UITextView alloc] initWithFrame:hostView.bounds];
+    textView.tag = kFCStandaloneAnchorTag;
     textView.backgroundColor = UIColor.clearColor;
     textView.textColor = UIColor.clearColor;
     textView.layer.cornerRadius = 0;
@@ -169,44 +240,92 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
 /// in-place path used by both the `faircopy://panel` URL interception hook and
 /// the Darwin-notification callback. The actual presentation is dispatched to
 /// the main queue, so this is safe to call from any thread.
+///
+/// The whole attempt runs inside one main-queue block, so the lock check and the
+/// lock acquisition cannot interleave with a second trigger.
 static void FC_PresentPanelInPlace(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        // The tweak's filter is UIKit-wide, so SpringBoard is injected too. A
+        // panel floating over the home screen is never wanted, and its scratch
+        // view would sit on top of the icons.
+        if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
+            return;
+        }
+        if (FC_PanelPresentationIsLocked()) {
+            NSLog(@"[Faircopy] external trigger ignored: a panel is already on screen");
+            return;
+        }
+
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         // Prefer the real, focused text input so "accept" writes the result
         // back into the field. The external-source entry never shakes: it
         // returns NO when it cannot present (no parent controller, or the
         // selection is ineligible even after a select-all), and we then fall
         // back to a standalone scratch view so the panel always appears.
+        BOOL presented = NO;
         UIResponder *responder = FC_FindEditingResponder();
         if (responder && [presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
-            if ([presenter presentToolControllerFromExternalSource:responder]) {
-                return;
+            presented = [presenter presentToolControllerFromExternalSource:responder];
+        }
+        if (!presented) {
+            // No usable focused responder (or the external path declined): fall
+            // back to a standalone scratch view prefilled with the clipboard. The
+            // anchor is fully transparent and always has a parentViewController,
+            // so the standalone path presents without shaking.
+            UIWindow *keyWindow = FC_ForegroundKeyWindow();
+            UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
+            if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
+                presented = [presenter presentToolControllerStandalone:anchor];
+            }
+            if (!presented && keyWindow) {
+                // The panel never appeared: drop the scratch view we just added,
+                // otherwise it stays on screen as an invisible touch blocker.
+                FC_RemoveStaleStandaloneAnchors(keyWindow);
             }
         }
-        // No usable focused responder (or the external path declined): fall back
-        // to a standalone scratch view prefilled with the clipboard. The anchor
-        // is fully transparent and always has a parentViewController, so the
-        // standalone path presents without shaking.
-        UIWindow *keyWindow = FC_ForegroundKeyWindow();
-        UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
-        if (anchor) {
-            if ([presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
-                [presenter presentToolControllerStandalone:anchor];
-            }
+        // Only lock on success — a failed attempt must leave the next trigger
+        // free to try again.
+        if (presented) {
+            FC_LockPanelPresentation();
+        }
+    });
+}
+
+/// Transient `.inactive` states (presentation transitions, Notification Centre,
+/// Control Centre, call banners, screenshots, the AIGate bounce-back) used to
+/// drop the trigger entirely. Queue it instead and retry until the app is active
+/// again, with a bounded wait so a trigger cannot fire minutes later.
+static const NSInteger kFCInactiveRetryLimit = 20; // 20 × 250 ms ≈ 5 s
+static const NSTimeInterval kFCInactiveRetryDelay = 0.25;
+
+static void FC_PresentPanelWhenUsable(NSInteger attempt) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIApplicationState state = [UIApplication sharedApplication].applicationState;
+        if (state == UIApplicationStateActive) {
+            FC_PresentPanelInPlace();
             return;
         }
-        // Nothing to present into: fail silently, never shake.
+        if (state == UIApplicationStateBackground) {
+            NSLog(@"[Faircopy] external trigger dropped: app is in background");
+            return;
+        }
+        if (attempt >= kFCInactiveRetryLimit) {
+            NSLog(@"[Faircopy] external trigger dropped: stayed inactive for %.1fs",
+                  (double)attempt * kFCInactiveRetryDelay);
+            return;
+        }
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kFCInactiveRetryDelay * NSEC_PER_SEC)),
+            dispatch_get_main_queue(), ^{
+                FC_PresentPanelWhenUsable(attempt + 1);
+            });
     });
 }
 
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
-    // Only the foreground app should react; backgrounded apps cannot present.
-    if ([UIApplication sharedApplication].applicationState != UIApplicationStateActive) {
-        return;
-    }
-    FC_PresentPanelInPlace();
+    FC_PresentPanelWhenUsable(0);
 }
 
 // MARK: - In-place faircopy://panel interception
@@ -234,7 +353,7 @@ static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
         NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
-        FC_PresentPanelInPlace();
+        FC_PresentPanelWhenUsable(0);
         return YES;
     }
     return old_UIApplication_openURL_(self, _cmd, url);
@@ -246,7 +365,7 @@ static void new_UIApplication_openURL_options_completion_(UIApplication *self, S
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
         NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
-        FC_PresentPanelInPlace();
+        FC_PresentPanelWhenUsable(0);
         if (completion) {
             dispatch_async(dispatch_get_main_queue(), ^{ completion(YES); });
         }

@@ -43,6 +43,15 @@ extern "C" {
 UIResponder *_Nullable FC_LastEditingResponder(void);
 void FC_SetLastEditingResponder(UIResponder *_Nullable responder);
 
+/// Guards against two external triggers going through presentation at once.
+/// Opening two panels in the same run loop turn makes UIKit drop the second
+/// one, and the loser's scratch text view stays on the window forever — an
+/// invisible full-screen view that swallows every touch. The injector locks
+/// before presenting and the panel controller unlocks on dismissal.
+BOOL FC_PanelPresentationIsLocked(void);
+void FC_LockPanelPresentation(void);
+void FC_UnlockPanelPresentation(void);
+
 #ifdef __cplusplus
 }
 #endif
