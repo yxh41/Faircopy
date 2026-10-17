@@ -93,8 +93,8 @@ let kAppSearchTargets: [AppSearchTarget] = [
 ]
 
 private func appSearchContainsCJK(_ text: String) -> Bool {
-    var set = CharacterSet(charactersIn: "\u{4E00}" ... "\u{9FFF}") // ideographs
-    set.insert(charactersIn: CharacterSet(charactersIn: "\u{3000}" ... "\u{303F}")) // CJK punctuation
+    let set = CharacterSet(charactersIn: "\u{4E00}" ... "\u{9FFF}") // ideographs
+        .union(CharacterSet(charactersIn: "\u{3000}" ... "\u{303F}")) // CJK punctuation
     return text.rangeOfCharacter(from: set) != nil
 }
 
