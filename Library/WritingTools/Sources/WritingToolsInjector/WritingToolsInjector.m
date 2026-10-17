@@ -128,7 +128,7 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
         standIn.view.frame = window.bounds;
         standIn.view.backgroundColor = UIColor.clearColor;
         [window addSubview:standIn.view];
-        [[FC_StandInHosts() addObject:standIn];
+        [FC_StandInHosts() addObject:standIn];
         FC_RegisterStandInCleanup();
         host = standIn;
         hostView = standIn.view;
@@ -182,10 +182,12 @@ static void FC_PresentPanelInPlace(void) {
         UIWindow *keyWindow = FC_ForegroundKeyWindow();
         UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
         if (anchor) {
+            // Present via the standalone path; the anchor always has a
+            // parentViewController (synthesized stand-in host when needed), so
+            // the presenter never falls back to a "shake" unavailability signal.
+            // If the selector were somehow missing we fail silently — never shake.
             if ([presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                 [presenter presentToolControllerStandalone:anchor];
-            } else {
-                [presenter presentUnavailable:keyWindow];
             }
             return;
         }
