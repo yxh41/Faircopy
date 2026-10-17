@@ -44,12 +44,9 @@ struct WritingToolsView: View {
     @State var segmentActive: Bool = false
     @State var segmentTruncated: Bool = false
 
-    // Selection gesture state (Kayoko-style tap + horizontal swipe)
+    // Selection gesture state (driven by the UIKit gesture layer)
     @State var segmentDragAnchor: Int? = nil
-    @State var segmentDragStartPoint: CGPoint = .zero
     @State var segmentIsDragging: Bool = false
-    @State var segmentDragMoved: Bool = false
-    @State var segmentDragAborted: Bool = false
     @State var segmentDragOriginalSelection: Set<Int> = []
     @State var segmentDragSelects: Bool = true
 
