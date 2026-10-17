@@ -78,13 +78,14 @@ void FC_UnlockPanelPresentation(void) {
 /// Depth-first over the live subview list, then a restart-on-removal loop for the
 /// tagged children: `removeFromSuperview` mutates the list, and this file is MRC
 /// (no ARC flag in Package.swift), so taking a `copy` snapshot would leak.
-static void FC_RemoveStaleStandaloneAnchors(UIView *root) {
-    if (!root) { return; }
+static NSInteger FC_RemoveStaleStandaloneAnchors(UIView *root) {
+    if (!root) { return 0; }
     for (UIView *subview in root.subviews) {
         if (subview.tag != kFCStandaloneAnchorTag) {
             FC_RemoveStaleStandaloneAnchors(subview);
         }
     }
+    NSInteger removed = 0;
     for (NSInteger guard = 0; guard < 1024; guard++) {
         UIView *victim = nil;
         for (UIView *subview in root.subviews) {
@@ -95,7 +96,81 @@ static void FC_RemoveStaleStandaloneAnchors(UIView *root) {
         }
         if (!victim) { break; }
         [victim removeFromSuperview];
+        removed++;
     }
+    return removed;
+}
+
+// Defined further down; the sweeper needs to know about synthesized hosts.
+static NSMutableArray<UIViewController *> *FC_StandInHosts(void);
+
+/// True while a writing panel is actually on screen.
+///
+/// Deliberately NOT based on the presentation lock: that lock self-expires after
+/// 120 s so a wedged trigger cannot block future ones, which makes it useless as
+/// a "panel is up" signal (a panel left open for two minutes would look idle).
+/// Anchors are only ever created by the standalone path, and that path presents
+/// either from a window's root controller or from one of the synthesized
+/// stand-in hosts, so those two chains cover every case.
+static BOOL FC_IsPanelOnScreen(void) {
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+            UIViewController *vc = window.rootViewController;
+            NSInteger depth = 0;
+            while (vc.presentedViewController && depth < 16) {
+                vc = vc.presentedViewController;
+                depth++;
+            }
+            if (depth > 0) { return YES; }
+        }
+    }
+    for (UIViewController *host in FC_StandInHosts()) {
+        if (host.presentedViewController) { return YES; }
+    }
+    return NO;
+}
+
+/// Removes leftover scratch anchors from every window — but only while no panel
+/// is on screen, because a live panel's anchor is its text source and must stay.
+///
+/// Safety net for the standalone path: the anchor is a full-screen transparent
+/// UITextView, and a presentation that never completes never runs its
+/// `viewDidDisappear`, so the view would otherwise stay in the window forever
+/// swallowing every touch. Sweeping on activation means a stuck layer clears
+/// itself the next time the user comes back to that app (worst case once the
+/// 120 s presentation lock expires).
+static NSInteger FC_SweepIdleStandaloneAnchors(void) {
+    // A live panel's anchor is its text source — never touch it.
+    if (FC_PanelPresentationIsLocked() || FC_IsPanelOnScreen()) { return 0; }
+    NSInteger removed = 0;
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+            removed += FC_RemoveStaleStandaloneAnchors(window);
+        }
+    }
+    if (removed > 0) {
+        NSLog(@"[Faircopy] swept %ld idle standalone anchor(s)", (long)removed);
+    }
+    return removed;
+}
+
+/// Sweeps leftover anchors whenever the app becomes active again — exactly the
+/// moment the user returns to a home screen that a stuck anchor would cover.
+static void FC_RegisterIdleAnchorSweep(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification * _Nonnull note) {
+            FC_SweepIdleStandaloneAnchors();
+        }];
+    });
 }
 
 static UIView *FC_FindFirstResponderInView(UIView *view) {
@@ -245,12 +320,18 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
 /// lock acquisition cannot interleave with a second trigger.
 static void FC_PresentPanelInPlace(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // The tweak's filter is UIKit-wide, so SpringBoard is injected too. A
-        // panel floating over the home screen is never wanted, and its scratch
-        // view would sit on top of the icons.
+        // 3.0.25: the home screen is now allowed. The tweak's filter is
+        // UIKit-wide, so SpringBoard is injected too and receives the trigger;
+        // summoning the panel there is useful (it works on the clipboard).
+        // The reason it was excluded was the standalone anchor — a full-screen
+        // transparent UITextView that would eat every touch if left behind over
+        // the icons. That is now covered by FC_SweepIdleStandaloneAnchors, which
+        // runs on activation and before every new presentation.
         if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
-            return;
+            NSLog(@"[Faircopy] presenting on SpringBoard (home screen)");
         }
+        // Clear anything an earlier attempt left behind before making a new one.
+        FC_SweepIdleStandaloneAnchors();
         if (FC_PanelPresentationIsLocked()) {
             NSLog(@"[Faircopy] external trigger ignored: a panel is already on screen");
             return;
@@ -570,6 +651,11 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
     // Suppress the re-broadcast of a trigger to apps that resume later; see
     // FC_PresentPanelWhenUsable.
     FC_TrackWakeFromBackground();
+
+    // Clear leftover scratch anchors on activation, so a stuck full-screen
+    // transparent view can never permanently block the host app (or the home
+    // screen). See FC_SweepIdleStandaloneAnchors.
+    FC_RegisterIdleAnchorSweep();
 
     // In-place `faircopy://panel` interception: when any injected app opens the
     // URL, present the panel right there instead of letting the OS foreground

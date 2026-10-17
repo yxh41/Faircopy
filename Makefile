@@ -1,4 +1,4 @@
-export PACKAGE_VERSION := 3.0.24
+export PACKAGE_VERSION := 3.0.25
 
 ARCHS := arm64 arm64e
 TARGET := iphone:clang:latest:15.0
