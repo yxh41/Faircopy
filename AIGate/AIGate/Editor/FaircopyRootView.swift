@@ -121,10 +121,11 @@ struct FaircopyRootView: View {
             endpointListSection
             builtInEndpointSection
             customPromptsSection
-            externalInvocationSection
             usageSection
 
             if appViewModel.isLiteEdition { supportTweakSection }
+
+            externalInvocationSection
 
             footerSection
 
@@ -271,11 +272,7 @@ struct FaircopyRootView: View {
         } header: {
             Text(NSLocalizedString("External Invocation", bundle: Bundle.wrti_support, comment: ""))
         } footer: {
-            Text(NSLocalizedString(
-                "Other tweaks or Shortcuts can summon the writing panel with these entries. URL Scheme: open it in Safari or a Shortcuts “Open URL” action while a text field is focused, and the panel pops back over that app. Darwin Notification: post it from another tweak’s code (Objective-C: notify_post(\"wiki.qaq.faircopy.present\")); only the foreground app responds. Tap a row to copy, long press for more options.",
-                bundle: Bundle.wrti_support,
-                comment: ""
-            ))
+            Text(NSLocalizedString("External Invocation Footer", bundle: Bundle.wrti_support, comment: ""))
         }
         .animation(.smooth, value: copiedInvocationID)
     }

@@ -151,12 +151,16 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
     // NOTE: ObjC has no UIPasteboard.general (Swift-only overlay name);
     // the Objective-C API is +generalPasteboard.
     NSString *clipboard = [UIPasteboard generalPasteboard].string;
-    if (clipboard.length > 0) {
-        textView.text = clipboard;
-        UITextPosition *start = textView.beginningOfDocument;
-        UITextPosition *end = textView.endOfDocument;
-        textView.selectedTextRange = [textView textRangeFromPosition:start toPosition:end];
+    if (clipboard.length == 0) {
+        // Keep the anchor non-empty: an empty selection makes the presenter's
+        // TextProxy ineligible, which triggers its "unavailable" shake. A single
+        // space keeps it eligible (no shake) while still summoning the panel.
+        clipboard = @" ";
     }
+    textView.text = clipboard;
+    UITextPosition *start = textView.beginningOfDocument;
+    UITextPosition *end = textView.endOfDocument;
+    textView.selectedTextRange = [textView textRangeFromPosition:start toPosition:end];
     return textView;
 }
 

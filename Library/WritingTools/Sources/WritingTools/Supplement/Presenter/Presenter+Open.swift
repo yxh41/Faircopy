@@ -68,6 +68,9 @@ public extension Presenter {
 
     private func presentCenteredCard(fromResponder responder: UIResponder, standalone: Bool) {
         guard let parentController = (responder as? UIView)?.parentViewController else {
+            // External / standalone triggers must never signal "unavailable"
+            // (the shake animation) — fail silently instead.
+            if standalone { return }
             presentUnavailable(responder)
             return
         }
@@ -76,7 +79,17 @@ public extension Presenter {
         // views to the text input, which must not leak if we bail out here.
         guard parentController.presentedViewController == nil else { return }
 
-        guard let context = buildContext(fromResponder: responder, standalone: standalone) else {
+        // Build the context, retrying once after a select-all. External triggers
+        // often fire while a field is merely focused (collapsed selection) or, in
+        // standalone mode, a synthesized anchor whose content may be empty — both
+        // would otherwise be deemed ineligible and shake.
+        var context = buildContext(fromResponder: responder, standalone: standalone)
+        if context == nil, let view = responder as? UIView, let proxy = TextProxy(delegatingView: view) {
+            proxy.selectAll()
+            context = buildContext(fromResponder: responder, standalone: standalone)
+        }
+        guard let context else {
+            if standalone { return }
             presentUnavailable(responder)
             return
         }
