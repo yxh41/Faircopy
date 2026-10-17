@@ -90,10 +90,23 @@ public extension Presenter {
         // often fire while a field is merely focused (collapsed selection) or, in
         // standalone mode, a synthesized anchor whose content may be empty — both
         // would otherwise be deemed ineligible and shake.
-        var context = buildContext(fromResponder: responder, standalone: standalone)
+        //
+        // `decoratesSelection: false` on purpose: external triggers must not paint
+        // the animated magic-colour gradient onto the host app (in standalone mode
+        // the anchor is a full-screen text view, so that gradient covered the whole
+        // screen and looked like a moving background layer behind the panel).
+        var context = buildContext(
+            fromResponder: responder,
+            standalone: standalone,
+            decoratesSelection: false
+        )
         if context == nil, let view = responder as? UIView, let proxy = TextProxy(delegatingView: view) {
             proxy.selectAll()
-            context = buildContext(fromResponder: responder, standalone: standalone)
+            context = buildContext(
+                fromResponder: responder,
+                standalone: standalone,
+                decoratesSelection: false
+            )
         }
         guard let context else {
             // Could not build a context (no parent controller reachable, or the

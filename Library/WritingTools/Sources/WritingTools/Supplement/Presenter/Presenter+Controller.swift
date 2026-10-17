@@ -23,7 +23,11 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        assert(context.anchorView.superview != nil)
+        // The anchor view is only attached to the target by the menu path; external
+        // triggers present from the parent controller's view and skip decorations.
+        if !context.decorationViews.isEmpty {
+            assert(context.anchorView.superview != nil)
+        }
         context.targetView.resignFirstResponder()
         for decorationView in context.decorationViews {
             decorationView.alpha = 0

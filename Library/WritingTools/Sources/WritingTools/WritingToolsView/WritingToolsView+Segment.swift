@@ -319,23 +319,27 @@ enum SegmentHaptics {
 /// A single word chip: purely visual. All gestures live in `SegmentGestureLayer`
 /// (a UIKit overlay), so the chip itself has no SwiftUI gesture that could
 /// compete with the enclosing ScrollView.
+///
+/// The chip's width comes from the layout pass (`frames`), never from SwiftUI's
+/// own text metrics. Letting SwiftUI pick its natural width meant every chip
+/// could differ from the measured rect by a point or two, and the error
+/// accumulated along a row — the visual chips ended up shifted right of their
+/// hit rects, so tapping one word selected its neighbour.
 struct SegmentChip: View {
     let text: String
     let isSelected: Bool
-    let maxWidth: CGFloat
+    let width: CGFloat
 
     var body: some View {
         Text(text)
-            // Weight must NOT change with selection: `frames` are measured with
-            // the regular-weight font, and a semibold chip is wider — the chips
-            // would reflow on every tap and drift away from their hit rects.
+            // Weight must NOT change with selection: a semibold chip is wider and
+            // would reflow the row away from the measured rects.
             .font(.system(size: 13, weight: .regular))
             .foregroundStyle(isSelected ? Color.black : Color.white)
             .lineLimit(1)
             .truncationMode(.middle)
-            .frame(maxWidth: maxWidth - 20)
+            .frame(width: max(width - 20, 1), height: 34)
             .padding(.horizontal, 10)
-            .frame(minHeight: 34)
             .background(
                 Capsule()
                     .fill(isSelected ? Color.white : Color.white.opacity(0.12))
@@ -348,7 +352,9 @@ struct SegmentChip: View {
 struct SegmentRowView: View {
     let tokens: [SegmentToken]
     let selected: Set<Int>
-    let maxWidth: CGFloat
+    /// Content-space rects from the shared layout pass; only `width` is used here
+    /// so what is drawn is exactly what gets hit-tested.
+    let frames: [Int: CGRect]
 
     var body: some View {
         HStack(spacing: 6) {
@@ -356,7 +362,7 @@ struct SegmentRowView: View {
                 SegmentChip(
                     text: token.text,
                     isSelected: selected.contains(token.id),
-                    maxWidth: maxWidth
+                    width: frames[token.id]?.width ?? 60
                 )
             }
         }
@@ -378,7 +384,7 @@ extension WritingToolsView {
                         SegmentRowView(
                             tokens: row,
                             selected: selectedSegmentIndexes,
-                            maxWidth: width
+                            frames: packed.frames
                         )
                     }
                 }
@@ -416,8 +422,10 @@ extension WritingToolsView {
         guard availableWidth > 0 else { return ([], [:], 0) }
         let font = UIFont.systemFont(ofSize: 13)
         let spacing: CGFloat = 6
-        let chipPadding: CGFloat = 20 // 10pt horizontal padding on each side
-        let rowPitch: CGFloat = 40 // chip minHeight 34 + row spacing 6
+        // 10pt horizontal padding on each side + 4pt slack, so the text never
+        // truncates when the chip is pinned to this exact width.
+        let chipPadding: CGFloat = 24
+        let rowPitch: CGFloat = 40 // chip height 34 + row spacing 6
         let rowInset: CGFloat = 2 // matches the LazyVStack's horizontal padding
 
         let innerWidth = max(availableWidth - rowInset * 2, 0)
@@ -429,7 +437,9 @@ extension WritingToolsView {
         var x: CGFloat = rowInset
 
         for token in tokens {
-            let textWidth = (token.text as NSString).size(withAttributes: [.font: font]).width
+            // `ceil` keeps every chip width integral: fractional widths would be
+            // snapped independently at render time and cost up to 0.5pt per chip.
+            let textWidth = ceil((token.text as NSString).size(withAttributes: [.font: font]).width)
             let chipWidth = min(textWidth + chipPadding, innerWidth)
             let candidate = current.isEmpty ? chipWidth : currentWidth + spacing + chipWidth
             let newRow = !current.isEmpty && candidate > innerWidth

@@ -104,7 +104,18 @@ extension Presenter {
 }
 
 extension Presenter {
-    func buildContext(fromResponder responder: UIResponder, standalone: Bool = false) -> Context? {
+    /// Builds the presentation context.
+    /// - Parameter decoratesSelection: when `false`, no magic-colour decoration is
+    ///   attached to the target view. External triggers use this: their anchor may
+    ///   be a synthesized full-screen text view, so the animated gradient would be
+    ///   painted across the whole screen and read as "a moving background layer"
+    ///   behind the panel. The menu path keeps the decoration (it highlights the
+    ///   real, small selection).
+    func buildContext(
+        fromResponder responder: UIResponder,
+        standalone: Bool = false,
+        decoratesSelection: Bool = true
+    ) -> Context? {
         guard let fatherView = responder as? UIView else { return nil }
         guard let parentView = fatherView.superview else { return nil }
         guard let parentController = fatherView.parentViewController else { return nil }
@@ -119,32 +130,36 @@ extension Presenter {
         let anchorView = UIView()
         anchorView.frame = selectionUnionRect
 
-        let textMaskView = UIView()
-        fatherView.addSubview(textMaskView)
-        textMaskView.frame = fatherView.bounds
-
         var preparedRects = selectedRects
-        let maskShapeLayer = prepareUnionRectLayerMaskWithCornerRadius(
-            withRects: &preparedRects,
-            usingCoordinateFromView: fatherView,
-            convertingToSubviewForMask: textMaskView,
-            withCornerRadius: 4
-        )
-        textMaskView.layer.addSublayer(maskShapeLayer)
+        var decorationViews: [UIView] = []
 
-        let backgroundView = magicColorBackground()
-        fatherView.addSubview(backgroundView)
-        backgroundView.frame = fatherView.bounds
-        backgroundView.layer.mask = maskShapeLayer
+        if decoratesSelection {
+            let textMaskView = UIView()
+            fatherView.addSubview(textMaskView)
+            textMaskView.frame = fatherView.bounds
 
-        switch appearance.magicColorBehavior {
-        case .behindText:
-            fatherView.sendSubviewToBack(backgroundView)
-        case .overText:
-            fatherView.bringSubviewToFront(backgroundView)
+            let maskShapeLayer = prepareUnionRectLayerMaskWithCornerRadius(
+                withRects: &preparedRects,
+                usingCoordinateFromView: fatherView,
+                convertingToSubviewForMask: textMaskView,
+                withCornerRadius: 4
+            )
+            textMaskView.layer.addSublayer(maskShapeLayer)
+
+            let backgroundView = magicColorBackground()
+            fatherView.addSubview(backgroundView)
+            backgroundView.frame = fatherView.bounds
+            backgroundView.layer.mask = maskShapeLayer
+
+            switch appearance.magicColorBehavior {
+            case .behindText:
+                fatherView.sendSubviewToBack(backgroundView)
+            case .overText:
+                fatherView.bringSubviewToFront(backgroundView)
+            }
+
+            decorationViews = [backgroundView, textMaskView]
         }
-
-        let decorationViews = [backgroundView, textMaskView]
 
         return .init(
             parentView: parentView,
