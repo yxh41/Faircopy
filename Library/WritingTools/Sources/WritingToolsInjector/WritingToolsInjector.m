@@ -111,13 +111,12 @@ static UITextView *FC_CreateStandaloneTextView(UIWindow *window) {
     return textView;
 }
 
-static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
-                                     const void *object, CFDictionaryRef userInfo)
-{
-    // Only the foreground app should react; backgrounded apps cannot present.
-    if ([UIApplication sharedApplication].applicationState != UIApplicationStateActive) {
-        return;
-    }
+/// Present the writing panel in the current (foreground) app, with no app
+/// switch and no bounce through the AIGate companion app. This is the shared
+/// in-place path used by both the `faircopy://panel` URL interception hook and
+/// the Darwin-notification callback. The actual presentation is dispatched to
+/// the main queue, so this is safe to call from any thread.
+static void FC_PresentPanelInPlace(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         UIResponder *responder = FC_FindEditingResponder();
@@ -146,6 +145,62 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
             [presenter presentUnavailable:keyWindow];
         }
     });
+}
+
+static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
+                                     const void *object, CFDictionaryRef userInfo)
+{
+    // Only the foreground app should react; backgrounded apps cannot present.
+    if ([UIApplication sharedApplication].applicationState != UIApplicationStateActive) {
+        return;
+    }
+    FC_PresentPanelInPlace();
+}
+
+// MARK: - In-place faircopy://panel interception
+
+/// True when `faircopy://panel` should be presented directly in the calling
+/// app instead of being handed to the OS (which would foreground AIGate and
+/// bounce back). We only intercept when ALL of:
+///  - the scheme is `faircopy` and the host is `panel`;
+///  - we are NOT running inside AIGate itself (AIGate owns its own URL
+///    handling — e.g. `spawn`, and the fallback bounce from sources our hook
+///    does not observe, such as Safari's address bar);
+///  - the current app has a foreground key window to present into.
+static BOOL FC_ShouldPresentFaircopyPanelInPlace(NSURL *url) {
+    if (![url.scheme isEqualToString:@"faircopy"]) { return NO; }
+    if (![url.host isEqualToString:@"panel"]) { return NO; }
+    if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"wiki.qaq.AIGate"]) { return NO; }
+    if (!FC_ForegroundKeyWindow()) { return NO; }
+    return YES;
+}
+
+static BOOL (*old_UIApplication_openURL_)(UIApplication *, SEL, NSURL *);
+static void (*old_UIApplication_openURL_options_completion_)(UIApplication *, SEL, NSURL *, NSDictionary *, void (^)(BOOL));
+
+static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url) {
+    if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
+        // 3.0.14: present the panel in place, no app switch to AIGate.
+        NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
+        FC_PresentPanelInPlace();
+        return YES;
+    }
+    return old_UIApplication_openURL_(self, _cmd, url);
+}
+
+static void new_UIApplication_openURL_options_completion_(UIApplication *self, SEL _cmd, NSURL *url,
+                                                         NSDictionary *options, void (^completion)(BOOL))
+{
+    if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
+        // 3.0.14: present the panel in place, no app switch to AIGate.
+        NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
+        FC_PresentPanelInPlace();
+        if (completion) {
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(YES); });
+        }
+        return;
+    }
+    old_UIApplication_openURL_options_completion_(self, _cmd, url, options, completion);
 }
 
 // MARK: - UIResponder
@@ -289,6 +344,20 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
         NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately
     );
+
+    // In-place `faircopy://panel` interception: when any injected app opens the
+    // URL, present the panel right there instead of letting the OS foreground
+    // AIGate and bounce back. See FC_ShouldPresentFaircopyPanelInPlace.
+    Class uiAppCls = NSClassFromString(@"UIApplication");
+    if (class_getInstanceMethod(uiAppCls, @selector(openURL:))) {
+        WTHookMessageExecute(uiAppCls, @selector(openURL:),
+                             (IMP)new_UIApplication_openURL_, (IMP *)&old_UIApplication_openURL_);
+    }
+    if (class_getInstanceMethod(uiAppCls, @selector(openURL:options:completionHandler:))) {
+        WTHookMessageExecute(uiAppCls, @selector(openURL:options:completionHandler:),
+                             (IMP)new_UIApplication_openURL_options_completion_,
+                             (IMP *)&old_UIApplication_openURL_options_completion_);
+    }
 
     if (@available(iOS 16, *)) {
         Class targetCls = NSClassFromString(@"_UIEditMenuContentPresentation");

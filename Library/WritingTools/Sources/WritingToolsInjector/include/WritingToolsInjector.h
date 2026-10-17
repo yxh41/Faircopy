@@ -17,8 +17,12 @@
 ///     #import <notify/notify.h>
 ///     notify_post("wiki.qaq.faircopy.present");
 ///
-/// Equivalent URL scheme (handled by the AIGate companion app, which forwards
-/// to the same notification and bounces back to the caller): faircopy://panel
+/// Equivalent URL scheme: opening `faircopy://panel` from any injected app
+/// (Safari, a Shortcuts "Open URL" action, a launcher) now presents the panel
+/// in place in that app — no app switch to AIGate and no bounce. AIGate still
+/// handles the URL as a fallback when it is opened from a source our in-process
+/// hook does not observe (e.g. Safari's address bar). The tweak intercepts the
+/// URL inside the calling app and calls FC_PresentPanelInPlace() directly.
 #define kFCExternalPresentNotification "wiki.qaq.faircopy.present"
 
 NS_ASSUME_NONNULL_BEGIN
