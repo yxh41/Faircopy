@@ -64,18 +64,18 @@ let kAppSearchDefaults: [AppSearchTarget] = [
     .init(id: "appstore", name: "AppStore",
           searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@",
           bareScheme: "itms-apps://"),
-    // 3.0.23: Pinduoduo's `page.html` only renders a `main_url` payload — the
-    // bare `?search_key=` form loaded no result page. The inner search URL is
-    // already percent-encoded here so the outer encoding pass leaves it intact.
+    // 3.0.24: the form that actually opens a result page is `search_result.html`
+    // reached directly — neither `page.html` nor a `main_url`-wrapped payload
+    // works. See 3.0.23, which guessed `page.html?main_url=…` and still failed.
     .init(id: "pdd", name: "拼多多",
-          searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/page.html?main_url=https%3A%2F%2Fmobile.yangkeduo.com%2Fsearch_result.html%3Fsearch_key%3D%@",
+          searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%@",
           bareScheme: "pinduoduo://"),
     .init(id: "taobao", name: "淘宝",
           searchTemplate: "taobao://s.taobao.com/?q=%@",
           bareScheme: "taobao://"),
     .init(id: "jd", name: "京东",
-          searchTemplate: "openapp.jdmobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyword\":\"%@\",\"from\":\"faircopy\"}",
-          bareScheme: "openapp.jdmobile://"),
+          searchTemplate: "openjd://virtual?params={\"des\":\"productList\",\"keyWord\":\"%@\",\"from\":\"search\",\"category\":\"jump\"}",
+          bareScheme: "openjd://"),
     .init(id: "weibo", name: "Weibo",
           searchTemplate: "sinaweibo://searchall?q=%@",
           bareScheme: "sinaweibo://"),
