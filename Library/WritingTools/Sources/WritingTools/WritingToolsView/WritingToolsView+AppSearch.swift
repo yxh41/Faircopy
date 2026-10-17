@@ -93,9 +93,11 @@ let kAppSearchTargets: [AppSearchTarget] = [
 ]
 
 private func appSearchContainsCJK(_ text: String) -> Bool {
-    let set = CharacterSet(charactersIn: "\u{4E00}" ... "\u{9FFF}") // ideographs
-        .union(CharacterSet(charactersIn: "\u{3000}" ... "\u{303F}")) // CJK punctuation
-    return text.rangeOfCharacter(from: set) != nil
+    for scalar in text.unicodeScalars {
+        let v = scalar.value
+        if (0x4E00...0x9FFF).contains(v) || (0x3000...0x303F).contains(v) { return true }
+    }
+    return false
 }
 
 extension WritingToolsView {
