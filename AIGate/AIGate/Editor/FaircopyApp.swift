@@ -138,6 +138,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     var window: UIWindow?
 
+    private weak var windowScene: UIWindowScene?
+
     /// True while a `faircopy://panel` bounce back to the caller is in
     /// flight. The settings UI stays suppressed until it lands.
     private var panelBounceInFlight = false
@@ -150,22 +152,38 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo _: UISceneSession,
                options connectionOptions: UIScene.ConnectionOptions)
     {
-        guard let _ = scene as? UIWindowScene else { return }
+        guard let windowScene = scene as? UIWindowScene else { return }
+        self.windowScene = windowScene
         if let url = connectionOptions.urlContexts.first?.url {
             handleOpenURL(url, sourceApplication: connectionOptions.urlContexts.first?.options.sourceApplication)
         }
     }
 
+    func sceneWillEnterForeground(_: UIScene) {
+        // Hide the scene's windows up front: a warm `faircopy://panel`
+        // activation must never paint the previous UI (settings), not even
+        // for one frame. A normal user open unhides again in
+        // sceneDidBecomeActive.
+        setSceneWindowsHidden(true)
+    }
+
     func sceneDidBecomeActive(_: UIScene) {
         FaircopyAppModel.shared.endBackgroundTask()
+        if panelBounceInFlight {
+            // A panel bounce is still in flight: keep every window hidden.
+            // This also covers the cold-launch race where SwiftUI builds its
+            // window after `scene(_:willConnectTo:options:)` returns.
+            setSceneWindowsHidden(true)
+        }
         scheduleSettingsUIRestore()
     }
 
     func sceneDidEnterBackground(_: UIScene) {
         // The bounce has landed (or AIGate was backgrounded for another
-        // reason): clear the in-flight flag so a later foreground can restore
-        // the settings UI.
+        // reason): clear the in-flight flag and leave a sane window state
+        // while backgrounded; the next foreground decides again.
         panelBounceInFlight = false
+        setSceneWindowsHidden(false)
     }
 
     func scene(_: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
@@ -186,9 +204,14 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
         let work = DispatchWorkItem { [weak self] in
             guard let self = self, !self.panelBounceInFlight else { return }
             FaircopyAppModel.shared.suppressSettingsUI = false
+            self.setSceneWindowsHidden(false)
         }
         restoreWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
+    private func setSceneWindowsHidden(_ hidden: Bool) {
+        windowScene?.windows.forEach { $0.isHidden = hidden }
     }
 
     private func handleOpenURL(_ url: URL, sourceApplication src: String?) {
@@ -204,12 +227,20 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             }
         }
         if url.host == "panel" {
-            // External panel entry: suppress the settings UI first so the user
-            // never sees an AIGate flash, bounce back to the caller, then post
-            // the Darwin notification the tweak listens for. See
-            // kFCExternalPresentNotification in WritingToolsInjector.h.
+            // External panel entry: suppress the settings UI so the user never
+            // sees an AIGate flash — both at the content level (transparent
+            // SwiftUI placeholder) and, as a backstop for first-frame timing,
+            // by hiding every window of the scene. Then bounce back to the
+            // caller and post the Darwin notification the tweak listens for.
+            // See kFCExternalPresentNotification in WritingToolsInjector.h.
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
+            setSceneWindowsHidden(true)
+            // On a cold launch SwiftUI's window may not exist yet at this
+            // point; hide whatever appears before the first composite.
+            DispatchQueue.main.async { [weak self] in
+                self?.setSceneWindowsHidden(true)
+            }
             FaircopyAppModel.shared.beginBackgroundTask()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
@@ -221,12 +252,13 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             }
             // Safety net: if the bounce failed and AIGate is still the active
             // app, restore the settings UI instead of stranding the user on a
-            // transparent screen.
+            // blank screen.
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
                 guard let self = self, self.panelBounceInFlight else { return }
                 self.panelBounceInFlight = false
                 if UIApplication.shared.applicationState == .active {
                     FaircopyAppModel.shared.suppressSettingsUI = false
+                    self.setSceneWindowsHidden(false)
                 }
             }
         }
