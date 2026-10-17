@@ -306,62 +306,63 @@ private final class SegmentEngine {
     }()
 }
 
+// MARK: - Haptics
+
+/// Shared light impact generator for selection feedback (Kayoko fires one on
+/// every selection change). Lazily created on first use, on the main thread.
+enum SegmentHaptics {
+    static let light = UIImpactFeedbackGenerator(style: .light)
+}
+
 // MARK: - Chips
 
 /// A single word chip. Standalone struct keeps the enclosing expressions
 /// small enough for the Swift type checker. The Text drives the layout size
 /// (predictable in HStacks); the capsule is purely a background.
-/// Uses a plain Button (NOT onTapGesture): the output area lives inside a
-/// ScrollView, whose pan gesture cancels SwiftUI TapGestures on the slightest
-/// finger drift — users reported chips needing several taps. A UIButton has a
-/// proper touch slop and cleanly separates light taps (select) from drags
-/// (scroll), same as every UITableView cell.
+///
+/// Gestures mirror Kayoko: the chip is NOT a Button — a single continuous
+/// gesture handles both a tap (toggles on release when the finger never moved)
+/// and a horizontal swipe (range select), so there is no per-chip button latency
+/// and no tap-vs-drag arbitration between two recognisers.
 struct SegmentChip: View {
     let text: String
     let isSelected: Bool
     let maxWidth: CGFloat
-    /// Content-space frames of every chip, for swipe-selection hit testing.
+    /// Content-space frames of every chip, for selection hit testing.
     let allFrames: [Int: CGRect]
-    /// This chip's token id (also its key in `allFrames`).
+    /// This chip's token id (also its key in `allFrames`, and the gesture anchor).
     let selfId: Int
-    let action: () -> Void
-    /// Reports the finger position (content space) while a drag is in progress.
-    let onDragChanged: (CGPoint) -> Void
-    let onDragEnded: () -> Void
+    /// Reports (anchor chip id, finger position in content space, translation
+    /// since touch-down) while a touch/drag is active.
+    let onTouchChanged: (Int, CGPoint, CGSize) -> Void
+    let onTouchEnded: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? Color.black : Color.white)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: maxWidth - 20)
-                .padding(.horizontal, 10)
-                .frame(minHeight: 34)
-                .background(
-                    Capsule()
-                        .fill(isSelected ? Color.white : Color.white.opacity(0.12))
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        // Swipe selection: a drag started on this chip keeps reporting the finger
-        // position relative to this chip's own frame, which the parent maps to a
-        // chip id and extends the selection range. A plain tap still toggles via
-        // `action` because the drag only acts once the finger actually moves.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                    guard let my = allFrames[selfId] else { return }
-                    let absolute = CGPoint(
-                        x: my.origin.x + value.location.x,
-                        y: my.origin.y + value.location.y
-                    )
-                    onDragChanged(absolute)
-                }
-                .onEnded { _ in onDragEnded() }
-        )
+        Text(text)
+            .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+            .foregroundStyle(isSelected ? Color.black : Color.white)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: maxWidth - 20)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 34)
+            .background(
+                Capsule()
+                    .fill(isSelected ? Color.white : Color.white.opacity(0.12))
+            )
+            .contentShape(Rectangle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard let my = allFrames[selfId] else { return }
+                        let absolute = CGPoint(
+                            x: my.origin.x + value.location.x,
+                            y: my.origin.y + value.location.y
+                        )
+                        onTouchChanged(selfId, absolute, value.translation)
+                    }
+                    .onEnded { _ in onTouchEnded() }
+            )
     }
 }
 
@@ -371,9 +372,8 @@ struct SegmentRowView: View {
     let selected: Set<Int>
     let maxWidth: CGFloat
     let allFrames: [Int: CGRect]
-    let onTap: (Int) -> Void
-    let onDragChanged: (CGPoint) -> Void
-    let onDragEnded: () -> Void
+    let onTouchChanged: (Int, CGPoint, CGSize) -> Void
+    let onTouchEnded: () -> Void
 
     var body: some View {
         HStack(spacing: 6) {
@@ -384,9 +384,8 @@ struct SegmentRowView: View {
                     maxWidth: maxWidth,
                     allFrames: allFrames,
                     selfId: token.id,
-                    action: { onTap(token.id) },
-                    onDragChanged: onDragChanged,
-                    onDragEnded: onDragEnded
+                    onTouchChanged: onTouchChanged,
+                    onTouchEnded: onTouchEnded
                 )
             }
         }
@@ -412,9 +411,11 @@ extension WritingToolsView {
                             selected: selectedSegmentIndexes,
                             maxWidth: width,
                             allFrames: frames,
-                            onTap: toggleSegmentSelection,
-                            onDragChanged: { point in handleSegmentDrag(at: point, frames: frames) },
-                            onDragEnded: handleSegmentDragEnded
+                            onTouchChanged: { anchor, point, translation in
+                                handleSegmentTouch(anchor: anchor, at: point,
+                                                   translation: translation, frames: frames)
+                            },
+                            onTouchEnded: handleSegmentTouchEnded
                         )
                     }
                 }
@@ -518,40 +519,85 @@ extension WritingToolsView {
         }
     }
 
-    // MARK: - Swipe Selection
+    // MARK: - Selection gestures (Kayoko-style)
 
-    /// Extends the selection to form a contiguous range from the chip where the
-    /// drag began to the chip currently under the finger. The first contact only
-    /// records the anchor; an actual movement (past a small threshold) engages
-    /// range selection so an ordinary tap still toggles via the chip button.
-    func handleSegmentDrag(at point: CGPoint, frames: [Int: CGRect]) {
-        guard let hit = frames.first(where: { $0.value.insetBy(dx: -8, dy: -8).contains(point) }) else { return }
-        let index = hit.key
+    /// Hit-tests a content-space point against chip frames, inflating by half the
+    /// inter-chip gaps so the space between chips still registers (Kayoko does the
+    /// same with tokenSpacing/2 and lineSpacing/2).
+    private func segmentHitIndex(at point: CGPoint, frames: [Int: CGRect]) -> Int? {
+        frames.first(where: { $0.value.insetBy(dx: -3, dy: -3).contains(point) })?.key
+    }
 
+    /// Single continuous gesture handler, mirroring Kayoko's tap + pan:
+    ///  - a touch that never moves is a tap → toggle the anchor chip on release;
+    ///  - a strongly vertical drag is handed to the ScrollView (no selection);
+    ///  - a horizontal drag selects a contiguous range ON TOP of the pre-drag
+    ///    snapshot — adding if the anchor was unselected, removing if it was
+    ///    selected (Kayoko's `selectionGestureSelectsTokens`).
+    func handleSegmentTouch(anchor anchorIndex: Int, at point: CGPoint,
+                            translation: CGSize, frames: [Int: CGRect]) {
         if segmentDragAnchor == nil {
-            segmentDragAnchor = index
+            segmentDragAnchor = anchorIndex
             segmentDragStartPoint = point
+            segmentDragMoved = false
+            segmentDragAborted = false
             return
+        }
+        if segmentDragAborted { return }
+
+        if !segmentDragMoved {
+            let t2 = translation.width * translation.width + translation.height * translation.height
+            guard t2 > 64 else { return }
+            segmentDragMoved = true
+            if abs(translation.height) > abs(translation.width) * 1.5 {
+                // Mostly vertical: let the scroll view scroll instead.
+                segmentDragAborted = true
+                return
+            }
         }
 
         if !segmentIsDragging {
-            let dx = point.x - segmentDragStartPoint.x
-            let dy = point.y - segmentDragStartPoint.y
-            guard (dx * dx + dy * dy) > 64 else { return }
             segmentIsDragging = true
-            selectedSegmentIndexes = [segmentDragAnchor!]
+            segmentDragOriginalSelection = selectedSegmentIndexes
+            segmentDragSelects = !selectedSegmentIndexes.contains(anchorIndex)
+            SegmentHaptics.light.prepare()
         }
 
-        guard let anchor = segmentDragAnchor else { return }
-        let lo = min(anchor, index)
-        let hi = max(anchor, index)
-        selectedSegmentIndexes = Set(lo...hi)
+        guard let index = segmentHitIndex(at: point, frames: frames) else { return }
+        applySegmentDragRange(anchor: anchorIndex, through: index)
     }
 
-    func handleSegmentDragEnded() {
-        segmentIsDragging = false
+    /// Recomputes the applied range from the pre-drag snapshot every time, so
+    /// dragging back toward the anchor shrinks the applied range instead of
+    /// leaving a committed trail (matching Kayoko's applySelectionGestureThroughIndex).
+    private func applySegmentDragRange(anchor: Int, through index: Int) {
+        let lower = min(anchor, index)
+        let upper = max(anchor, index)
+        var updated = segmentDragOriginalSelection
+        if segmentDragSelects {
+            for i in lower ... upper { updated.insert(i) }
+        } else {
+            for i in lower ... upper { updated.remove(i) }
+        }
+        guard updated != selectedSegmentIndexes else { return }
+        selectedSegmentIndexes = updated
+        SegmentHaptics.light.impactOccurred()
+    }
+
+    func handleSegmentTouchEnded() {
+        // A touch that never moved is a tap: toggle the anchor chip.
+        if let anchor = segmentDragAnchor, !segmentIsDragging,
+           !segmentDragMoved, !segmentDragAborted {
+            toggleSegmentSelection(anchor)
+            SegmentHaptics.light.impactOccurred()
+        }
         segmentDragAnchor = nil
         segmentDragStartPoint = .zero
+        segmentIsDragging = false
+        segmentDragMoved = false
+        segmentDragAborted = false
+        segmentDragOriginalSelection = []
+        segmentDragSelects = true
     }
 
     var segmentSelectedTokens: [SegmentToken] {

@@ -44,10 +44,14 @@ struct WritingToolsView: View {
     @State var segmentActive: Bool = false
     @State var segmentTruncated: Bool = false
 
-    // Swipe selection (分词支滑动选择) transient state
+    // Selection gesture state (Kayoko-style tap + horizontal swipe)
     @State var segmentDragAnchor: Int? = nil
     @State var segmentDragStartPoint: CGPoint = .zero
     @State var segmentIsDragging: Bool = false
+    @State var segmentDragMoved: Bool = false
+    @State var segmentDragAborted: Bool = false
+    @State var segmentDragOriginalSelection: Set<Int> = []
+    @State var segmentDragSelects: Bool = true
 
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
