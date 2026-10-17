@@ -77,27 +77,76 @@ static UIWindow *FC_ForegroundKeyWindow(void) {
     return nil;
 }
 
+/// Transparent host view controllers synthesized when the foreground window
+/// has no root view controller. They are removed once the panel they presented
+/// is dismissed and the app becomes active again. Kept alive here so the
+/// cleanup observer can find them.
+static NSMutableArray<UIViewController *> *FC_StandInHosts(void) {
+    static NSMutableArray *arr;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ arr = [NSMutableArray new]; });
+    return arr;
+}
+
+static void FC_RegisterStandInCleanup(void) {
+    static dispatch_once_t once;
+    static id observer = nil;
+    dispatch_once(&once, ^{
+        observer = [[NSNotificationCenter defaultCenter]
+            addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification * _Nonnull note) {
+            for (UIViewController *host in [FC_StandInHosts() copy]) {
+                if (host.presentedViewController == nil) {
+                    [host.view removeFromSuperview];
+                    [FC_StandInHosts() removeObject:host];
+                }
+            }
+        }];
+    });
+}
+
 /// Build the scratch text view used when the foreground app has no editable
 /// text to attach to. It is prefilled with the clipboard (if any) so the
-/// copy → invoke → rewrite → copy-back flow needs no typing, and removed by
-/// the controller when the panel is dismissed.
-static UITextView *FC_CreateStandaloneTextView(UIWindow *window) {
-    UIViewController *rootController = window.rootViewController;
-    if (!rootController) { return nil; }
+/// copy → invoke → rewrite → copy-back flow needs no typing, and removed by the
+/// controller when the panel is dismissed.
+///
+/// 3.0.15: the anchor is now fully transparent — no dark backing — so the panel
+/// floats over the host app instead of painting a full-screen black background.
+/// If the key window has no root view controller we synthesize a transparent
+/// stand-in controller (so the anchor still has a `parentViewController`;
+/// otherwise the presenter would fall back to a "shake" unavailability signal).
+static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
+    if (!window) { return nil; }
 
-    UITextView *textView = [[UITextView alloc] initWithFrame:rootController.view.bounds];
-    textView.backgroundColor = [UIColor colorWithWhite:0.08 alpha:0.96];
-    textView.textColor = UIColor.whiteColor;
-    textView.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-    textView.layer.cornerRadius = 20;
-    textView.clipsToBounds = YES;
-    textView.alwaysBounceVertical = YES;
-    textView.keyboardDismissMode = UIScrollViewKeyboardDismissModeInteractive;
-    // Keep the first lines below the centered card area.
-    textView.textContainerInset = UIEdgeInsetsMake(
-        rootController.view.bounds.size.height * 0.30, 20, 24, 20
-    );
-    [rootController.view addSubview:textView];
+    UIViewController *host = window.rootViewController;
+    UIView *hostView = host.view;
+
+    if (!host || !hostView) {
+        UIViewController *standIn = [[UIViewController alloc] init];
+        standIn.view.frame = window.bounds;
+        standIn.view.backgroundColor = UIColor.clearColor;
+        [window addSubview:standIn.view];
+        [[FC_StandInHosts() addObject:standIn];
+        FC_RegisterStandInCleanup();
+        host = standIn;
+        hostView = standIn.view;
+    }
+
+    UITextView *textView = [[UITextView alloc] initWithFrame:hostView.bounds];
+    textView.backgroundColor = UIColor.clearColor;
+    textView.textColor = UIColor.clearColor;
+    textView.layer.cornerRadius = 0;
+    textView.clipsToBounds = NO;
+    textView.editable = YES;
+    textView.selectable = YES;
+    textView.autocorrectionType = UITextAutocorrectionTypeNo;
+    textView.spellCheckingType = UITextSpellCheckingTypeNo;
+    textView.textContainerInset = UIEdgeInsetsZero;
+    textView.contentInset = UIEdgeInsetsZero;
+    textView.textContainer.lineFragmentPadding = 0;
+    [hostView addSubview:textView];
 
     // NOTE: ObjC has no UIPasteboard.general (Swift-only overlay name);
     // the Objective-C API is +generalPasteboard.
@@ -128,22 +177,21 @@ static void FC_PresentPanelInPlace(void) {
         }
         // No editable text on screen: fall back to a standalone scratch view
         // (prefilled with the clipboard) so the panel can still be summoned
-        // from anywhere — home screen, Settings, Safari without focus.
+        // from anywhere — home screen, Settings, Safari without focus. The
+        // anchor is fully transparent, so no dark backing is shown.
         UIWindow *keyWindow = FC_ForegroundKeyWindow();
-        UITextView *standalone = keyWindow ? FC_CreateStandaloneTextView(keyWindow) : nil;
-        if (standalone) {
+        UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
+        if (anchor) {
             if ([presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
-                [presenter presentToolControllerStandalone:standalone];
+                [presenter presentToolControllerStandalone:anchor];
             } else {
-                [standalone removeFromSuperview];
                 [presenter presentUnavailable:keyWindow];
             }
             return;
         }
-        // Nothing to anchor to at all: fail loudly instead of silently.
-        if (keyWindow) {
-            [presenter presentUnavailable:keyWindow];
-        }
+        // No foreground window to anchor into: there is nothing to present into,
+        // so do NOT signal "unavailable" (that would shake the host). Fail
+        // silently instead.
     });
 }
 
