@@ -40,6 +40,8 @@ extension WritingToolsLocalizable {
             "Share": "分享",
             "Cancel": "取消",
 
+            "Search in Apps": "在应用中搜索",
+
             "Back": "返回",
 
             "Made with ♥ by OwnGoal Studio": "「乌龙工作室」倾情献制",

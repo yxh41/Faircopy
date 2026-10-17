@@ -38,6 +38,11 @@ extension WritingToolsView {
             }
             if taskPrompt == .segment {
                 segmentStatsLine
+                // Hammer It style: jump straight into a target app's search
+                // with the picked words. Only while a selection exists.
+                if !selectedSegmentIndexes.isEmpty {
+                    segmentAppSearchMenu
+                }
             } else if usage != nil || (isRunning && liveSpeed > 0) {
                 HStack(spacing: 8) {
                     if isRunning, liveSpeed > 0 {
