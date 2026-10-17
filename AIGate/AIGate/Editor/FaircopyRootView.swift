@@ -54,6 +54,12 @@ struct FaircopyRootView: View {
     @State var quickLookExport: URL?
     @State var copiedInvocationID: String?
 
+    // Search-in-app destinations (分词 → 在应用中搜索). The list lives in a
+    // shared preferences file the injected dylib also reads; see AppSearchStore.
+    @State var appSearchEntries: [AppSearchEntry] = AppSearchStore.load()
+    @State var appSearchEditing: AppSearchEntry? = nil
+    @State var isAppSearchEditing = false
+
     @State var serviceStatus: ServiceStatus = .unknown
     @State var usageStats: UsageStats?
 
@@ -121,6 +127,7 @@ struct FaircopyRootView: View {
             endpointListSection
             builtInEndpointSection
             customPromptsSection
+            appSearchSection
             usageSection
 
             if appViewModel.isLiteEdition { supportTweakSection }
@@ -467,6 +474,81 @@ struct FaircopyRootView: View {
         }
     }
 
+    /// 分词 →「在应用中搜索」destination list. Read from the shared preferences
+    /// file on appear so edits made elsewhere (or a reset) are reflected, and
+    /// written back after every change so the injected dylib picks them up the
+    /// next time the panel is summoned.
+    var appSearchSection: some View {
+        Section {
+            ForEach($appSearchEntries) { $entry in
+                Button {
+                    appSearchEditing = entry
+                    isAppSearchEditing = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(Color.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(entry.name.isEmpty ? NSLocalizedString("Untitled", bundle: Bundle.wrti_support, comment: "") : entry.name)
+                            Text(entry.searchTemplate)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+            .onDelete { indexSet in
+                appSearchEntries.remove(atOffsets: indexSet)
+                AppSearchStore.save(appSearchEntries)
+            }
+            .onMove { from, to in
+                appSearchEntries.move(fromOffsets: from, toOffset: to)
+                AppSearchStore.save(appSearchEntries)
+            }
+            Button {
+                let fresh = AppSearchEntry(id: UUID().uuidString, name: "",
+                                           searchTemplate: "", bareScheme: "")
+                appSearchEntries.append(fresh)
+                appSearchEditing = fresh
+                isAppSearchEditing = true
+            } label: {
+                Text(NSLocalizedString("Add App", bundle: Bundle.wrti_support, comment: ""))
+            }
+            .foregroundStyle(Color.accent)
+            Button {
+                appSearchEntries = AppSearchStore.defaults
+                AppSearchStore.save(appSearchEntries)
+            } label: {
+                Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+            }
+        } header: {
+            Text(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
+        } footer: {
+            Text(NSLocalizedString("Apps shown when you pick words in 分词 and choose 在应用中搜索. Use %@ in the search template where the keyword goes.", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .onAppear { appSearchEntries = AppSearchStore.load() }
+        .sheet(isPresented: $isAppSearchEditing, onDismiss: {
+            AppSearchStore.save(appSearchEntries)
+        }) {
+            NavigationView {
+                AppSearchEditorView(entry: $appSearchEditing) { edited in
+                    if let index = appSearchEntries.firstIndex(where: { $0.id == edited.id }) {
+                        appSearchEntries[index] = edited
+                    }
+                    if edited.name.isEmpty && edited.searchTemplate.isEmpty {
+                        // Discard an entry the user opened but never filled in.
+                        appSearchEntries.removeAll { $0.id == edited.id }
+                    }
+                    AppSearchStore.save(appSearchEntries)
+                }
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationViewStyle(.stack)
+        }
+    }
+
     func checkStatus() {
         spawnService()
         AIGateClient.executeCommand(.ping) { _, error in
@@ -487,6 +569,147 @@ struct FaircopyRootView: View {
                     appViewModel.endBackgroundTask()
                 }
             }
+        }
+    }
+}
+
+
+// MARK: - Search in Apps (分词 → 在应用中搜索)
+
+/// One user-editable search destination. Property names MUST match
+/// `AppSearchTarget` in the WritingTools framework so the JSON written here
+/// decodes there unchanged.
+struct AppSearchEntry: Codable, Identifiable {
+    var id: String
+    var name: String
+    var searchTemplate: String
+    var bareScheme: String
+}
+
+/// Shared store for the search-in-app destination list.
+///
+/// The file lives inside AIGate's global storage directory so the injected
+/// dylib (running in arbitrary, sandboxed host apps) can read it too; a host
+/// app that cannot read it simply falls back to its built-in defaults.
+enum AppSearchStore {
+    /// KEEP IN SYNC with `AppSearchStore.path` in
+    /// Library/WritingTools/Sources/WritingTools/WritingToolsView/WritingToolsView+AppSearch.swift
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch.json"
+
+    /// KEEP IN SYNC with `kAppSearchDefaults` in
+    /// Library/WritingTools/Sources/WritingTools/WritingToolsView/WritingToolsView+AppSearch.swift
+    static let defaults: [AppSearchEntry] = [
+        .init(id: "appstore", name: "AppStore",
+              searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@",
+              bareScheme: "itms-apps://"),
+        .init(id: "pdd", name: "拼多多",
+              searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/page.html?main_url=https%3A%2F%2Fmobile.yangkeduo.com%2Fsearch_result.html%3Fsearch_key%3D%@",
+              bareScheme: "pinduoduo://"),
+        .init(id: "taobao", name: "淘宝",
+              searchTemplate: "taobao://s.taobao.com/?q=%@",
+              bareScheme: "taobao://"),
+        .init(id: "jd", name: "京东",
+              searchTemplate: "openapp.jdmobile://virtual?params={\"category\":\"jump\",\"des\":\"search\",\"keyword\":\"%@\",\"from\":\"faircopy\"}",
+              bareScheme: "openapp.jdmobile://"),
+        .init(id: "weibo", name: "Weibo",
+              searchTemplate: "sinaweibo://searchall?q=%@",
+              bareScheme: "sinaweibo://"),
+        .init(id: "bilibili", name: "BiliBili",
+              searchTemplate: "bilibili://search?keyword=%@",
+              bareScheme: "bilibili://"),
+        .init(id: "twitter", name: "Twitter",
+              searchTemplate: "twitter://search?query=%@",
+              bareScheme: "twitter://"),
+        .init(id: "applemaps", name: "苹果地图",
+              searchTemplate: "maps://?q=%@",
+              bareScheme: "maps://"),
+        .init(id: "baidumap", name: "百度地图",
+              searchTemplate: "baidumap://map/place/search?query=%@&src=Faircopy",
+              bareScheme: "baidumap://"),
+        .init(id: "amap", name: "高德地图",
+              searchTemplate: "iosamap://poi?sourceApplication=Faircopy&name=%@&dev=0",
+              bareScheme: "iosamap://"),
+        .init(id: "zhihu", name: "知乎",
+              searchTemplate: "zhihu://search?q=%@",
+              bareScheme: "zhihu://"),
+        .init(id: "xhs", name: "小红书",
+              searchTemplate: "xhsdiscover://search/result?keyword=%@",
+              bareScheme: "xhsdiscover://"),
+    ]
+
+    static func load() -> [AppSearchEntry] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let list = try? JSONDecoder().decode([AppSearchEntry].self, from: data)
+        else { return defaults }
+        return list
+    }
+
+    static func save(_ list: [AppSearchEntry]) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(list) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
+/// Editor for one destination: display name, search template, fallback scheme.
+/// Deployment target is iOS 15, so no `TextField(axis:)` or Font.monospaced().
+struct AppSearchEditorView: View {
+    @Binding var entry: AppSearchEntry?
+    let onCommit: (AppSearchEntry) -> Void
+
+    @State private var draft = AppSearchEntry(id: "", name: "", searchTemplate: "", bareScheme: "")
+    @Environment(\.dismiss) var dismiss
+
+    /// Explicit init: a private stored property would otherwise make the
+    /// synthesized memberwise initializer private and unusable from the caller.
+    init(entry: Binding<AppSearchEntry?>, onCommit: @escaping (AppSearchEntry) -> Void) {
+        self._entry = entry
+        self.onCommit = onCommit
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Weibo", text: $draft.name)
+            } header: {
+                Text("Name")
+            }
+            Section {
+                TextField("sinaweibo://searchall?q=%@", text: $draft.searchTemplate)
+                    .font(.footnote)
+            } header: {
+                Text("Search Template")
+            } footer: {
+                Text("Use %@ where the picked keyword goes.")
+            }
+            Section {
+                TextField("sinaweibo://", text: $draft.bareScheme)
+                    .font(.footnote)
+            } header: {
+                Text("Fallback Scheme")
+            } footer: {
+                Text("Opened if the search template fails, so you still land in the app with the keyword on the clipboard.")
+            }
+        }
+        .navigationTitle(draft.name.isEmpty ? "New App" : draft.name)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") {
+                    var committed = draft
+                    if committed.id.isEmpty { committed.id = UUID().uuidString }
+                    onCommit(committed)
+                    dismiss()
+                }
+            }
+        }
+        .onAppear {
+            if let entry = entry { draft = entry }
         }
     }
 }

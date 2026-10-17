@@ -16,8 +16,10 @@
 import Foundation
 import SwiftUI
 
-/// One "search in app" destination.
-struct AppSearchTarget: Identifiable {
+/// One "search in app" destination. Codable so the settings pane
+/// (`FaircopyRootView.providedAppSearchStore`) can persist a user-edited list
+/// that the panel picks up on the next presentation.
+struct AppSearchTarget: Identifiable, Codable {
     let id: String
     let name: String
     /// URL scheme template; `%@` becomes the percent-encoded keyword.
@@ -53,12 +55,20 @@ struct AppSearchTarget: Identifiable {
 }
 
 /// Built-in destinations, matching the reference list (Hammer It).
-let kAppSearchTargets: [AppSearchTarget] = [
+/// KEEP IN SYNC with `AppSearchStore.defaults` in
+/// AIGate/AIGate/Editor/FaircopyRootView.swift — the two modules cannot share
+/// a source file (the settings pane is compiled into the AIGate xcodeproj and
+/// the FaircopyPrefs bundle, neither of which links the WritingTools
+/// framework).
+let kAppSearchDefaults: [AppSearchTarget] = [
     .init(id: "appstore", name: "AppStore",
           searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@",
           bareScheme: "itms-apps://"),
+    // 3.0.23: Pinduoduo's `page.html` only renders a `main_url` payload — the
+    // bare `?search_key=` form loaded no result page. The inner search URL is
+    // already percent-encoded here so the outer encoding pass leaves it intact.
     .init(id: "pdd", name: "拼多多",
-          searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/page.html?search_key=%@",
+          searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/page.html?main_url=https%3A%2F%2Fmobile.yangkeduo.com%2Fsearch_result.html%3Fsearch_key%3D%@",
           bareScheme: "pinduoduo://"),
     .init(id: "taobao", name: "淘宝",
           searchTemplate: "taobao://s.taobao.com/?q=%@",
@@ -91,6 +101,27 @@ let kAppSearchTargets: [AppSearchTarget] = [
           searchTemplate: "xhsdiscover://search/result?keyword=%@",
           bareScheme: "xhsdiscover://"),
 ]
+
+/// Panel-side reader for the user-edited destination list.
+///
+/// The list is written by the settings pane (FaircopyPrefs / AIGate) and read
+/// here, inside whatever app the panel is presented in. That host app is
+/// sandboxed and may be unable to read the shared preferences directory, so a
+/// failed read is not an error: it simply falls back to the built-in defaults.
+/// Read is done on each presentation so edits appear without a restart.
+struct AppSearchStore {
+    /// KEEP IN SYNC with `AppSearchStore.path` in FaircopyRootView.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch.json"
+
+    static func load() -> [AppSearchTarget] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let list = try? JSONDecoder().decode([AppSearchTarget].self, from: data),
+            !list.isEmpty
+        else { return kAppSearchDefaults }
+        return list
+    }
+}
 
 private func appSearchContainsCJK(_ text: String) -> Bool {
     for scalar in text.unicodeScalars {
@@ -128,7 +159,7 @@ extension WritingToolsView {
     var segmentAppSearchMenu: some View {
         Menu {
             Section("Search in Apps".localized) {
-                ForEach(kAppSearchTargets) { target in
+                ForEach(AppSearchStore.load()) { target in
                     Button(target.name) { openSegmentSearch(in: target) }
                 }
             }

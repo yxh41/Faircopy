@@ -537,3 +537,33 @@
 
 /* No comment provided by engineer. */
 "Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them." = "你的配置将被安全地存储，不会被应用程序访问。此服务将会代理你的请求从插件发送到服务器，并将响应发送回插件。";
+
+/* No comment provided by engineer. */
+"Add App" = "添加应用";
+
+/* No comment provided by engineer. */
+"Fallback Scheme" = "备用 Scheme";
+
+/* No comment provided by engineer. */
+"Name" = "名称";
+
+/* No comment provided by engineer. */
+"New App" = "新应用";
+
+/* No comment provided by engineer. */
+"Restore Defaults" = "恢复默认";
+
+/* No comment provided by engineer. */
+"Search in Apps" = "在应用中搜索";
+
+/* No comment provided by engineer. */
+"Search Template" = "搜索模板";
+
+/* No comment provided by engineer. */
+"Untitled" = "未命名";
+
+/* No comment provided by engineer. */
+"Use %@ where the picked keyword goes." = "用 %@ 作为关键词的占位位置。";
+
+/* No comment provided by engineer. */
+"Opened if the search template fails, so you still land in the app with the keyword on the clipboard." = "搜索模板失效时打开它：仍会进入该应用，且关键词已在剪贴板，粘贴即可。";

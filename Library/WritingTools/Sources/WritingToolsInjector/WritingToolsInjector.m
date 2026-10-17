@@ -298,10 +298,61 @@ static void FC_PresentPanelInPlace(void) {
 static const NSInteger kFCInactiveRetryLimit = 20; // 20 × 250 ms ≈ 5 s
 static const NSTimeInterval kFCInactiveRetryDelay = 0.25;
 
+// MARK: - Wake-from-background suppression (3.0.23)
+//
+// The external trigger is a Darwin notification, i.e. a system-wide broadcast:
+// every injected app receives it, not just the one the user is looking at. The
+// observer uses CFNotificationSuspensionBehaviorDeliverImmediately, so an app
+// that was suspended when the trigger fired receives it the moment it resumes —
+// which is exactly when the user switches to it. Since that app is now active,
+// it happily presented a panel the user never asked for there.
+//
+// Only a resume that follows a real backgrounding counts as a "wake". A
+// foreground app that briefly goes .inactive during a presentation transition
+// never left the foreground, so it is NOT a wake and keeps the 3.0.21 retry
+// behaviour (its trigger still lands).
+
+/// Set when this app entered the background; consumed by the next activation.
+static BOOL gFCWasBackgrounded = NO;
+/// Timestamp of the last real resume-from-background, 0 when never woken.
+static NSTimeInterval gFCWakeAt = 0;
+/// How long after a wake a trigger is still considered the stale re-broadcast.
+static const NSTimeInterval kFCWakeGrace = 1.5;
+
+static void FC_TrackWakeFromBackground(void) {
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
+        [nc addObserverForName:UIApplicationDidEnterBackgroundNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification * _Nonnull note) {
+            gFCWasBackgrounded = YES;
+        }];
+        [nc addObserverForName:UIApplicationDidBecomeActiveNotification
+                        object:nil
+                         queue:[NSOperationQueue mainQueue]
+                    usingBlock:^(NSNotification * _Nonnull note) {
+            if (gFCWasBackgrounded) {
+                gFCWakeAt = [NSDate timeIntervalSinceReferenceDate];
+                gFCWasBackgrounded = NO;
+            }
+        }];
+    });
+}
+
 static void FC_PresentPanelWhenUsable(NSInteger attempt) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIApplicationState state = [UIApplication sharedApplication].applicationState;
         if (state == UIApplicationStateActive) {
+            // A trigger delivered just after a resume is the stale re-broadcast
+            // of a trigger the user issued in a different app — drop it instead
+            // of popping a panel in whichever app they switched to.
+            if (gFCWakeAt > 0 &&
+                ([NSDate timeIntervalSinceReferenceDate] - gFCWakeAt) < kFCWakeGrace) {
+                NSLog(@"[Faircopy] external trigger dropped: stale re-broadcast right after resume");
+                return;
+            }
             FC_PresentPanelInPlace();
             return;
         }
@@ -515,6 +566,10 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
         NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately
     );
+
+    // Suppress the re-broadcast of a trigger to apps that resume later; see
+    // FC_PresentPanelWhenUsable.
+    FC_TrackWakeFromBackground();
 
     // In-place `faircopy://panel` interception: when any injected app opens the
     // URL, present the panel right there instead of letting the OS foreground
