@@ -320,11 +320,11 @@ struct SegmentChip: View {
     let text: String
     let isSelected: Bool
     let maxWidth: CGFloat
-    let action: () -> Void
     /// Content-space frames of every chip, for swipe-selection hit testing.
     let allFrames: [Int: CGRect]
     /// This chip's token id (also its key in `allFrames`).
     let selfId: Int
+    let action: () -> Void
     /// Reports the finger position (content space) while a drag is in progress.
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: () -> Void
