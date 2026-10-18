@@ -314,6 +314,27 @@ enum SegmentHaptics {
     static let light = UIImpactFeedbackGenerator(style: .light)
 }
 
+/// True when `text` is entirely CJK ideographs / CJK punctuation / kana / hangul.
+/// Used to decide spacing when rejoining non-contiguously selected tokens: CJK
+/// runs stay tight, consecutive Latin words get a single space between them.
+private func segmentTextIsCJK(_ text: String) -> Bool {
+    for scalar in text.unicodeScalars {
+        let v = scalar.value
+        if (0x3000...0x303F).contains(v)   // CJK Symbols and Punctuation
+            || (0x3040...0x30FF).contains(v) // Hiragana + Katakana
+            || (0x3400...0x4DBF).contains(v) // CJK Unified Ideographs Ext A
+            || (0x4E00...0x9FFF).contains(v) // CJK Unified Ideographs
+            || (0xF900...0xFAFF).contains(v) // CJK Compatibility Ideographs
+            || (0x1100...0x11FF).contains(v) // Hangul Jamo
+            || (0x3130...0x318F).contains(v) // Hangul Compatibility Jamo
+            || (0xAC00...0xD7AF).contains(v) // Hangul Syllables
+        {
+            return true
+        }
+    }
+    return false
+}
+
 // MARK: - Chips
 
 /// A single word chip: purely visual. All gestures live in `SegmentGestureLayer`
@@ -571,21 +592,43 @@ extension WritingToolsView {
         return tokens.map(\.text).joined(separator: " ")
     }
 
-    /// Selected tokens rejoined with their original separators, so unselected
-    /// words can be dropped without mangling punctuation or line breaks.
+    /// Selected tokens rejoined so that on Accept, unselected words are actually
+    /// removed from the text.
+    ///
+    /// - Contiguous selection (a token begins exactly where the previous ended):
+    ///   the original separator — whitespace, punctuation, line break — is copied
+    ///   back verbatim, so punctuation survives reconstruction.
+    /// - Non-contiguous selection (skipped words sit in the gap): the gap is
+    ///   dropped entirely and the kept tokens are rejoined with minimal spacing
+    ///   (no space inside CJK runs, a single space between Latin words). This is
+    ///   what makes "select token 1 and token 3, skip token 2" remove token 2
+    ///   instead of splicing it back through the gap.
     var segmentReconstructedText: String {
         let tokens = segmentSelectedTokens
         guard !tokens.isEmpty else { return context.textProxy.selectedText }
         let source = context.textProxy.selectedText as NSString
         var result = ""
-        var lastEnd: Int?
+        var lastEnd: Int? = nil
+        var lastText: String? = nil
         for token in tokens {
-            if let lastEnd, lastEnd <= token.range.location {
-                let gap = NSRange(location: lastEnd, length: token.range.location - lastEnd)
-                result += source.substring(with: gap)
+            if let lastEnd {
+                if lastEnd < token.range.location {
+                    // Skipped tokens occupy the gap: drop them and rejoin the kept
+                    // tokens with the same spacing rule as the search keyword.
+                    let prevIsLatin = lastText.map { !segmentTextIsCJK($0) } ?? false
+                    let currIsLatin = !segmentTextIsCJK(token.text)
+                    if prevIsLatin, currIsLatin { result += " " }
+                    print("[Faircopy] segment: dropping skipped words between kept tokens")
+                } else if lastEnd == token.range.location {
+                    // Contiguous: preserve the original separator verbatim.
+                    let gap = NSRange(location: lastEnd, length: token.range.location - lastEnd)
+                    if gap.length > 0 { result += source.substring(with: gap) }
+                }
+                // lastEnd > location: overlapping/duplicate selection — ignore.
             }
             result += token.text
             lastEnd = NSMaxRange(token.range)
+            lastText = token.text
         }
         return result
     }

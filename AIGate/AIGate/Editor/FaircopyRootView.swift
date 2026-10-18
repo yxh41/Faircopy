@@ -59,6 +59,9 @@ struct FaircopyRootView: View {
     @State var appSearchEntries: [AppSearchEntry] = AppSearchStore.load()
     @State var appSearchEditing: AppSearchEntry? = nil
     @State var isAppSearchEditing = false
+    /// Clipboard-protection toggle for the app-search jump. Persisted to a
+    /// sibling shared file the injected dylib reads; see AppSearchSettingsStore.
+    @State var protectClipboard: Bool = AppSearchSettingsStore.load().protectClipboard
 
     @State var serviceStatus: ServiceStatus = .unknown
     @State var usageStats: UsageStats?
@@ -480,6 +483,17 @@ struct FaircopyRootView: View {
     /// next time the panel is summoned.
     var appSearchSection: some View {
         Section {
+            Toggle(isOn: $protectClipboard) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(NSLocalizedString("Clipboard Protection", bundle: Bundle.wrti_support, comment: ""))
+                    Text(NSLocalizedString("Keeps the app search jump from overwriting your clipboard unless both schemes fail.", bundle: Bundle.wrti_support, comment: ""))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .onChange(of: protectClipboard) { newValue in
+                AppSearchSettingsStore.save(AppSearchSettings(protectClipboard: newValue))
+            }
             ForEach($appSearchEntries) { $entry in
                 Button {
                     appSearchEditing = entry
@@ -528,7 +542,10 @@ struct FaircopyRootView: View {
         } footer: {
             Text(NSLocalizedString("Apps shown when you pick words in 分词 and choose 在应用中搜索. Use %@ in the search template where the keyword goes.", bundle: Bundle.wrti_support, comment: ""))
         }
-        .onAppear { appSearchEntries = AppSearchStore.load() }
+        .onAppear {
+            appSearchEntries = AppSearchStore.load()
+            protectClipboard = AppSearchSettingsStore.load().protectClipboard
+        }
         .sheet(isPresented: $isAppSearchEditing, onDismiss: {
             AppSearchStore.save(appSearchEntries)
         }) {
@@ -654,6 +671,35 @@ enum AppSearchStore {
     }
 }
 
+/// Mirrors `AppSearchSettings` / `AppSearchSettingsStore` in
+/// WritingToolsView+AppSearch.swift — the two modules cannot share a source file
+/// (AIGate does not link the WritingTools framework). Property names MUST match
+/// so the JSON decodes unchanged on the panel side.
+struct AppSearchSettings: Codable {
+    var protectClipboard: Bool
+}
+
+struct AppSearchSettingsStore {
+    /// KEEP IN SYNC with the same path in WritingToolsView+AppSearch.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_settings.json"
+
+    static func load() -> AppSearchSettings {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let s = try? JSONDecoder().decode(AppSearchSettings.self, from: data)
+        else { return AppSearchSettings(protectClipboard: true) }
+        return s
+    }
+
+    static func save(_ settings: AppSearchSettings) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
 /// Editor for one destination: display name, search template, fallback scheme.
 /// Deployment target is iOS 15, so no `TextField(axis:)` or Font.monospaced().
 struct AppSearchEditorView: View {
@@ -662,12 +708,73 @@ struct AppSearchEditorView: View {
 
     @State private var draft = AppSearchEntry(id: "", name: "", searchTemplate: "", bareScheme: "")
     @Environment(\.dismiss) var dismiss
+    @State private var showValidationError = false
+    @State private var validationMessage = ""
 
     /// Explicit init: a private stored property would otherwise make the
     /// synthesized memberwise initializer private and unusable from the caller.
     init(entry: Binding<AppSearchEntry?>, onCommit: @escaping (AppSearchEntry) -> Void) {
         self._entry = entry
         self.onCommit = onCommit
+    }
+
+    /// Extracts `scheme://` from a template/scheme string, validating the scheme
+    /// grammar (lowercase/uppercase letters, digits, `+ - .`, no spaces, no `%@`).
+    private func schemeOf(_ value: String) -> String? {
+        guard let range = value.range(of: "://") else { return nil }
+        let head = String(value[..<range.lowerBound])
+        guard !head.isEmpty, !head.contains(" "), !head.contains("%@") else { return nil }
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+-.")
+        guard head.rangeOfCharacter(from: allowed.inverted) == nil else { return nil }
+        return head + "://"
+    }
+
+    /// Builds a test URL from the current draft with a fixed keyword, mirroring
+    /// the panel's percent-encoding (no JSON metachar escaping — the test word
+    /// is plain). Returns nil if the template has no `%@` placeholder yet.
+    private func testURL() -> URL? {
+        guard draft.searchTemplate.contains("%@") else { return nil }
+        let raw = draft.searchTemplate.replacingOccurrences(of: "%@", with: "test")
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: ":/?&=+;,!$'()*[]@~-._"))
+        guard let encoded = raw.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        return URL(string: encoded)
+    }
+
+    private func validate() -> Bool {
+        guard draft.searchTemplate.contains("%@") else {
+            validationMessage = NSLocalizedString("Search template must contain %@", bundle: Bundle.wrti_support, comment: "")
+            return false
+        }
+        guard schemeOf(draft.searchTemplate) != nil else {
+            validationMessage = NSLocalizedString("Search template must start with a valid scheme (e.g. weibo://search?q=%@)", bundle: Bundle.wrti_support, comment: "")
+            return false
+        }
+        if !draft.bareScheme.isEmpty, schemeOf(draft.bareScheme) == nil {
+            validationMessage = NSLocalizedString("Fallback scheme must be a valid scheme ending in ://", bundle: Bundle.wrti_support, comment: "")
+            return false
+        }
+        return true
+    }
+
+    private func commit() {
+        guard validate() else {
+            showValidationError = true
+            return
+        }
+        var committed = draft
+        if committed.id.isEmpty { committed.id = UUID().uuidString }
+        onCommit(committed)
+        dismiss()
+    }
+
+    private func testJump() {
+        guard let url = testURL() else {
+            validationMessage = NSLocalizedString("Search template must contain %@", bundle: Bundle.wrti_support, comment: "")
+            showValidationError = true
+            return
+        }
+        print("[Faircopy] app search test-jump: \(url.absoluteString)")
+        UIApplication.shared.open(url)
     }
 
     var body: some View {
@@ -693,6 +800,23 @@ struct AppSearchEditorView: View {
             } footer: {
                 Text("Opened if the search template fails, so you still land in the app with the keyword on the clipboard.")
             }
+            Section {
+                Button {
+                    testJump()
+                } label: {
+                    HStack(spacing: 6) {
+                        Spacer()
+                        Image(systemName: "paperplane")
+                        Text("Test Jump")
+                        Spacer()
+                    }
+                }
+                .foregroundStyle(Color.accent)
+            } header: {
+                Text("Preview")
+            } footer: {
+                Text("Opens the template in this app with a fixed keyword so you can confirm the scheme works before saving.")
+            }
         }
         .navigationTitle(draft.name.isEmpty ? "New App" : draft.name)
         .toolbar {
@@ -700,13 +824,11 @@ struct AppSearchEditorView: View {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") {
-                    var committed = draft
-                    if committed.id.isEmpty { committed.id = UUID().uuidString }
-                    onCommit(committed)
-                    dismiss()
-                }
+                Button("Save") { commit() }
             }
+        }
+        .alert(isPresented: $showValidationError) {
+            Alert(title: Text("Invalid Template"), message: Text(validationMessage), dismissButton: .default(Text("OK")))
         }
         .onAppear {
             if let entry = entry { draft = entry }

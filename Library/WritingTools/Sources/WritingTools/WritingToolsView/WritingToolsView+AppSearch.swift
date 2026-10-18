@@ -123,6 +123,28 @@ struct AppSearchStore {
     }
 }
 
+/// Clipboard-protection toggle for the app-search jump. Persisted by the
+/// settings pane (FaircopyPrefs / AIGate) in a sibling file the injected dylib
+/// reads on every jump. Defaults to `true` (protect): the jump itself never
+/// needs the clipboard — it is only a last-resort safety net used when both the
+/// search scheme and the bare scheme fail to open the target app.
+struct AppSearchSettings: Codable {
+    var protectClipboard: Bool
+}
+
+struct AppSearchSettingsStore {
+    /// KEEP IN SYNC with the same path in FaircopyRootView.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_settings.json"
+
+    static func load() -> AppSearchSettings {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let s = try? JSONDecoder().decode(AppSearchSettings.self, from: data)
+        else { return AppSearchSettings(protectClipboard: true) }
+        return s
+    }
+}
+
 private func appSearchContainsCJK(_ text: String) -> Bool {
     for scalar in text.unicodeScalars {
         let v = scalar.value
@@ -188,18 +210,31 @@ extension WritingToolsView {
         let keyword = segmentSearchKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !keyword.isEmpty else { return }
         guard let url = target.searchURL(keyword: keyword) else { return }
-        // Keyword always rides the clipboard: if the search scheme rots, the
-        // bare-scheme fallback still lands in the app and one paste completes
-        // the flow instead of a dead end.
-        UIPasteboard.general.string = keyword
+        let protect = AppSearchSettingsStore.load().protectClipboard
         SegmentHaptics.light.impactOccurred()
+        // 默认保护剪贴板：正常跳转路径不写入；仅当两个 scheme 都失败时作为兜底
+        // 写入关键词，方便用户手动粘贴完成搜索。关闭保护时沿用旧行为：跳转前先写入。
+        if !protect {
+            UIPasteboard.general.string = keyword
+            print("[Faircopy] app search: clipboard copy (protection off)")
+        }
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             UIApplication.shared.open(url) { success in
-                if success { return }
-                print("[Faircopy] app search scheme failed: \(url.absoluteString), retrying bare scheme")
+                guard !success else { return }
                 if let bare = target.bareURL() {
-                    UIApplication.shared.open(bare) { _ in }
+                    UIApplication.shared.open(bare) { bareSuccess in
+                        if !bareSuccess, protect {
+                            // 兜底：两个 scheme 都失败才写入，给用户最后手动粘贴的机会
+                            UIPasteboard.general.string = keyword
+                            print("[Faircopy] app search: jump failed, keyword left on clipboard")
+                        } else if !bareSuccess {
+                            print("[Faircopy] app search: bare scheme also failed (clipboard untouched)")
+                        }
+                    }
+                } else if protect {
+                    UIPasteboard.general.string = keyword
+                    print("[Faircopy] app search: jump failed, keyword left on clipboard")
                 }
             }
         }

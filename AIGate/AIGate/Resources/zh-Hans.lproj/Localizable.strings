@@ -567,3 +567,30 @@
 
 /* No comment provided by engineer. */
 "Opened if the search template fails, so you still land in the app with the keyword on the clipboard." = "搜索模板失效时打开它：仍会进入该应用，且关键词已在剪贴板，粘贴即可。";
+
+/* No comment provided by engineer. */
+"Clipboard Protection" = "剪贴板保护";
+
+/* No comment provided by engineer. */
+"Keeps the app search jump from overwriting your clipboard unless both schemes fail." = "「在应用中搜索」跳转默认不覆盖剪贴板；仅当两个跳转方案都失败时才作为兜底写入关键词。";
+
+/* No comment provided by engineer. */
+"Invalid Template" = "模板无效";
+
+/* No comment provided by engineer. */
+"Search template must contain %@" = "搜索模板必须包含 %@";
+
+/* No comment provided by engineer. */
+"Search template must start with a valid scheme (e.g. weibo://search?q=%@)" = "搜索模板必须以合法 Scheme 开头（例如 weibo://search?q=%@）";
+
+/* No comment provided by engineer. */
+"Fallback scheme must be a valid scheme ending in ://" = "备用 Scheme 必须是合法的、以 :// 结尾的 Scheme";
+
+/* No comment provided by engineer. */
+"Test Jump" = "试跳";
+
+/* No comment provided by engineer. */
+"Preview" = "预览";
+
+/* No comment provided by engineer. */
+"Opens the template in this app with a fixed keyword so you can confirm the scheme works before saving." = "用固定关键词在本 App 内打开模板，便于保存前确认 Scheme 可用。";
