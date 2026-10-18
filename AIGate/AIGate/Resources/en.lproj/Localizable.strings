@@ -131,7 +131,7 @@
 "External Invocation" = "External Invocation";
 
 /* External Invocation section footer (always Chinese per request) */
-"External Invocation Footer" = "其他插件或快捷指令可通过以下方式唤出妙写面板。URL Scheme：在 Safari 或快捷指令「打开 URL」中、文本框聚焦时打开，面板会原地覆盖在该 App 上。Darwin 通知：在其他插件代码中发送（Objective-C：notify_post(\"wiki.qaq.faircopy.present\")），仅前台 App 响应。点按复制，长按查看更多操作。";
+"External Invocation Footer" = "其他插件或快捷指令可通过以下方式唤出妙写面板。URL Scheme：在 Safari 或快捷指令「打开 URL」中、文本框聚焦时打开，面板会原地覆盖在该 App 上；追加 ?keyword=关键词 打开时，面板直接以该关键词为处理对象（不读剪贴板、不抢占当前输入框）。Darwin 通知：在其他插件代码中发送（Objective-C：notify_post(\"wiki.qaq.faircopy.present\")），仅前台 App 响应。点按复制，长按查看更多操作。";
 
 /* HTTP 424 */
 "Failed Dependency" = "Failed Dependency";

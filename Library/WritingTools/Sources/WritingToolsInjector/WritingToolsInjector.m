@@ -132,8 +132,26 @@ static BOOL FC_IsPanelOnScreen(void) {
     return NO;
 }
 
-/// Removes leftover scratch anchors from every window — but only while no panel
-/// is on screen, because a live panel's anchor is its text source and must stay.
+/// Weak registry of every standalone anchor this process has synthesized.
+///
+/// 3.0.25 swept by DFS-ing every window's whole subview tree on each
+/// activation, which walks deep view hierarchies (WeChat / Taobao) on every
+/// foreground and risks frame drops. Anchors are only ever created by
+/// FC_MakeStandaloneAnchor, so a zeroing weak table gives identical coverage
+/// in O(anchors): an anchor whose superview released it (panel dismissed)
+/// disappears from the table by itself. This file is MRC, so the table itself
+/// is retained once; members stay weak.
+static NSHashTable<UIView *> *FC_AnchorRegistry(void) {
+    static NSHashTable *registry;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        registry = [[NSHashTable weakObjectsHashTable] retain];
+    });
+    return registry;
+}
+
+/// Removes leftover scratch anchors — but only while no panel is on screen,
+/// because a live panel's anchor is its text source and must stay.
 ///
 /// Safety net for the standalone path: the anchor is a full-screen transparent
 /// UITextView, and a presentation that never completes never runs its
@@ -141,17 +159,26 @@ static BOOL FC_IsPanelOnScreen(void) {
 /// swallowing every touch. Sweeping on activation means a stuck layer clears
 /// itself the next time the user comes back to that app (worst case once the
 /// 120 s presentation lock expires).
+///
+/// 3.0.31: walks the weak anchor registry instead of the window trees — see
+/// FC_AnchorRegistry. The tag-based FC_RemoveStaleStandaloneAnchors is still
+/// used on the presentation path (specific window, user-triggered), where the
+/// tree walk is cheap and the registry may legitimately hold detached entries.
 static NSInteger FC_SweepIdleStandaloneAnchors(void) {
     // A live panel's anchor is its text source — never touch it.
     if (FC_PanelPresentationIsLocked() || FC_IsPanelOnScreen()) { return 0; }
     NSInteger removed = 0;
-    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-        if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
-        UIWindowScene *windowScene = (UIWindowScene *)scene;
-        for (UIWindow *window in windowScene.windows) {
-            removed += FC_RemoveStaleStandaloneAnchors(window);
+    // Snapshot holds strong references to the live anchors only (detached ones
+    // were released by their superview and are already gone from the table).
+    NSArray<UIView *> *snapshot = [[FC_AnchorRegistry() allObjects] retain];
+    for (UIView *anchor in snapshot) {
+        if (![anchor isKindOfClass:[UIView class]]) { continue; }
+        if (anchor.superview) {
+            [anchor removeFromSuperview];
+            removed++;
         }
     }
+    [snapshot release];
     if (removed > 0) {
         NSLog(@"[Faircopy] swept %ld idle standalone anchor(s)", (long)removed);
     }
@@ -257,7 +284,11 @@ static void FC_RegisterStandInCleanup(void) {
 /// If the key window has no root view controller we synthesize a transparent
 /// stand-in controller (so the anchor still has a `parentViewController`;
 /// otherwise the presenter would fall back to a "shake" unavailability signal).
-static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
+///
+/// 3.0.31: `prefill` (from `faircopy://panel?keyword=…`) replaces the clipboard
+/// as the anchor's content, so a keyword invocation never reads or waits on the
+/// pasteboard. Passing nil keeps the original clipboard behavior.
+static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window, NSString *prefill) {
     if (!window) { return nil; }
 
     // Sweep leftovers first. A previous attempt whose panel never appeared (UIKit
@@ -294,19 +325,25 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
     textView.textContainer.lineFragmentPadding = 0;
     [hostView addSubview:textView];
 
-    // NOTE: ObjC has no UIPasteboard.general (Swift-only overlay name);
-    // the Objective-C API is +generalPasteboard.
-    NSString *clipboard = [UIPasteboard generalPasteboard].string;
-    if (clipboard.length == 0) {
+    NSString *content = prefill.length > 0 ? prefill : [UIPasteboard generalPasteboard].string;
+    if (content.length == 0) {
         // Keep the anchor non-empty: an empty selection makes the presenter's
         // TextProxy ineligible, which triggers its "unavailable" shake. A single
         // space keeps it eligible (no shake) while still summoning the panel.
-        clipboard = @" ";
+        content = @" ";
     }
-    textView.text = clipboard;
+    if (prefill.length > 0) {
+        NSLog(@"[Faircopy] standalone anchor prefilled with keyword (%lu chars)",
+              (unsigned long)prefill.length);
+    }
+    textView.text = content;
     UITextPosition *start = textView.beginningOfDocument;
     UITextPosition *end = textView.endOfDocument;
     textView.selectedTextRange = [textView textRangeFromPosition:start toPosition:end];
+    // 3.0.31: track the anchor so the idle sweeper can find it without walking
+    // the window trees. The table is zeroing-weak: once the panel's dismiss
+    // path removes the view from its superview, the entry clears by itself.
+    [FC_AnchorRegistry() addObject:textView];
     return textView;
 }
 
@@ -316,9 +353,15 @@ static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window) {
 /// the Darwin-notification callback. The actual presentation is dispatched to
 /// the main queue, so this is safe to call from any thread.
 ///
+/// `keyword` (3.0.31, from `faircopy://panel?keyword=…`) is an explicit subject:
+/// when present, the panel goes straight to the standalone anchor prefilled
+/// with that keyword — it never reads the clipboard and never attaches to the
+/// focused text input (whose selection would otherwise silently win). Passing
+/// nil keeps the original context-driven behavior.
+///
 /// The whole attempt runs inside one main-queue block, so the lock check and the
 /// lock acquisition cannot interleave with a second trigger.
-static void FC_PresentPanelInPlace(void) {
+static void FC_PresentPanelInPlace(NSString *keyword) {
     dispatch_async(dispatch_get_main_queue(), ^{
         // 3.0.25: the home screen is now allowed. The tweak's filter is
         // UIKit-wide, so SpringBoard is injected too and receives the trigger;
@@ -338,23 +381,12 @@ static void FC_PresentPanelInPlace(void) {
         }
 
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
-        // Prefer the real, focused text input so "accept" writes the result
-        // back into the field. The external-source entry never shakes: it
-        // returns NO when it cannot present (no parent controller, or the
-        // selection is ineligible even after a select-all), and we then fall
-        // back to a standalone scratch view so the panel always appears.
         BOOL presented = NO;
-        UIResponder *responder = FC_FindEditingResponder();
-        if (responder && [presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
-            presented = [presenter presentToolControllerFromExternalSource:responder];
-        }
-        if (!presented) {
-            // No usable focused responder (or the external path declined): fall
-            // back to a standalone scratch view prefilled with the clipboard. The
-            // anchor is fully transparent and always has a parentViewController,
-            // so the standalone path presents without shaking.
+
+        if (keyword.length > 0) {
+            // Explicit subject: standalone anchor prefilled with the keyword.
             UIWindow *keyWindow = FC_ForegroundKeyWindow();
-            UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow) : nil;
+            UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow, keyword) : nil;
             if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                 presented = [presenter presentToolControllerStandalone:anchor];
             }
@@ -362,6 +394,32 @@ static void FC_PresentPanelInPlace(void) {
                 // The panel never appeared: drop the scratch view we just added,
                 // otherwise it stays on screen as an invisible touch blocker.
                 FC_RemoveStaleStandaloneAnchors(keyWindow);
+            }
+        } else {
+            // Prefer the real, focused text input so "accept" writes the result
+            // back into the field. The external-source entry never shakes: it
+            // returns NO when it cannot present (no parent controller, or the
+            // selection is ineligible even after a select-all), and we then fall
+            // back to a standalone scratch view so the panel always appears.
+            UIResponder *responder = FC_FindEditingResponder();
+            if (responder && [presenter respondsToSelector:@selector(presentToolControllerFromExternalSource:)]) {
+                presented = [presenter presentToolControllerFromExternalSource:responder];
+            }
+            if (!presented) {
+                // No usable focused responder (or the external path declined): fall
+                // back to a standalone scratch view prefilled with the clipboard. The
+                // anchor is fully transparent and always has a parentViewController,
+                // so the standalone path presents without shaking.
+                UIWindow *keyWindow = FC_ForegroundKeyWindow();
+                UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow, nil) : nil;
+                if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
+                    presented = [presenter presentToolControllerStandalone:anchor];
+                }
+                if (!presented && keyWindow) {
+                    // The panel never appeared: drop the scratch view we just added,
+                    // otherwise it stays on screen as an invisible touch blocker.
+                    FC_RemoveStaleStandaloneAnchors(keyWindow);
+                }
             }
         }
         // Only lock on success — a failed attempt must leave the next trigger
@@ -422,7 +480,7 @@ static void FC_TrackWakeFromBackground(void) {
     });
 }
 
-static void FC_PresentPanelWhenUsable(NSInteger attempt) {
+static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIApplicationState state = [UIApplication sharedApplication].applicationState;
         if (state == UIApplicationStateActive) {
@@ -434,7 +492,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt) {
                 NSLog(@"[Faircopy] external trigger dropped: stale re-broadcast right after resume");
                 return;
             }
-            FC_PresentPanelInPlace();
+            FC_PresentPanelInPlace(keyword);
             return;
         }
         if (state == UIApplicationStateBackground) {
@@ -449,7 +507,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt) {
         dispatch_after(
             dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kFCInactiveRetryDelay * NSEC_PER_SEC)),
             dispatch_get_main_queue(), ^{
-                FC_PresentPanelWhenUsable(attempt + 1);
+                FC_PresentPanelWhenUsable(attempt + 1, keyword);
             });
     });
 }
@@ -457,7 +515,8 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt) {
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
-    FC_PresentPanelWhenUsable(0);
+    // Darwin notifications carry no payload: no keyword, context-driven path.
+    FC_PresentPanelWhenUsable(0, nil);
 }
 
 // MARK: - In-place faircopy://panel interception
@@ -478,14 +537,40 @@ static BOOL FC_ShouldPresentFaircopyPanelInPlace(NSURL *url) {
     return YES;
 }
 
+/// Extracts a percent-decoded `keyword` query item from a `faircopy://panel`
+/// URL, e.g. `faircopy://panel?keyword=hello%20world` → `hello world`.
+/// Returns nil when absent, blank, or the URL is malformed — the caller then
+/// behaves exactly as before 3.0.31 (context-driven, clipboard fallback).
+static NSString *FC_KeywordFromPanelURL(NSURL *url) {
+    NSURLComponents *components = [NSURLComponents componentsWithURL:url
+                                             resolvingAgainstBaseURL:NO];
+    if (!components) { return nil; }
+    for (NSURLQueryItem *item in components.queryItems) {
+        if (![item.name isEqualToString:@"keyword"]) { continue; }
+        NSString *value = item.value ?: @"";
+        value = [value stringByTrimmingCharactersInSet:
+                 [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+        if (value.length > 0) { return value; }
+    }
+    return nil;
+}
+
 static BOOL (*old_UIApplication_openURL_)(UIApplication *, SEL, NSURL *);
 static void (*old_UIApplication_openURL_options_completion_)(UIApplication *, SEL, NSURL *, NSDictionary *, void (^)(BOOL));
 
 static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url) {
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
-        NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
-        FC_PresentPanelWhenUsable(0);
+        NSString *keyword = FC_KeywordFromPanelURL(url);
+        if (keyword.length > 0) {
+            // 3.0.31: keyword invocation — the panel's subject is the keyword,
+            // so it never touches the clipboard nor the focused text input.
+            NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place with keyword (%lu chars)",
+                  (unsigned long)keyword.length);
+        } else {
+            NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
+        }
+        FC_PresentPanelWhenUsable(0, keyword);
         return YES;
     }
     return old_UIApplication_openURL_(self, _cmd, url);
@@ -496,8 +581,14 @@ static void new_UIApplication_openURL_options_completion_(UIApplication *self, S
 {
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
-        NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
-        FC_PresentPanelWhenUsable(0);
+        NSString *keyword = FC_KeywordFromPanelURL(url);
+        if (keyword.length > 0) {
+            NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place with keyword (%lu chars)",
+                  (unsigned long)keyword.length);
+        } else {
+            NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
+        }
+        FC_PresentPanelWhenUsable(0, keyword);
         if (completion) {
             dispatch_async(dispatch_get_main_queue(), ^{ completion(YES); });
         }
