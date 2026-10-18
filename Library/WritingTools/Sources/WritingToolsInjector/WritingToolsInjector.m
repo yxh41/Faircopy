@@ -133,7 +133,7 @@ static NSMutableArray<UIViewController *> *FC_StandInHosts(void);
 static BOOL FC_ViewControllerHasAnyPresented(UIViewController *vc, NSInteger depth) {
     if (!vc || depth > 32) { return NO; }
     if (vc.presentedViewController) { return YES; }
-    for (UIViewController *child in vc.children) {
+    for (UIViewController *child in vc.childViewControllers) {
         if (FC_ViewControllerHasAnyPresented(child, depth + 1)) { return YES; }
     }
     return NO;
