@@ -236,6 +236,18 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
             setSceneWindowsHidden(true)
+            // 3.0.32: hand the keyword (if any) and the bounce target to the
+            // injected apps through the shared pending-invocation file. The
+            // Darwin notification is a payload-less broadcast, so without this
+            // the panel falls back to the focused text field (e.g. Safari's
+            // address bar, which holds the raw URL) and every app — including
+            // SpringBoard — would present its own panel.
+            let keyword = Self.panelKeyword(from: url)
+            PanelPendingStore.save(PanelPending(
+                keyword: keyword,
+                target: bounceTarget,
+                at: Date().timeIntervalSince1970
+            ))
             // On a cold launch SwiftUI's window may not exist yet at this
             // point; hide whatever appears before the first composite.
             DispatchQueue.main.async { [weak self] in
@@ -262,5 +274,42 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 }
             }
         }
+    }
+
+    /// Extracts the percent-decoded `keyword` query item from a
+    /// `faircopy://panel?keyword=…` URL. Empty when absent or blank — the
+    /// injector then falls back to the context-driven (no keyword) path.
+    static func panelKeyword(from url: URL) -> String {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        else { return "" }
+        for item in items where item.name == "keyword" {
+            let value = (item.value ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { return value }
+        }
+        return ""
+    }
+}
+
+/// One pending `faircopy://panel` invocation, handed from AIGate to the
+/// injected apps through a shared file. The Darwin notification cannot carry
+/// a payload across processes, so the keyword and the bounce target travel
+/// here instead (same shared directory the app-search stores use).
+struct PanelPending: Codable {
+    var keyword: String
+    var target: String
+    var at: Double
+}
+
+struct PanelPendingStore {
+    /// KEEP IN SYNC with kFCPendingPanelPath in WritingToolsInjector.m.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_pending.json"
+
+    static func save(_ pending: PanelPending) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(pending) else { return }
+        try? data.write(to: url, options: .atomic)
     }
 }

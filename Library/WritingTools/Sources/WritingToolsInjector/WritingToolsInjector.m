@@ -457,6 +457,72 @@ static NSTimeInterval gFCWakeAt = 0;
 /// How long after a wake a trigger is still considered the stale re-broadcast.
 static const NSTimeInterval kFCWakeGrace = 1.5;
 
+// MARK: - Pending panel invocation handoff (3.0.32)
+//
+// AIGate handles `faircopy://panel` by bouncing back to the caller and then
+// broadcasting the Darwin notification — but that broadcast carries no
+// payload, so before 3.0.32 every injected app presented its own panel from
+// it (the caller's, plus SpringBoard's once the user went home) and the
+// `keyword` query item was lost. AIGate now writes the keyword and the bounce
+// target into a shared file first; this process acts on the broadcast only
+// when the invocation is addressed to it.
+
+/// KEEP IN SYNC with PanelPendingStore.path in AIGate/FaircopyApp.swift.
+static NSString *const kFCPendingPanelPath =
+    @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_pending.json";
+/// How long an invocation stays actionable at all: covers the bounce landing
+/// (~0.3 s) plus a cold relaunch of the target app.
+static const NSTimeInterval kFCPendingInvocationFreshness = 15.0;
+/// Tighter window for the activation fallback, which only exists to cover a
+/// bounce that lands after the broadcast was already delivered or dropped.
+static const NSTimeInterval kFCPendingActivationWindow = 4.0;
+/// `at` of the invocation this process already handled — the broadcast and the
+/// activation fallback must not both present for one invocation.
+static NSTimeInterval gFCHandledPendingInvocationAt = -1.0;
+
+/// Reads the pending invocation, or nil when absent, malformed, or stale.
+static NSDictionary *FC_ReadPendingPanelInvocation(void) {
+    NSData *data = [NSData dataWithContentsOfFile:kFCPendingPanelPath];
+    if (!data) { return nil; }
+    NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![dict isKindOfClass:[NSDictionary class]]) { return nil; }
+    if (![dict[@"at"] isKindOfClass:[NSNumber class]]) { return nil; }
+    NSTimeInterval age = [[NSDate date] timeIntervalSince1970] - [dict[@"at"] doubleValue];
+    if (age > kFCPendingInvocationFreshness) { return nil; }
+    return dict;
+}
+
+/// True when the invocation is addressed to THIS app (or carries no target,
+/// i.e. a plain third-party `notify_post` — old broadcast semantics).
+static BOOL FC_PendingPanelInvocationTargetsMe(NSDictionary *invocation) {
+    NSString *target = [invocation[@"target"] isKindOfClass:[NSString class]]
+        ? invocation[@"target"] : @"";
+    if (target.length == 0) { return YES; }
+    NSString *mine = [NSBundle mainBundle].bundleIdentifier ?: @"";
+    return [target isEqualToString:mine];
+}
+
+static NSString *FC_PendingPanelInvocationKeyword(NSDictionary *invocation) {
+    NSString *keyword = [invocation[@"keyword"] isKindOfClass:[NSString class]]
+        ? invocation[@"keyword"] : @"";
+    return keyword.length > 0 ? keyword : nil;
+}
+
+/// Marks the invocation as handled by this process and returns its keyword
+/// (nil when the invocation carries none — the caller then runs the original
+/// context-driven path).
+static NSString *FC_ClaimPendingPanelInvocation(NSDictionary *invocation) {
+    gFCHandledPendingInvocationAt = [invocation[@"at"] doubleValue];
+    NSString *keyword = FC_PendingPanelInvocationKeyword(invocation);
+    if (keyword) {
+        NSLog(@"[Faircopy] panel invocation: keyword handoff accepted (%lu chars)",
+              (unsigned long)keyword.length);
+    }
+    return keyword;
+}
+
+static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation);
+
 static void FC_TrackWakeFromBackground(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
@@ -475,18 +541,35 @@ static void FC_TrackWakeFromBackground(void) {
                 gFCWakeAt = [NSDate timeIntervalSinceReferenceDate];
                 gFCWasBackgrounded = NO;
             }
+            // 3.0.32 activation fallback: the bounce may bring this app to the
+            // foreground after the broadcast was already delivered (target
+            // relaunching) or dropped (still background at +1.0 s). If a fresh
+            // invocation is addressed to THIS app and nothing handled it yet,
+            // present now. Non-target apps and stale files stay silent.
+            NSDictionary *invocation = FC_ReadPendingPanelInvocation();
+            if (!invocation) { return; }
+            if (!FC_PendingPanelInvocationTargetsMe(invocation)) { return; }
+            NSTimeInterval at = [invocation[@"at"] doubleValue];
+            if (at == gFCHandledPendingInvocationAt) { return; }
+            if (([[NSDate date] timeIntervalSince1970] - at) > kFCPendingActivationWindow) { return; }
+            NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
+            NSLog(@"[Faircopy] panel invocation: presenting on activation (target match)");
+            FC_PresentPanelWhenUsable(0, keyword, YES);
         }];
     });
 }
 
-static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword) {
+static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIApplicationState state = [UIApplication sharedApplication].applicationState;
         if (state == UIApplicationStateActive) {
             // A trigger delivered just after a resume is the stale re-broadcast
             // of a trigger the user issued in a different app — drop it instead
-            // of popping a panel in whichever app they switched to.
-            if (gFCWakeAt > 0 &&
+            // of popping a panel in whichever app they switched to. A claimed
+            // invocation is exempt: the resume IS the bounce landing, and
+            // dropping it here is exactly the race that lost caller panels.
+            if (!claimedInvocation &&
+                gFCWakeAt > 0 &&
                 ([NSDate timeIntervalSinceReferenceDate] - gFCWakeAt) < kFCWakeGrace) {
                 NSLog(@"[Faircopy] external trigger dropped: stale re-broadcast right after resume");
                 return;
@@ -506,7 +589,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword) {
         dispatch_after(
             dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kFCInactiveRetryDelay * NSEC_PER_SEC)),
             dispatch_get_main_queue(), ^{
-                FC_PresentPanelWhenUsable(attempt + 1, keyword);
+                FC_PresentPanelWhenUsable(attempt + 1, keyword, claimedInvocation);
             });
     });
 }
@@ -514,8 +597,42 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword) {
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
-    // Darwin notifications carry no payload: no keyword, context-driven path.
-    FC_PresentPanelWhenUsable(0, nil);
+    // AIGate posts this broadcast itself; it must never present a panel over
+    // its own (hidden) windows. The in-place URL interception already excludes
+    // AIGate — the broadcast path now does too.
+    if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"wiki.qaq.AIGate"]) { return; }
+
+    // 3.0.32: the broadcast itself carries no payload. AIGate hands the keyword
+    // and the intended target through the shared pending-invocation file; when
+    // the invocation is addressed to another app (SpringBoard above all), this
+    // process must stay out of it — that broadcast is what produced the second
+    // panel on the home screen.
+    NSDictionary *invocation = FC_ReadPendingPanelInvocation();
+    if (invocation) {
+        if (!FC_PendingPanelInvocationTargetsMe(invocation)) {
+            NSString *target = [invocation[@"target"] isKindOfClass:[NSString class]]
+                ? invocation[@"target"] : @"";
+            NSLog(@"[Faircopy] external trigger dropped: not the caller (target %@)", target);
+            return;
+        }
+        if ([invocation[@"at"] doubleValue] == gFCHandledPendingInvocationAt) {
+            NSLog(@"[Faircopy] external trigger dropped: invocation already handled");
+            return;
+        }
+        // Background at broadcast time: leave the invocation UNCLAIMED so the
+        // activation fallback can still present once the bounce lands.
+        if ([UIApplication sharedApplication].applicationState == UIApplicationStateBackground) {
+            NSLog(@"[Faircopy] external trigger dropped: app is in background");
+            return;
+        }
+        NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
+        FC_PresentPanelWhenUsable(0, keyword, YES);
+        return;
+    }
+
+    // No pending invocation (e.g. a third-party tweak's plain notify_post):
+    // original broadcast semantics, context-driven path, no keyword.
+    FC_PresentPanelWhenUsable(0, nil, NO);
 }
 
 // MARK: - In-place faircopy://panel interception
@@ -569,7 +686,7 @@ static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url
         } else {
             NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
         }
-        FC_PresentPanelWhenUsable(0, keyword);
+        FC_PresentPanelWhenUsable(0, keyword, NO);
         return YES;
     }
     return old_UIApplication_openURL_(self, _cmd, url);
@@ -587,7 +704,7 @@ static void new_UIApplication_openURL_options_completion_(UIApplication *self, S
         } else {
             NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
         }
-        FC_PresentPanelWhenUsable(0, keyword);
+        FC_PresentPanelWhenUsable(0, keyword, NO);
         if (completion) {
             dispatch_async(dispatch_get_main_queue(), ^{ completion(YES); });
         }
