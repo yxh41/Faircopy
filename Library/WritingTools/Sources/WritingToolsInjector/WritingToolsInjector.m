@@ -14,6 +14,7 @@
 #import <dlfcn.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <unistd.h>
 
 // NOTE: no <notify/notify.h> here — the iOS SDK does not ship it, and the
 // Darwin notification observer below only needs CoreFoundation
@@ -398,6 +399,109 @@ static UIResponder *FC_MakeStandaloneAnchor(NSString *prefill) {
     return textView;
 }
 
+// MARK: - Cross-process panel claim (3.0.35)
+//
+// Everything above is per-process state, which is exactly why 3.0.31–3.0.34
+// could not fix the "two panels / needs two taps to dismiss" report: a
+// payload-less Darwin broadcast is SYSTEM-WIDE. Every injected process receives
+// it — SpringBoard included, whose UIApplication stays `Active` even while an
+// app is frontmost — and each then consulted its own private lock, which said
+// "nobody is showing a panel" in every single one of them. Two processes, two
+// popovers, one screen: the top one swallows the first tap outside, the one
+// underneath needs the second.
+//
+// The fix is an arbitration ticket in the same shared directory the pending
+// invocation already uses: the first process to present publishes
+// {pid, bundle, at}, and every other process answering the same broadcast sees
+// a foreign, fresh ticket and stands down. The ticket is deliberately
+// SHORT-LIVED rather than panel-lifetime, so a leaked ticket can never silence
+// the next real trigger and no liveness probe on the owning pid is needed.
+
+/// KEEP IN SYNC with the shared directory used by AIGate's PanelPendingStore.
+static NSString *const kFCPanelClaimDirectory =
+    @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate";
+static NSString *const kFCPanelClaimPath =
+    @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_claim.json";
+
+/// How long a claim stays valid: long enough to cover two processes answering
+/// one broadcast (including SpringBoard's deferral below), short enough that
+/// the next user trigger is never affected.
+static const NSTimeInterval kFCPanelClaimTTL = 2.5;
+/// SpringBoard answers the same broadcast as the caller, but it is the wrong
+/// presenter whenever an app is frontmost. It waits this long so the foreground
+/// app can claim first — the home screen is the only place SpringBoard wins.
+static const NSTimeInterval kFCSpringBoardPresentationDelay = 0.8;
+
+static BOOL FC_IsSpringBoard(void) {
+    return [[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"];
+}
+
+static NSString *FC_CurrentBundleIdentifier(void) {
+    return [NSBundle mainBundle].bundleIdentifier ?: @"";
+}
+
+/// Reads the ticket without any freshness filter (nil when absent / malformed).
+static NSDictionary *FC_ReadPanelClaimRaw(void) {
+    NSData *data = [NSData dataWithContentsOfFile:kFCPanelClaimPath];
+    if (!data) { return nil; }
+    NSDictionary *dict = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![dict isKindOfClass:[NSDictionary class]]) { return nil; }
+    if (![dict[@"at"] isKindOfClass:[NSNumber class]]) { return nil; }
+    return dict;
+}
+
+/// The ticket, but only while it is still inside the arbitration window.
+static NSDictionary *FC_ReadPanelClaim(void) {
+    NSDictionary *claim = FC_ReadPanelClaimRaw();
+    if (!claim) { return nil; }
+    NSTimeInterval age = [[NSDate date] timeIntervalSince1970] - [claim[@"at"] doubleValue];
+    if (age < 0 || age > kFCPanelClaimTTL) { return nil; }
+    return claim;
+}
+
+/// True when ANOTHER process claimed the panel inside the arbitration window.
+/// Our own ticket never blocks us, so a failed presentation can still fall back
+/// to the standalone path within the same trigger.
+static BOOL FC_PanelClaimIsForeign(void) {
+    NSDictionary *claim = FC_ReadPanelClaim();
+    if (!claim) { return NO; }
+    return [claim[@"pid"] integerValue] != (NSInteger)getpid();
+}
+
+/// Publishes this process as the panel owner. Best effort: the shared directory
+/// lives outside the app container, and a denied write must never stop a panel
+/// from appearing — it only disables the cross-process guard for this trigger.
+static void FC_ClaimPanelForThisProcess(void) {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if (![fm fileExistsAtPath:kFCPanelClaimDirectory]) {
+        [fm createDirectoryAtPath:kFCPanelClaimDirectory
+      withIntermediateDirectories:YES
+                       attributes:nil
+                            error:nil];
+    }
+    NSDictionary *claim = @{
+        @"pid": @(getpid()),
+        @"bundle": FC_CurrentBundleIdentifier(),
+        @"at": @([[NSDate date] timeIntervalSince1970]),
+    };
+    NSData *data = [NSJSONSerialization dataWithJSONObject:claim options:0 error:nil];
+    if (!data || ![data writeToFile:kFCPanelClaimPath atomically:YES]) {
+        NSLog(@"[Faircopy] panel claim: could not publish the cross-process ticket");
+        return;
+    }
+    NSLog(@"[Faircopy] panel claim: %@ (pid %d) owns the panel",
+          FC_CurrentBundleIdentifier(), (int)getpid());
+}
+
+/// Drops our ticket after a presentation that never happened, so another
+/// process (SpringBoard above all) is still free to show the panel.
+static void FC_RelinquishPanelClaim(void) {
+    NSDictionary *claim = FC_ReadPanelClaimRaw();
+    if (!claim) { return; }
+    if ([claim[@"pid"] integerValue] != (NSInteger)getpid()) { return; }
+    [[NSFileManager defaultManager] removeItemAtPath:kFCPanelClaimPath error:nil];
+}
+
 /// Present the writing panel in the current (foreground) app, with no app
 /// switch and no bounce through the AIGate companion app. This is the shared
 /// in-place path used by both the `faircopy://panel` URL interception hook and
@@ -412,8 +516,30 @@ static UIResponder *FC_MakeStandaloneAnchor(NSString *prefill) {
 ///
 /// The whole attempt runs inside one main-queue block, so the lock check and the
 /// lock acquisition cannot interleave with a second trigger.
+///
+/// 3.0.35: the arbitration ticket is checked and published inside that same
+/// block, and SpringBoard — which receives the identical system-wide broadcast —
+/// defers one pass so the foreground app claims first.
+static BOOL gFCSpringBoardDeferralConsumed = NO;
+
 static void FC_PresentPanelInPlace(NSString *keyword) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        if (FC_IsSpringBoard()) {
+            if (!gFCSpringBoardDeferralConsumed) {
+                gFCSpringBoardDeferralConsumed = YES;
+                NSLog(@"[Faircopy] SpringBoard defers the panel by %.0f ms so the caller claims it first",
+                      kFCSpringBoardPresentationDelay * 1000.0);
+                dispatch_after(
+                    dispatch_time(DISPATCH_TIME_NOW,
+                                  (int64_t)(kFCSpringBoardPresentationDelay * NSEC_PER_SEC)),
+                    dispatch_get_main_queue(), ^{
+                        FC_PresentPanelInPlace(keyword);
+                    });
+                return;
+            }
+            // This is the deferred pass: re-arm for the next trigger.
+            gFCSpringBoardDeferralConsumed = NO;
+        }
         // 3.0.25: the home screen is now allowed. The tweak's filter is
         // UIKit-wide, so SpringBoard is injected too and receives the trigger;
         // summoning the panel there is useful (it works on the clipboard).
@@ -421,7 +547,7 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
         // transparent UITextView that would eat every touch if left behind over
         // the icons. That is now covered by FC_SweepIdleStandaloneAnchors, which
         // runs on activation and before every new presentation.
-        if ([[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"]) {
+        if (FC_IsSpringBoard()) {
             NSLog(@"[Faircopy] presenting on SpringBoard (home screen)");
         }
         // Clear anything an earlier attempt left behind before making a new one.
@@ -430,6 +556,21 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
             NSLog(@"[Faircopy] external trigger ignored: a panel is already on screen");
             return;
         }
+        // 3.0.35: another PROCESS may own the panel. A payload-less broadcast
+        // wakes every injected app and SpringBoard at once, and no in-process
+        // lock can see across that boundary — this ticket is the only arbiter.
+        if (FC_PanelClaimIsForeign()) {
+            NSDictionary *claim = FC_ReadPanelClaim();
+            NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
+                ? claim[@"bundle"] : @"?";
+            NSLog(@"[Faircopy] external trigger ignored: another process owns the panel (%@ pid %ld)",
+                  owner, (long)[claim[@"pid"] integerValue]);
+            return;
+        }
+        // Publish before presenting so the racing process sees it on entry. Our
+        // own pid is exempt from the check above, so the in-process fallback
+        // below still works when the first attempt declines.
+        FC_ClaimPanelForThisProcess();
 
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         BOOL presented = NO;
@@ -477,6 +618,10 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
         // free to try again.
         if (presented) {
             FC_LockPanelPresentation();
+        } else {
+            // Nothing reached the screen: hand the arbitration ticket back so
+            // another process can still show the panel for this trigger.
+            FC_RelinquishPanelClaim();
         }
     });
 }
