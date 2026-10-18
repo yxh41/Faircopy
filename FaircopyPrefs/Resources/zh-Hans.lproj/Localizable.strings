@@ -549,3 +549,15 @@
 
 /* No comment provided by engineer. */
 "Redetect Installed Apps" = "重新检测已安装应用";
+
+/* 3.0.28: 在应用中搜索 分区说明（分词 → 在应用中搜索 入口） */
+"Apps shown when you pick words in 分词 and choose 在应用中搜索. Use %@ in the search template where the keyword goes." = "在分词中选中文字并选择「在应用中搜索」时展示的应用。搜索模板中用 %@ 表示关键词的位置。";
+
+/* 3.0.28: 添加应用编辑器占位符汉化 */
+"Weibo" = "微博";
+
+/* 3.0.28: 搜索模板 / 备用 Scheme 占位符改为带「例如」的提示 */
+"e.g. weibo://search?q=%@" = "例如 weibo://search?q=%@";
+
+/* 3.0.28 */
+"e.g. weibo://" = "例如 weibo://";

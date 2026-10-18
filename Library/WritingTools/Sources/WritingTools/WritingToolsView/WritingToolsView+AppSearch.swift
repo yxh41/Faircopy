@@ -137,15 +137,25 @@ struct AppSearchStore {
         // its Info.plist and call canOpenURL); a scheme absent from the map means
         // it's a user-added target we can't probe, so we keep showing it.
         let installed = AppSearchInstalledStore.load()
-        guard !installed.isEmpty else { return list }
-        return list.filter { target in
-            guard let root = target.schemeRoot else { return true }
-            if let known = installed[root] {
-                if !known { print("[Faircopy] app search: hiding uninstalled target \(root)") }
-                return known
+        let filtered: [AppSearchTarget]
+        if installed.isEmpty {
+            filtered = list
+        } else {
+            filtered = list.filter { target in
+                guard let root = target.schemeRoot else { return true }
+                if let known = installed[root] {
+                    if !known { print("[Faircopy] app search: hiding uninstalled target \(root)") }
+                    return known
+                }
+                return true
             }
-            return true
         }
+        // Surface recently used destinations first. Timestamps come from
+        // AppSearchRecentsStore (written by this same process on every jump);
+        // targets with no timestamp (never jumped) sink to the bottom in their
+        // configured order.
+        let recents = AppSearchRecentsStore.load()
+        return filtered.sorted { (recents[$0.id] ?? 0) > (recents[$1.id] ?? 0) }
     }
 }
 
@@ -162,6 +172,35 @@ struct AppSearchInstalledStore {
             let map = try? JSONDecoder().decode([String: Bool].self, from: data)
         else { return [:] }
         return map
+    }
+}
+
+/// Most-recently-used timestamps for the search targets, shared from the panel
+/// (which is the process that actually performs jumps). Keyed by target `id`;
+/// `AppSearchStore.load()` uses it to surface frequently jumped apps at the top.
+/// Best-effort: writes may be blocked in a sandboxed host app, in which case the
+/// file stays empty and the menu keeps its configured order.
+struct AppSearchRecentsStore {
+    /// KEEP IN SYNC with the same path in FaircopyRootView.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_recents.json"
+
+    static func load() -> [String: Double] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let map = try? JSONDecoder().decode([String: Double].self, from: data)
+        else { return [:] }
+        return map
+    }
+
+    static func touch(_ id: String) {
+        var map = load()
+        map[id] = Date().timeIntervalSince1970
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        if let data = try? JSONEncoder().encode(map) {
+            try? data.write(to: url, options: .atomic)
+        }
     }
 }
 
@@ -263,14 +302,21 @@ extension WritingToolsView {
         dismiss()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             UIApplication.shared.open(url) { success in
-                guard !success else { return }
+                guard !success else {
+                    // 跳转成功（搜索模板命中）：记录最近使用，便于菜单把常用应用置顶
+                    AppSearchRecentsStore.touch(target.id)
+                    return
+                }
                 if let bare = target.bareURL() {
                     UIApplication.shared.open(bare) { bareSuccess in
-                        if !bareSuccess, protect {
+                        if bareSuccess {
+                            // 兜底 scheme 也成功：同样记为最近使用
+                            AppSearchRecentsStore.touch(target.id)
+                        } else if protect {
                             // 兜底：两个 scheme 都失败才写入，给用户最后手动粘贴的机会
                             UIPasteboard.general.string = keyword
                             print("[Faircopy] app search: jump failed, keyword left on clipboard")
-                        } else if !bareSuccess {
+                        } else {
                             print("[Faircopy] app search: bare scheme also failed (clipboard untouched)")
                         }
                     }

@@ -847,7 +847,7 @@ struct AppSearchEditorView: View {
                 Text("Name")
             }
             Section {
-                TextField("sinaweibo://searchall?q=%@", text: $draft.searchTemplate)
+                TextField("e.g. weibo://search?q=%@", text: $draft.searchTemplate)
                     .font(.footnote)
             } header: {
                 Text("Search Template")
@@ -855,7 +855,7 @@ struct AppSearchEditorView: View {
                 Text("Use %@ where the picked keyword goes.")
             }
             Section {
-                TextField("sinaweibo://", text: $draft.bareScheme)
+                TextField("e.g. weibo://", text: $draft.bareScheme)
                     .font(.footnote)
             } header: {
                 Text("Fallback Scheme")
