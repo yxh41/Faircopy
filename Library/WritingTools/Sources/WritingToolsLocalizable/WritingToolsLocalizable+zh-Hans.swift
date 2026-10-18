@@ -42,6 +42,10 @@ extension WritingToolsLocalizable {
 
             "Search in Apps": "在应用中搜索",
 
+            "Ask": "提问",
+            "Type your question": "输入你的问题",
+            "Insert into Prompt": "塞进提示词",
+
             "Back": "返回",
 
             "Made with ♥ by OwnGoal Studio": "「乌龙工作室」倾情献制",

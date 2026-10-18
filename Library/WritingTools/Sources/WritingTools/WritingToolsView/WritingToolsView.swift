@@ -50,6 +50,11 @@ struct WritingToolsView: View {
     @State var segmentDragOriginalSelection: Set<Int> = []
     @State var segmentDragSelects: Bool = true
 
+    // Subject of a segment action (翻译/提问/塞提示词): the picked words, kept so
+    // re-runs (translate language switch / Again / retry) stay scoped to the
+    // selection instead of falling back to the full selected text.
+    @State var segmentActionSubject: String? = nil
+
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
 

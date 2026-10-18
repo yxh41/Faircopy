@@ -33,14 +33,17 @@ extension WritingToolsView {
             HStack(spacing: innerSpacing) {
                 BeautifulButton(title: "Proofread".localized, icon: "doc.text.magnifyingglass") {
                     taskPrompt = .proofread
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Rewrite".localized, icon: "arrow.counterclockwise") {
                     taskPrompt = .rewrite
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Translate".localized, icon: "character.book.closed") {
                     taskPrompt = .translate
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
             }
@@ -48,14 +51,17 @@ extension WritingToolsView {
             HStack(spacing: innerSpacing) {
                 BeautifulButton(title: "Friendly".localized, icon: "bubble.left.and.bubble.right") {
                     taskPrompt = .friendly
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Professional".localized, icon: "books.vertical") {
                     taskPrompt = .professional
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Concise".localized, icon: "textformat.abc.dottedunderline") {
                     taskPrompt = .concise
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
             }
@@ -63,14 +69,17 @@ extension WritingToolsView {
             HStack(spacing: innerSpacing) {
                 BeautifulButton(title: "Expand".localized, icon: "arrow.up.left.and.arrow.down.right") {
                     taskPrompt = .expand
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Summarize".localized, icon: "list.bullet.below.rectangle") {
                     taskPrompt = .summarize
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
                 BeautifulButton(title: "Segment".localized, icon: "scissors") {
                     taskPrompt = .segment
+                    segmentActionSubject = nil
                     executeCurrentTask()
                 }
             }

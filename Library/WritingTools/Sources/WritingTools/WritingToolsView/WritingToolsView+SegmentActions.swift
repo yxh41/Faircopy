@@ -1,0 +1,147 @@
+//
+//  WritingToolsView+SegmentActions.swift
+//  WritingTools
+//
+//  Feature: act on the words picked in 分词 (segment) mode — translate them,
+//  ask the model about them, or run one of the user's custom prompts on them.
+//  All three funnel through the same executeTask pipeline as the built-in
+//  modes; the picked words (segmentActionText) become the subject instead of
+//  the full selection. Tapping any action leaves segment mode and streams the
+//  result into the normal output panel (Copy / Share / Discard / Again /
+//  Accept).
+//
+
+import Foundation
+import SwiftUI
+import UIKit
+
+extension WritingToolsView {
+    /// The subject for segment actions: the picked words rejoined the way a
+    /// search box expects (`segmentSearchKeyword`), falling back to the full
+    /// selected text when nothing is picked.
+    var segmentActionText: String {
+        let keyword = segmentSearchKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !keyword.isEmpty { return keyword }
+        return context.textProxy.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 翻译: translate the picked words into the current translate target.
+    /// Routes through the normal translate mode so the language picker and the
+    /// Again button keep working — `segmentActionSubject` carries the picked
+    /// words so re-runs (switching language, Again, retry) stay scoped to them.
+    func translateSegmentSelection() {
+        let text = segmentActionText
+        guard !text.isEmpty else { return }
+        SegmentHaptics.light.impactOccurred()
+        print("[Faircopy] segment action: translate \(text.count) chars")
+        taskPrompt = .translate
+        segmentActionSubject = text
+        executeCurrentTask()
+    }
+
+    /// 提问: ask the model a question about the picked words. Prompts for the
+    /// question, then runs it with the picked words as the source text.
+    func askAboutSegmentSelection() {
+        let text = segmentActionText
+        guard !text.isEmpty else { return }
+        SegmentHaptics.light.impactOccurred()
+
+        let alert = UIAlertController(
+            title: "Ask".localized,
+            message: text,
+            preferredStyle: .alert
+        )
+        alert.addTextField { field in
+            field.placeholder = "Type your question".localized
+        }
+        let submit = UIAlertAction(title: "Ask".localized, style: .default) { [weak alert] _ in
+            let question = alert?.textFields?.first?.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !question.isEmpty else { return }
+            self.askSegmentSelection(question: question, context: text)
+        }
+        alert.addAction(submit)
+        alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
+
+        // Present from the top-most controller (the panel is a popover on top of
+        // the host app's controller); mirrors shareText's presenter walk.
+        var presenter: UIViewController = context.parentController
+        while let presented = presenter.presentedViewController, !presented.isBeingDismissed {
+            presenter = presented
+        }
+        presenter.present(alert, animated: true)
+    }
+
+    /// Runs the ask: the question is baked into a transient custom prompt so the
+    /// Again button re-asks the same question; the picked words are the content.
+    private func askSegmentSelection(question: String, context text: String) {
+        print("[Faircopy] segment action: ask \(question.count) chars over \(text.count) chars")
+        let askRules = "Answer the question below about the provided text. Be concise and faithful, using only the provided text; if it does not contain the answer, say so. Do not invent facts. Respond in the same language as the question."
+        let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: "\(question)\n\n\(askRules)")
+        taskPrompt = .rewrite
+        executeCustomPrompt(entry, selectionOverride: text)
+    }
+
+    /// 塞提示词: run one of the user's custom prompts on the picked words
+    /// (`{{selection}}` resolves to the picked words, not the full selection).
+    func runCustomPromptOnSegment(_ entry: CustomPromptEntry) {
+        let text = segmentActionText
+        guard !text.isEmpty else { return }
+        SegmentHaptics.light.impactOccurred()
+        print("[Faircopy] segment action: insert prompt \(entry.title)")
+        taskPrompt = .rewrite
+        executeCustomPrompt(entry, selectionOverride: text)
+    }
+
+    /// Action row shown under the Search-in-Apps menu while words are picked.
+    @ViewBuilder
+    var segmentActionRow: some View {
+        HStack(spacing: innerSpacing) {
+            BeautifulButton(title: "Translate".localized, icon: "character.book.closed") {
+                translateSegmentSelection()
+            }
+            BeautifulButton(title: "Ask".localized, icon: "questionmark.bubble") {
+                askAboutSegmentSelection()
+            }
+            segmentInsertPromptButton
+        }
+        .frame(height: 56)
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+
+    /// 塞提示词 entry: a picker menu once custom prompts exist, otherwise a
+    /// shortcut that opens the AIGate manager (mirrors `customPromptButton`).
+    @ViewBuilder
+    var segmentInsertPromptButton: some View {
+        if customPrompts.isEmpty {
+            BeautifulButton(title: "Insert into Prompt".localized, icon: "text.badge.plus") {
+                openCustomPromptsManager()
+            }
+        } else {
+            Menu {
+                ForEach(customPrompts) { entry in
+                    Button(entry.title) {
+                        runCustomPromptOnSegment(entry)
+                    }
+                }
+                Divider()
+                Button("Manage Custom Prompts".localized) {
+                    openCustomPromptsManager()
+                }
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "text.badge.plus")
+                    Text("Insert into Prompt".localized)
+                }
+                .font(.system(.footnote))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .foregroundStyle(.white)
+                        .opacity(0.1)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+}

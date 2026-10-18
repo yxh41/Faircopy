@@ -12,6 +12,12 @@ import UIKit
 import WritingToolsLocalizable
 
 extension WritingToolsView {
+    /// Runs the current `taskPrompt` against the panel's subject text.
+    /// `segmentActionSubject` contract: only segment actions (分词 → 翻译) set
+    /// it, and only the translate task reads it, so re-runs (language switch /
+    /// Again / retry) stay scoped to the picked words. Every built-in menu
+    /// button clears it before calling, so a fresh task always runs on the
+    /// live selection; `executeCustomPrompt` sets or clears it per run.
     func executeCurrentTask(delayedForRetry: Bool = false) {
         activeCustomPrompt = nil
         if taskPrompt == .segment {
@@ -19,17 +25,25 @@ extension WritingToolsView {
             runSegmentation()
             return
         }
+        let subject: String? = taskPrompt == .translate ? segmentActionSubject : nil
         executeTask(
             systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
             examples: taskPrompt.chatExamplesAfterSystemMessage,
-            sampling: taskPrompt.sampling(for: context.textProxy.selectedText.count),
-            delayedForRetry: delayedForRetry
+            sampling: taskPrompt.sampling(for: subject?.count ?? context.textProxy.selectedText.count),
+            delayedForRetry: delayedForRetry,
+            userText: subject
         )
     }
 
-    func executeCustomPrompt(_ entry: CustomPromptEntry) {
+    /// Runs a user-defined prompt. `selectionOverride` replaces the text proxy's
+    /// selection as the subject — used by segment actions so the picked words
+    /// (not the whole selection) are the content. Passing nil (the menu path)
+    /// preserves the original behavior exactly. The override is persisted in
+    /// `segmentActionSubject` so Again re-runs with the same scope.
+    func executeCustomPrompt(_ entry: CustomPromptEntry, selectionOverride: String? = nil) {
         activeCustomPrompt = entry
-        let selection = context.textProxy.selectedText
+        segmentActionSubject = selectionOverride
+        let selection = selectionOverride ?? context.textProxy.selectedText
         let clipboard = UIPasteboard.general.string ?? ""
         let language = Self.detectLanguage(selection)
         let resolvedPrompt = Self.resolvePlaceholders(
@@ -40,7 +54,17 @@ extension WritingToolsView {
         )
         // When the user embeds {{selection}} themselves, don't also append the
         // selection as a separate user turn (avoids duplicating the text).
-        let userText = entry.prompt.contains("{{selection}}") ? "" : nil
+        // Otherwise, a segment action's picked words must be appended
+        // explicitly — letting userText fall back to the text proxy would
+        // silently widen the subject to the whole selection.
+        let userText: String?
+        if entry.prompt.contains("{{selection}}") {
+            userText = ""
+        } else if let selectionOverride {
+            userText = selectionOverride
+        } else {
+            userText = nil
+        }
         executeTask(
             systemPrompt: resolvedPrompt + "\n\n" + Prompt.sharedRules,
             examples: [],

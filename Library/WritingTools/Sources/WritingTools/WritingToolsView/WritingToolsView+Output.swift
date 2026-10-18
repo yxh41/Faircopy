@@ -42,6 +42,9 @@ extension WritingToolsView {
                 // with the picked words. Only while a selection exists.
                 if !selectedSegmentIndexes.isEmpty {
                     segmentAppSearchMenu
+                    // Act on the picked words: translate / ask / run a custom
+                    // prompt — the 分词 mode as a general text-action entry.
+                    segmentActionRow
                 }
             } else if usage != nil || (isRunning && liveSpeed > 0) {
                 HStack(spacing: 8) {
@@ -77,7 +80,11 @@ extension WritingToolsView {
                     BeautifulButton(title: "Discard".localized) { discard() }
                     BeautifulButton(title: "Again".localized) {
                         if let activeCustomPrompt {
-                            executeCustomPrompt(activeCustomPrompt)
+                            // Re-run with the stored subject so a segment
+                            // action (塞提示词/提问) keeps its picked-words
+                            // scope; normal custom prompts stored nil and
+                            // fall back to the live selection.
+                            executeCustomPrompt(activeCustomPrompt, selectionOverride: segmentActionSubject)
                         } else {
                             executeCurrentTask()
                         }
