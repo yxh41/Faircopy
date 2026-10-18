@@ -36,8 +36,8 @@ void FC_SetLastEditingResponder(UIResponder *responder) {
 // MARK: - Presentation bookkeeping
 
 /// Tag for the scratch text view synthesized by FC_MakeStandaloneAnchor. Tagging
-/// lets stale anchors be swept without keeping a reference to them (this file is
-/// compiled without ARC, so a raw static pointer could dangle).
+/// lets stale anchors be swept without keeping a reference to them; since 3.0.31
+/// they are also tracked in a zeroing-weak registry (see FC_AnchorRegistry).
 static NSInteger const kFCStandaloneAnchorTag = 0xF0C0;
 
 /// True while a panel is on screen. Two triggers arriving in the same run loop
@@ -76,8 +76,8 @@ void FC_UnlockPanelPresentation(void) {
 /// Removes every leftover scratch anchor under `root`.
 ///
 /// Depth-first over the live subview list, then a restart-on-removal loop for the
-/// tagged children: `removeFromSuperview` mutates the list, and this file is MRC
-/// (no ARC flag in Package.swift), so taking a `copy` snapshot would leak.
+/// tagged children: `removeFromSuperview` mutates the list, so the removal loop
+/// re-scans `subviews` each pass instead of iterating a snapshot.
 static NSInteger FC_RemoveStaleStandaloneAnchors(UIView *root) {
     if (!root) { return 0; }
     for (UIView *subview in root.subviews) {
@@ -139,13 +139,13 @@ static BOOL FC_IsPanelOnScreen(void) {
 /// foreground and risks frame drops. Anchors are only ever created by
 /// FC_MakeStandaloneAnchor, so a zeroing weak table gives identical coverage
 /// in O(anchors): an anchor whose superview released it (panel dismissed)
-/// disappears from the table by itself. This file is MRC, so the table itself
-/// is retained once; members stay weak.
+/// disappears from the table by itself. The table itself is a strong static;
+/// members stay weak.
 static NSHashTable<UIView *> *FC_AnchorRegistry(void) {
     static NSHashTable *registry;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        registry = [[NSHashTable weakObjectsHashTable] retain];
+        registry = [NSHashTable weakObjectsHashTable];
     });
     return registry;
 }
@@ -170,7 +170,7 @@ static NSInteger FC_SweepIdleStandaloneAnchors(void) {
     NSInteger removed = 0;
     // Snapshot holds strong references to the live anchors only (detached ones
     // were released by their superview and are already gone from the table).
-    NSArray<UIView *> *snapshot = [[FC_AnchorRegistry() allObjects] retain];
+    NSArray<UIView *> *snapshot = [FC_AnchorRegistry() allObjects];
     for (UIView *anchor in snapshot) {
         if (![anchor isKindOfClass:[UIView class]]) { continue; }
         if (anchor.superview) {
@@ -178,7 +178,6 @@ static NSInteger FC_SweepIdleStandaloneAnchors(void) {
             removed++;
         }
     }
-    [snapshot release];
     if (removed > 0) {
         NSLog(@"[Faircopy] swept %ld idle standalone anchor(s)", (long)removed);
     }
