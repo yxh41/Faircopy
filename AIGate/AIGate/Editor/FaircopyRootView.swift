@@ -537,6 +537,12 @@ struct FaircopyRootView: View {
             } label: {
                 Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
             }
+            Button {
+                detectInstalledApps()
+            } label: {
+                Text(NSLocalizedString("Redetect Installed Apps", bundle: Bundle.wrti_support, comment: ""))
+            }
+            .foregroundStyle(Color.accent)
         } header: {
             Text(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
         } footer: {
@@ -545,6 +551,7 @@ struct FaircopyRootView: View {
         .onAppear {
             appSearchEntries = AppSearchStore.load()
             protectClipboard = AppSearchSettingsStore.load().protectClipboard
+            detectInstalledApps()
         }
         .sheet(isPresented: $isAppSearchEditing, onDismiss: {
             AppSearchStore.save(appSearchEntries)
@@ -564,6 +571,26 @@ struct FaircopyRootView: View {
             }
             .navigationViewStyle(.stack)
         }
+    }
+
+    /// Probes which built-in search targets are installed by querying
+    /// `canOpenURL` for each built-in scheme (AIGate declares them in Info.plist
+    /// via LSApplicationQueriesSchemes). The map is written to a shared file the
+    /// injected dylib reads, so it can hide targets whose app isn't installed.
+    /// User-added targets use arbitrary schemes we can't declare, so they are
+    /// never probed and always shown.
+    func detectInstalledApps() {
+        var installed: [String: Bool] = [:]
+        for target in AppSearchStore.defaults {
+            guard let root = target.schemeRoot else { continue }
+            guard installed[root] == nil else { continue }
+            let url = URL(string: "\(root)://") ?? URL(string: "https://")!
+            installed[root] = UIApplication.shared.canOpenURL(url)
+        }
+        AppSearchInstalledStore.save(installed)
+        let count = installed.filter { $0.value }.count
+        print("[Faircopy] app search: detected \(count) installed apps")
+        appSearchEntries = AppSearchStore.load()
     }
 
     func checkStatus() {
@@ -601,6 +628,16 @@ struct AppSearchEntry: Codable, Identifiable {
     var name: String
     var searchTemplate: String
     var bareScheme: String
+}
+
+extension AppSearchEntry {
+    /// Scheme root (the part before `://` in the search template), used to look
+    /// the target up in the installed-app map.
+    var schemeRoot: String? {
+        guard let range = searchTemplate.range(of: "://") else { return nil }
+        let head = String(searchTemplate[..<range.lowerBound])
+        return head.isEmpty ? nil : head
+    }
 }
 
 /// Shared store for the search-in-app destination list.
@@ -696,6 +733,31 @@ struct AppSearchSettingsStore {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         guard let data = try? JSONEncoder().encode(settings) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
+/// Mirrors `AppSearchInstalledStore` in WritingToolsView+AppSearch.swift — the two
+/// modules cannot share a source file (AIGate does not link the WritingTools
+/// framework). Property names MUST match so the JSON decodes unchanged on the
+/// panel side.
+struct AppSearchInstalledStore {
+    /// KEEP IN SYNC with the same path in WritingToolsView+AppSearch.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_installed.json"
+
+    static func load() -> [String: Bool] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let map = try? JSONDecoder().decode([String: Bool].self, from: data)
+        else { return [:] }
+        return map
+    }
+
+    static func save(_ map: [String: Bool]) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(map) else { return }
         try? data.write(to: url, options: .atomic)
     }
 }

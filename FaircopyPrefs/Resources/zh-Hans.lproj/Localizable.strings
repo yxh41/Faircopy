@@ -546,3 +546,6 @@
 
 /* No comment provided by engineer. */
 "Opens the template in this app with a fixed keyword so you can confirm the scheme works before saving." = "用固定关键词在本 App 内打开模板，便于保存前确认 Scheme 可用。";
+
+/* No comment provided by engineer. */
+"Redetect Installed Apps" = "重新检测已安装应用";

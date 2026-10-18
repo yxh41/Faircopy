@@ -54,6 +54,16 @@ struct AppSearchTarget: Identifiable, Codable {
     }
 }
 
+extension AppSearchTarget {
+    /// Scheme root (the part before `://` in the search template), used to look
+    /// the target up in the installed-app map shared from AIGate.
+    var schemeRoot: String? {
+        guard let range = searchTemplate.range(of: "://") else { return nil }
+        let head = String(searchTemplate[..<range.lowerBound])
+        return head.isEmpty ? nil : head
+    }
+}
+
 /// Built-in destinations, matching the reference list (Hammer It).
 /// KEEP IN SYNC with `AppSearchStore.defaults` in
 /// AIGate/AIGate/Editor/FaircopyRootView.swift — the two modules cannot share
@@ -114,12 +124,44 @@ struct AppSearchStore {
     static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch.json"
 
     static func load() -> [AppSearchTarget] {
+        let list: [AppSearchTarget]
+        if let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+           let decoded = try? JSONDecoder().decode([AppSearchTarget].self, from: data),
+           !decoded.isEmpty {
+            list = decoded
+        } else {
+            list = kAppSearchDefaults
+        }
+        // Hide built-in targets whose app isn't installed. The installed map is
+        // produced by AIGate (the only process allowed to declare the schemes in
+        // its Info.plist and call canOpenURL); a scheme absent from the map means
+        // it's a user-added target we can't probe, so we keep showing it.
+        let installed = AppSearchInstalledStore.load()
+        guard !installed.isEmpty else { return list }
+        return list.filter { target in
+            guard let root = target.schemeRoot else { return true }
+            if let known = installed[root] {
+                if !known { print("[Faircopy] app search: hiding uninstalled target \(root)") }
+                return known
+            }
+            return true
+        }
+    }
+}
+
+/// Installed-app map shared from AIGate (which can call `canOpenURL` for the
+/// built-in schemes it declares in Info.plist). Keyed by scheme root; `false`
+/// means the target's app is not installed and should be hidden from the panel.
+struct AppSearchInstalledStore {
+    /// KEEP IN SYNC with the same path in FaircopyRootView.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_installed.json"
+
+    static func load() -> [String: Bool] {
         guard
             let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
-            let list = try? JSONDecoder().decode([AppSearchTarget].self, from: data),
-            !list.isEmpty
-        else { return kAppSearchDefaults }
-        return list
+            let map = try? JSONDecoder().decode([String: Bool].self, from: data)
+        else { return [:] }
+        return map
     }
 }
 
