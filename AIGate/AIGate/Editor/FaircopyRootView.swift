@@ -842,25 +842,25 @@ struct AppSearchEditorView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Weibo", text: $draft.name)
+                TextField(NSLocalizedString("Weibo", bundle: Bundle.wrti_support, comment: ""), text: $draft.name)
             } header: {
-                Text("Name")
+                Text(NSLocalizedString("Name", bundle: Bundle.wrti_support, comment: ""))
             }
             Section {
-                TextField("e.g. weibo://search?q=%@", text: $draft.searchTemplate)
+                TextField(NSLocalizedString("e.g. weibo://search?q=%@", bundle: Bundle.wrti_support, comment: ""), text: $draft.searchTemplate)
                     .font(.footnote)
             } header: {
-                Text("Search Template")
+                Text(NSLocalizedString("Search Template", bundle: Bundle.wrti_support, comment: ""))
             } footer: {
-                Text("Use %@ where the picked keyword goes.")
+                Text(NSLocalizedString("Use %@ where the picked keyword goes.", bundle: Bundle.wrti_support, comment: ""))
             }
             Section {
-                TextField("e.g. weibo://", text: $draft.bareScheme)
+                TextField(NSLocalizedString("e.g. weibo://", bundle: Bundle.wrti_support, comment: ""), text: $draft.bareScheme)
                     .font(.footnote)
             } header: {
-                Text("Fallback Scheme")
+                Text(NSLocalizedString("Fallback Scheme", bundle: Bundle.wrti_support, comment: ""))
             } footer: {
-                Text("Opened if the search template fails, so you still land in the app with the keyword on the clipboard.")
+                Text(NSLocalizedString("Opened if the search template fails, so you still land in the app with the keyword on the clipboard.", bundle: Bundle.wrti_support, comment: ""))
             }
             Section {
                 Button {
@@ -869,28 +869,32 @@ struct AppSearchEditorView: View {
                     HStack(spacing: 6) {
                         Spacer()
                         Image(systemName: "paperplane")
-                        Text("Test Jump")
+                        Text(NSLocalizedString("Test Jump", bundle: Bundle.wrti_support, comment: ""))
                         Spacer()
                     }
                 }
                 .foregroundStyle(Color.accent)
             } header: {
-                Text("Preview")
+                Text(NSLocalizedString("Preview", bundle: Bundle.wrti_support, comment: ""))
             } footer: {
-                Text("Opens the template in this app with a fixed keyword so you can confirm the scheme works before saving.")
+                Text(NSLocalizedString("Opens the template in this app with a fixed keyword so you can confirm the scheme works before saving.", bundle: Bundle.wrti_support, comment: ""))
             }
         }
-        .navigationTitle(draft.name.isEmpty ? "New App" : draft.name)
+        .navigationTitle(draft.name.isEmpty ? NSLocalizedString("New App", bundle: Bundle.wrti_support, comment: "") : draft.name)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button(NSLocalizedString("Cancel", bundle: Bundle.wrti_support, comment: "")) { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { commit() }
+                Button(NSLocalizedString("Save", bundle: Bundle.wrti_support, comment: "")) { commit() }
             }
         }
         .alert(isPresented: $showValidationError) {
-            Alert(title: Text("Invalid Template"), message: Text(validationMessage), dismissButton: .default(Text("OK")))
+            Alert(
+                title: Text(NSLocalizedString("Invalid Template", bundle: Bundle.wrti_support, comment: "")),
+                message: Text(validationMessage),
+                dismissButton: .default(Text(NSLocalizedString("OK", bundle: Bundle.wrti_support, comment: "")))
+            )
         }
         .onAppear {
             if let entry = entry { draft = entry }
