@@ -40,37 +40,57 @@ void FC_SetLastEditingResponder(UIResponder *responder) {
 /// they are also tracked in a zeroing-weak registry (see FC_AnchorRegistry).
 static NSInteger const kFCStandaloneAnchorTag = 0xF0C0;
 
-/// True while a panel is on screen. Two triggers arriving in the same run loop
-/// turn used to both enter presentation; UIKit drops one of them, and the loser's
-/// scratch view stayed on the window forever — invisible, but it swallowed every
-/// touch on the screen. Locked by the injector, released by the panel controller
-/// on dismissal.
-static BOOL __fc_panelPresentationLocked = NO;
+/// Number of writing panels currently on screen in this process. Two triggers
+/// arriving in the same run loop turn used to both enter presentation; UIKit
+/// drops one of them, and the loser's scratch view stayed on the window
+/// forever — invisible, but it swallowed every touch on the screen.
+///
+/// 3.0.34: a COUNT, not a boolean. The old lock was released from
+/// `viewDidDisappear`, but UIKit fires that callback when a panel is merely
+/// COVERED (another controller presented on top of it) as well as when it is
+/// truly dismissed — so the first stack released the lock and every later
+/// trigger stacked another panel. Only a true dismissal (verified on the
+/// Swift side) decrements now, and the Swift presenters check the count
+/// themselves, so the menu path and both external paths share one guard.
+static NSInteger __fc_panelPresentationCount = 0;
+/// When the count last went 0 → 1, for the stale-count circuit breaker.
 static CFAbsoluteTime __fc_panelPresentationLockedAt = 0;
 
 /// Safety valve: if the unlock never arrives (the system tore the panel down
-/// without a viewDidDisappear) a plain boolean would silence external triggers
-/// until the app restarts.
+/// without a viewDidDisappear) a plain count would silence external triggers
+/// until the app restarts. Only resets when NO panel is on screen, so a panel
+/// legitimately left open can never unlock the count.
 static const NSTimeInterval kFCStalePresentationLockTimeout = 120;
 
+/// Defined below; the circuit breaker consults the live panel state.
+static BOOL FC_IsPanelOnScreen(void);
+
 BOOL FC_PanelPresentationIsLocked(void) {
-    if (!__fc_panelPresentationLocked) { return NO; }
-    if (CFAbsoluteTimeGetCurrent() - __fc_panelPresentationLockedAt > kFCStalePresentationLockTimeout) {
-        __fc_panelPresentationLocked = NO;
+    if (__fc_panelPresentationCount <= 0) { return NO; }
+    if (CFAbsoluteTimeGetCurrent() - __fc_panelPresentationLockedAt > kFCStalePresentationLockTimeout
+        && !FC_IsPanelOnScreen()) {
+        __fc_panelPresentationCount = 0;
         __fc_panelPresentationLockedAt = 0;
+        NSLog(@"[Faircopy] presentation lock reset: stale count with no panel on screen");
         return NO;
     }
     return YES;
 }
 
 void FC_LockPanelPresentation(void) {
-    __fc_panelPresentationLocked = YES;
-    __fc_panelPresentationLockedAt = CFAbsoluteTimeGetCurrent();
+    if (__fc_panelPresentationCount == 0) {
+        __fc_panelPresentationLockedAt = CFAbsoluteTimeGetCurrent();
+    }
+    __fc_panelPresentationCount++;
 }
 
 void FC_UnlockPanelPresentation(void) {
-    __fc_panelPresentationLocked = NO;
-    __fc_panelPresentationLockedAt = 0;
+    if (__fc_panelPresentationCount > 0) {
+        __fc_panelPresentationCount--;
+        if (__fc_panelPresentationCount == 0) {
+            __fc_panelPresentationLockedAt = 0;
+        }
+    }
 }
 
 /// Removes every leftover scratch anchor under `root`.
@@ -104,6 +124,21 @@ static NSInteger FC_RemoveStaleStandaloneAnchors(UIView *root) {
 // Defined further down; the sweeper needs to know about synthesized hosts.
 static NSMutableArray<UIViewController *> *FC_StandInHosts(void);
 
+/// Depth-first over the whole controller graph: presented chains AND child
+/// containers. A panel presented from a view controller inside a navigation
+/// stack is NOT reachable through presentedViewController alone — that chain
+/// only follows presentations, while the field's controller is a child of the
+/// navigation controller. The old window-root-only walk therefore missed
+/// exactly the panels that used to stack.
+static BOOL FC_ViewControllerHasAnyPresented(UIViewController *vc, NSInteger depth) {
+    if (!vc || depth > 32) { return NO; }
+    if (vc.presentedViewController) { return YES; }
+    for (UIViewController *child in vc.children) {
+        if (FC_ViewControllerHasAnyPresented(child, depth + 1)) { return YES; }
+    }
+    return NO;
+}
+
 /// True while a writing panel is actually on screen.
 ///
 /// Deliberately NOT based on the presentation lock: that lock self-expires after
@@ -111,19 +146,14 @@ static NSMutableArray<UIViewController *> *FC_StandInHosts(void);
 /// a "panel is up" signal (a panel left open for two minutes would look idle).
 /// Anchors are only ever created by the standalone path, and that path presents
 /// either from a window's root controller or from one of the synthesized
-/// stand-in hosts, so those two chains cover every case.
+/// stand-in hosts, so those two chains cover every case — walked through child
+/// containers as well, see FC_ViewControllerHasAnyPresented.
 static BOOL FC_IsPanelOnScreen(void) {
     for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if (![scene isKindOfClass:[UIWindowScene class]]) { continue; }
         UIWindowScene *windowScene = (UIWindowScene *)scene;
         for (UIWindow *window in windowScene.windows) {
-            UIViewController *vc = window.rootViewController;
-            NSInteger depth = 0;
-            while (vc.presentedViewController && depth < 16) {
-                vc = vc.presentedViewController;
-                depth++;
-            }
-            if (depth > 0) { return YES; }
+            if (FC_ViewControllerHasAnyPresented(window.rootViewController, 0)) { return YES; }
         }
     }
     for (UIViewController *host in FC_StandInHosts()) {
@@ -287,27 +317,49 @@ static void FC_RegisterStandInCleanup(void) {
 /// 3.0.31: `prefill` (from `faircopy://panel?keyword=…`) replaces the clipboard
 /// as the anchor's content, so a keyword invocation never reads or waits on the
 /// pasteboard. Passing nil keeps the original clipboard behavior.
-static UIResponder *FC_MakeStandaloneAnchor(UIWindow *window, NSString *prefill) {
-    if (!window) { return nil; }
+///
+/// 3.0.34 host selection: prefer the focused editing responder's own superview
+/// — the same parent controller the external-source path presents from — so a
+/// keyword/standalone panel and a context panel can never hang their cards off
+/// different controllers (the cross-parent stack). The panel's TEXT SOURCE is
+/// still this synthesized view (standalone mode), never the host field: a
+/// keyword invocation still ignores the field's selection completely. When no
+/// editing responder is on screen, fall back to the foreground key window's
+/// root view controller, synthesizing a transparent stand-in host if it has
+/// none (otherwise the anchor would have no parentViewController and the
+/// presenter would decline).
+static UIResponder *FC_MakeStandaloneAnchor(NSString *prefill) {
+    UIView *hostView = nil;
+    UIWindow *window = nil;
+
+    UIResponder *editing = FC_FindEditingResponder();
+    if ([editing isKindOfClass:[UIView class]]) {
+        UIView *editingView = (UIView *)editing;
+        if (editingView.superview && editingView.window) {
+            hostView = editingView.superview;
+            window = editingView.window;
+        }
+    }
+    if (!hostView) {
+        window = FC_ForegroundKeyWindow();
+        if (!window) { return nil; }
+        UIViewController *root = window.rootViewController;
+        hostView = root.view;
+        if (!hostView) {
+            UIViewController *standIn = [[UIViewController alloc] init];
+            standIn.view.frame = window.bounds;
+            standIn.view.backgroundColor = UIColor.clearColor;
+            [window addSubview:standIn.view];
+            [FC_StandInHosts() addObject:standIn];
+            FC_RegisterStandInCleanup();
+            hostView = standIn.view;
+        }
+    }
 
     // Sweep leftovers first. A previous attempt whose panel never appeared (UIKit
     // dropped the presentation) leaves its scratch view behind, because
     // viewDidDisappear never runs for a controller that was never shown.
     FC_RemoveStaleStandaloneAnchors(window);
-
-    UIViewController *host = window.rootViewController;
-    UIView *hostView = host.view;
-
-    if (!host || !hostView) {
-        UIViewController *standIn = [[UIViewController alloc] init];
-        standIn.view.frame = window.bounds;
-        standIn.view.backgroundColor = UIColor.clearColor;
-        [window addSubview:standIn.view];
-        [FC_StandInHosts() addObject:standIn];
-        FC_RegisterStandInCleanup();
-        host = standIn;
-        hostView = standIn.view;
-    }
 
     UITextView *textView = [[UITextView alloc] initWithFrame:hostView.bounds];
     textView.tag = kFCStandaloneAnchorTag;
@@ -384,15 +436,15 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
 
         if (keyword.length > 0) {
             // Explicit subject: standalone anchor prefilled with the keyword.
-            UIWindow *keyWindow = FC_ForegroundKeyWindow();
-            UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow, keyword) : nil;
+            UIResponder *anchor = FC_MakeStandaloneAnchor(keyword);
             if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                 presented = [presenter presentToolControllerStandalone:anchor];
             }
-            if (!presented && keyWindow) {
+            if (!presented) {
                 // The panel never appeared: drop the scratch view we just added,
                 // otherwise it stays on screen as an invisible touch blocker.
-                FC_RemoveStaleStandaloneAnchors(keyWindow);
+                UIWindow *keyWindow = FC_ForegroundKeyWindow();
+                if (keyWindow) { FC_RemoveStaleStandaloneAnchors(keyWindow); }
             }
         } else {
             // Prefer the real, focused text input so "accept" writes the result
@@ -409,15 +461,15 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
                 // back to a standalone scratch view prefilled with the clipboard. The
                 // anchor is fully transparent and always has a parentViewController,
                 // so the standalone path presents without shaking.
-                UIWindow *keyWindow = FC_ForegroundKeyWindow();
-                UIResponder *anchor = keyWindow ? FC_MakeStandaloneAnchor(keyWindow, nil) : nil;
+                UIResponder *anchor = FC_MakeStandaloneAnchor(nil);
                 if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                     presented = [presenter presentToolControllerStandalone:anchor];
                 }
-                if (!presented && keyWindow) {
+                if (!presented) {
                     // The panel never appeared: drop the scratch view we just added,
                     // otherwise it stays on screen as an invisible touch blocker.
-                    FC_RemoveStaleStandaloneAnchors(keyWindow);
+                    UIWindow *keyWindow = FC_ForegroundKeyWindow();
+                    if (keyWindow) { FC_RemoveStaleStandaloneAnchors(keyWindow); }
                 }
             }
         }

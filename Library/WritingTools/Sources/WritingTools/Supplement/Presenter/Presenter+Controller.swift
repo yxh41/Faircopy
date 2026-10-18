@@ -69,6 +69,13 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        // UIKit fires viewDidDisappear both when the panel is dismissed AND
+        // when it is merely covered by another controller presented on top of
+        // it. Everything below is destructive — the anchor is the panel's text
+        // source — and releasing the lock while this panel is still in the
+        // hierarchy is exactly what let panels stack (3.0.34). A covered panel
+        // fires viewDidDisappear again once it is truly gone.
+        guard isBeingDismissed || presentingViewController == nil else { return }
         // Release the external-trigger lock: the next trigger is free to present
         // again. Failing to do this would make the plugin stop responding after
         // the first dismiss.

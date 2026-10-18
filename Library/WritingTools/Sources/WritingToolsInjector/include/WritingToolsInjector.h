@@ -43,11 +43,18 @@ extern "C" {
 UIResponder *_Nullable FC_LastEditingResponder(void);
 void FC_SetLastEditingResponder(UIResponder *_Nullable responder);
 
-/// Guards against two external triggers going through presentation at once.
-/// Opening two panels in the same run loop turn makes UIKit drop the second
-/// one, and the loser's scratch text view stays on the window forever — an
-/// invisible full-screen view that swallows every touch. The injector locks
-/// before presenting and the panel controller unlocks on dismissal.
+/// Guards against two panels on screen at once. Opening two panels in the same
+/// run loop turn makes UIKit drop the second one, and the loser's scratch text
+/// view stays on the window forever — an invisible full-screen view that
+/// swallows every touch.
+///
+/// 3.0.34: a COUNT of live panels, not a boolean. UIKit fires
+/// `viewDidDisappear` when a panel is merely covered as well as when it is
+/// dismissed, so the old boolean released the lock for a panel that was still
+/// on screen — the root cause of stacked panels. The Swift presenters
+/// (`presentToolController:` and `presentCenteredCard`) check the count
+/// themselves before presenting, so the menu path and both external paths
+/// share one guard; the panel controller decrements only on a true dismissal.
 BOOL FC_PanelPresentationIsLocked(void);
 void FC_LockPanelPresentation(void);
 void FC_UnlockPanelPresentation(void);

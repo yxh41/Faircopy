@@ -9,11 +9,21 @@ import ColorfulX
 import Foundation
 import SwiftUI
 import UIKit
+import WritingToolsInjector
 
 public extension Presenter {
     @objc(presentToolController:)
     func presentToolController(_ responder: UIResponder) {
         guard let respondingView = responder as? UIView else { return }
+
+        // 3.0.34: the menu path used to bypass the injector's presentation
+        // bookkeeping entirely, so a panel opened from the edit menu and one
+        // summoned by an external trigger could stack — each hanging off its
+        // own parent controller. One panel at a time, globally.
+        if FC_PanelPresentationIsLocked() {
+            NSLog("[Faircopy] menu trigger ignored: a panel is already on screen")
+            return
+        }
 
         guard let targetView = TextProxy.lookupViewOfInterest(view: respondingView),
               let context = obtainContextFor(targetView)
@@ -45,6 +55,14 @@ public extension Presenter {
         toolController.popoverPresentationController?.permittedArrowDirections = [.up, .down]
 
         context.parentController.present(toolController, animated: true)
+
+        // 3.0.34: lock only on a verified presentation — same rule as the
+        // external paths. UIKit can silently drop the presentation when the
+        // host controller left the window hierarchy; a lock taken then would
+        // silence every later trigger.
+        let didPresent = context.parentController.presentedViewController === toolController
+            || toolController.presentingViewController != nil
+        if didPresent { FC_LockPanelPresentation() }
     }
 
     /// External entry point (Darwin notification `wiki.qaq.faircopy.present`
@@ -81,10 +99,18 @@ public extension Presenter {
             // (standalone).
             return false
         }
-        // Do not stack panels if something is already presented from the host.
-        // Checked before buildContext: building the context attaches decoration
-        // views to the text input, which must not leak if we bail out here.
+        // Do not stack panels: check this controller AND globally. The external
+        // source path hangs the card off the text field's controller while the
+        // standalone path hangs it off the window's root controller, so the
+        // same-parent check alone misses cross-parent stacks (the 3.0.34 "two
+        // panels" regression). Checked before buildContext: building the
+        // context attaches decoration views to the text input, which must not
+        // leak if we bail out here.
         guard parentController.presentedViewController == nil else { return false }
+        if FC_PanelPresentationIsLocked() {
+            NSLog("[Faircopy] panel suppressed: another panel is already on screen")
+            return false
+        }
 
         // Build the context, retrying once after a select-all. External triggers
         // often fire while a field is merely focused (collapsed selection) or, in
