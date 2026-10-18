@@ -436,7 +436,7 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
 static const NSInteger kFCInactiveRetryLimit = 20; // 20 × 250 ms ≈ 5 s
 static const NSTimeInterval kFCInactiveRetryDelay = 0.25;
 
-// MARK: - Wake-from-background suppression (3.0.23)
+// MARK: - Wake-from-background suppression (3.0.23; hardened 3.0.33)
 //
 // The external trigger is a Darwin notification, i.e. a system-wide broadcast:
 // every injected app receives it, not just the one the user is looking at. The
@@ -445,27 +445,38 @@ static const NSTimeInterval kFCInactiveRetryDelay = 0.25;
 // which is exactly when the user switches to it. Since that app is now active,
 // it happily presented a panel the user never asked for there.
 //
-// Only a resume that follows a real backgrounding counts as a "wake". A
-// foreground app that briefly goes .inactive during a presentation transition
-// never left the foreground, so it is NOT a wake and keeps the 3.0.21 retry
-// behaviour (its trigger still lands).
+// 3.0.33: the wake flag is armed by WillEnterForeground (queue:nil, i.e.
+// synchronous) instead of DidEnterBackground, for two reasons:
+//  1. Darwin CF callbacks are delivered by the runloop source synchronously,
+//     while a block observer on [NSOperationQueue mainQueue] is dispatched
+//     asynchronously — systematically AFTER the CF callback it races with.
+//     That race kept gFCWakeAt stale exactly when a stale re-broadcast
+//     landed, which is how the second (home screen) panel survived 3.0.31
+//     and 3.0.32.
+//  2. WillEnterForeground is posted strictly before DidBecomeActive, so the
+//     flag is guaranteed armed before any broadcast can be delivered.
+// A claimed invocation (the 3.0.32 handoff file) is exempt from the grace
+// window: for it the resume IS the bounce landing, not a stale re-broadcast.
 
-/// Set when this app entered the background; consumed by the next activation.
-static BOOL gFCWasBackgrounded = NO;
+/// Set while this app is transitioning into the foreground; consumed by the
+/// next activation to timestamp the resume.
+static BOOL gFCEnteringForeground = NO;
 /// Timestamp of the last real resume-from-background, 0 when never woken.
 static NSTimeInterval gFCWakeAt = 0;
 /// How long after a wake a trigger is still considered the stale re-broadcast.
 static const NSTimeInterval kFCWakeGrace = 1.5;
 
-// MARK: - Pending panel invocation handoff (3.0.32)
+// MARK: - Pending panel invocation handoff (3.0.32; broadcast dropped 3.0.33)
 //
-// AIGate handles `faircopy://panel` by bouncing back to the caller and then
-// broadcasting the Darwin notification — but that broadcast carries no
-// payload, so before 3.0.32 every injected app presented its own panel from
-// it (the caller's, plus SpringBoard's once the user went home) and the
-// `keyword` query item was lost. AIGate now writes the keyword and the bounce
-// target into a shared file first; this process acts on the broadcast only
-// when the invocation is addressed to it.
+// AIGate handles `faircopy://panel` by writing the keyword and the bounce
+// target into a shared file, then bouncing back to the caller. Before 3.0.33
+// it also broadcast the Darwin notification, which carries no payload: every
+// injected app presented its own panel from it (the caller's, plus
+// SpringBoard's once the user went home) and the `keyword` query item was
+// lost. Since 3.0.33 a successful handoff means NO broadcast at all — the
+// summon happens when the bounce target itself activates (fallback below).
+// The broadcast survives only as the file-write-failure fallback, and this
+// process still honours it under the old broadcast semantics.
 
 /// KEEP IN SYNC with PanelPendingStore.path in AIGate/FaircopyApp.swift.
 static NSString *const kFCPendingPanelPath =
@@ -473,9 +484,11 @@ static NSString *const kFCPendingPanelPath =
 /// How long an invocation stays actionable at all: covers the bounce landing
 /// (~0.3 s) plus a cold relaunch of the target app.
 static const NSTimeInterval kFCPendingInvocationFreshness = 15.0;
-/// Tighter window for the activation fallback, which only exists to cover a
-/// bounce that lands after the broadcast was already delivered or dropped.
-static const NSTimeInterval kFCPendingActivationWindow = 4.0;
+/// Tighter window for the activation fallback. Since 3.0.33 AIGate no longer
+/// posts a broadcast after a successful handoff, so this fallback is the ONLY
+/// summon path left for the bounce target — widened to cover a slow cold
+/// relaunch of the target app.
+static const NSTimeInterval kFCPendingActivationWindow = 6.0;
 /// `at` of the invocation this process already handled — the broadcast and the
 /// activation fallback must not both present for one invocation.
 static NSTimeInterval gFCHandledPendingInvocationAt = -1.0;
@@ -527,25 +540,31 @@ static void FC_TrackWakeFromBackground(void) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-        [nc addObserverForName:UIApplicationDidEnterBackgroundNotification
+        // 3.0.33: queue:nil — the block runs synchronously on the posting
+        // thread. A block observer on [NSOperationQueue mainQueue] is
+        // dispatched asynchronously, i.e. after the runloop pass that also
+        // delivers the Darwin CF callback, so the flag it sets was always
+        // too late for the suppression below.
+        [nc addObserverForName:UIApplicationWillEnterForegroundNotification
                         object:nil
-                         queue:[NSOperationQueue mainQueue]
+                         queue:nil
                     usingBlock:^(NSNotification * _Nonnull note) {
-            gFCWasBackgrounded = YES;
+            gFCEnteringForeground = YES;
         }];
         [nc addObserverForName:UIApplicationDidBecomeActiveNotification
                         object:nil
-                         queue:[NSOperationQueue mainQueue]
+                         queue:nil
                     usingBlock:^(NSNotification * _Nonnull note) {
-            if (gFCWasBackgrounded) {
+            if (gFCEnteringForeground) {
                 gFCWakeAt = [NSDate timeIntervalSinceReferenceDate];
-                gFCWasBackgrounded = NO;
+                gFCEnteringForeground = NO;
             }
-            // 3.0.32 activation fallback: the bounce may bring this app to the
-            // foreground after the broadcast was already delivered (target
-            // relaunching) or dropped (still background at +1.0 s). If a fresh
-            // invocation is addressed to THIS app and nothing handled it yet,
-            // present now. Non-target apps and stale files stay silent.
+            // 3.0.32 activation fallback; since 3.0.33 the ONLY summon path:
+            // AIGate no longer broadcasts after a successful handoff, so the
+            // bounce target must claim the invocation itself the moment it
+            // activates. If a fresh invocation is addressed to THIS app and
+            // nothing handled it yet, present now. Non-target apps and stale
+            // files stay silent.
             NSDictionary *invocation = FC_ReadPendingPanelInvocation();
             if (!invocation) { return; }
             if (!FC_PendingPanelInvocationTargetsMe(invocation)) { return; }
@@ -630,8 +649,10 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
         return;
     }
 
-    // No pending invocation (e.g. a third-party tweak's plain notify_post):
-    // original broadcast semantics, context-driven path, no keyword.
+    // No pending invocation — either a third-party tweak's plain notify_post,
+    // or AIGate's 3.0.33 handoff-failure fallback broadcast. Original
+    // broadcast semantics: context-driven path, no keyword.
+    NSLog(@"[Faircopy] external trigger: bare broadcast, no pending invocation");
     FC_PresentPanelWhenUsable(0, nil, NO);
 }
 

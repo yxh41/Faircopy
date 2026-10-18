@@ -236,14 +236,15 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
             setSceneWindowsHidden(true)
-            // 3.0.32: hand the keyword (if any) and the bounce target to the
-            // injected apps through the shared pending-invocation file. The
-            // Darwin notification is a payload-less broadcast, so without this
-            // the panel falls back to the focused text field (e.g. Safari's
-            // address bar, which holds the raw URL) and every app — including
-            // SpringBoard — would present its own panel.
+            // 3.0.33: the bounce plus the shared pending-invocation file now
+            // carry the invocation end to end — the Darwin broadcast is GONE
+            // from this path. It was a payload-less broadcast that every
+            // injected app answered; whenever the bounce target was not the
+            // foreground app at broadcast time (cold relaunch above all),
+            // SpringBoard answered it and the target answered again on
+            // landing — two panels. Only a failed handoff still broadcasts.
             let keyword = Self.panelKeyword(from: url)
-            PanelPendingStore.save(PanelPending(
+            let handedOff = PanelPendingStore.save(PanelPending(
                 keyword: keyword,
                 target: bounceTarget,
                 at: Date().timeIntervalSince1970
@@ -257,14 +258,20 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                // Keep in sync with kFCExternalPresentNotification in
-                // Library/WritingTools/Sources/WritingToolsInjector.h
-                fc_notify_post("wiki.qaq.faircopy.present")
+            if !handedOff {
+                // The handoff file could not be written (disk / sandbox): fall
+                // back to the payload-less broadcast so a panel still appears.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // Keep in sync with kFCExternalPresentNotification in
+                    // Library/WritingTools/Sources/WritingToolsInjector.h
+                    fc_notify_post("wiki.qaq.faircopy.present")
+                }
             }
             // Safety net: if the bounce failed and AIGate is still the active
             // app, restore the settings UI instead of stranding the user on a
-            // blank screen.
+            // blank screen. (No broadcast here: with a successful handoff the
+            // bounce target owns the invocation, and a failed bounce leaves
+            // nobody to summon.)
             DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
                 guard let self = self, self.panelBounceInFlight else { return }
                 self.panelBounceInFlight = false
@@ -305,11 +312,20 @@ struct PanelPendingStore {
     /// KEEP IN SYNC with kFCPendingPanelPath in WritingToolsInjector.m.
     static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_pending.json"
 
-    static func save(_ pending: PanelPending) {
+    /// Writes the invocation atomically. Returns false when the write failed —
+    /// the caller then falls back to the payload-less Darwin broadcast.
+    @discardableResult
+    static func save(_ pending: PanelPending) -> Bool {
         let url = URL(fileURLWithPath: path)
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
-                                                 withIntermediateDirectories: true)
-        guard let data = try? JSONEncoder().encode(pending) else { return }
-        try? data.write(to: url, options: .atomic)
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                     withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(pending)
+            try data.write(to: url, options: .atomic)
+            return true
+        } catch {
+            print("[Faircopy] panel handoff file write failed: \(error.localizedDescription)")
+            return false
+        }
     }
 }
