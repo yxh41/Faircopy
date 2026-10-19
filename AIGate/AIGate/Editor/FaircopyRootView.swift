@@ -543,6 +543,13 @@ struct FaircopyRootView: View {
                 Text(NSLocalizedString("Redetect Installed Apps", bundle: Bundle.wrti_support, comment: ""))
             }
             .foregroundStyle(Color.accent)
+            Button {
+                let url = URL(fileURLWithPath: "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_history.json")
+                try? FileManager.default.removeItem(at: url)
+            } label: {
+                Text(NSLocalizedString("Clear Search History", bundle: Bundle.wrti_support, comment: ""))
+            }
+            .foregroundStyle(.red)
         } header: {
             Text(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
         } footer: {

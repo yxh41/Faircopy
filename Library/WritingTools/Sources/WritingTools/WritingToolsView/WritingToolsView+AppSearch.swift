@@ -189,6 +189,60 @@ struct AppSearchRecentsStore {
     }
 }
 
+/// Most-recently-searched keywords, shared from the panel (the process that
+/// actually performs jumps). Identified by the keyword itself so repeated
+/// searches of the same phrase collapse to one row that floats to the top.
+/// `targets` records the app ids the keyword was searched in, most-recent first,
+/// so a history tap can replay into the same app.
+struct SearchHistoryItem: Codable, Identifiable {
+    let keyword: String
+    var targets: [String]
+    let timestamp: Double
+    var id: String { keyword }
+}
+
+struct AppSearchHistoryStore {
+    /// KEEP IN SYNC with the same path in FaircopyRootView.swift (clear button).
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_history.json"
+    static let limit = 20
+
+    static func load() -> [SearchHistoryItem] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let arr = try? JSONDecoder().decode([SearchHistoryItem].self, from: data)
+        else { return [] }
+        return arr
+    }
+
+    /// Records a successful jump: floats the keyword to the top and prepends the
+    /// target id to its `targets` list, capping the whole list at `limit`.
+    static func append(_ keyword: String, targetId: String) {
+        var items = load()
+        if let idx = items.firstIndex(where: { $0.keyword == keyword }) {
+            var it = items.remove(at: idx)
+            if let t = it.targets.firstIndex(of: targetId) { it.targets.remove(at: t) }
+            it.targets.insert(targetId, at: 0)
+            it.timestamp = Date().timeIntervalSince1970
+            items.insert(it, at: 0)
+        } else {
+            let it = SearchHistoryItem(keyword: keyword, targets: [targetId], timestamp: Date().timeIntervalSince1970)
+            items.insert(it, at: 0)
+        }
+        if items.count > limit { items = Array(items.prefix(limit)) }
+        save(items)
+        print("[Faircopy] app search: recorded keyword in history (count=\(items.count))")
+    }
+
+    static func save(_ items: [SearchHistoryItem]) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        if let data = try? JSONEncoder().encode(items) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+}
+
 /// Clipboard-protection toggle for the app-search jump. Persisted by the
 /// settings pane (FaircopyPrefs / AIGate) in a sibling file the injected dylib
 /// reads on every jump. Defaults to `true` (protect): the jump itself never
@@ -243,9 +297,26 @@ extension WritingToolsView {
     /// Full-width menu entry shown under the chips while a selection exists.
     /// A `Menu` gives the vertical destination list without adding layout
     /// pressure to the already-4-slot button row.
+    /// Replays a past keyword search into the most recently used app that
+    /// handled it (among those still installed). Falls back to a no-op if the
+    /// user removed every app the keyword was once searched in.
+    private func rerunFromHistory(_ item: SearchHistoryItem) {
+        let list = AppSearchStore.load()
+        guard let target = item.targets.compactMap({ tid in list.first(where: { $0.id == tid }) }).first else { return }
+        openSegmentSearch(in: target, keywordOverride: item.keyword)
+    }
+
     @ViewBuilder
     var segmentAppSearchMenu: some View {
         Menu {
+            let history = AppSearchHistoryStore.load()
+            if !history.isEmpty {
+                Section("最近搜索".localized) {
+                    ForEach(history) { item in
+                        Button(item.keyword) { rerunFromHistory(item) }
+                    }
+                }
+            }
             Section("Search in Apps".localized) {
                 ForEach(AppSearchStore.load()) { target in
                     Button(target.name) { openSegmentSearch(in: target) }
@@ -272,8 +343,10 @@ extension WritingToolsView {
     /// Dismiss the panel, then hand the keyword to the target app. The delay
     /// lets the dismissal animation finish so the host app regains key window
     /// status before the URL open (opening mid-dismissal is racy on iOS 16).
-    func openSegmentSearch(in target: AppSearchTarget) {
-        let keyword = segmentSearchKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+    /// `keywordOverride` replays a past search from the history list instead of
+    /// reading the live text selection.
+    func openSegmentSearch(in target: AppSearchTarget, keywordOverride: String? = nil) {
+        let keyword = (keywordOverride ?? segmentSearchKeyword).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !keyword.isEmpty else { return }
         guard let url = target.searchURL(keyword: keyword) else { return }
         let protect = AppSearchSettingsStore.load().protectClipboard
@@ -290,14 +363,16 @@ extension WritingToolsView {
                 guard !success else {
                     // 跳转成功（搜索模板命中）：记录最近使用，便于菜单把常用应用置顶
                     AppSearchRecentsStore.touch(target.id)
+                    AppSearchHistoryStore.append(keyword, targetId: target.id)
                     return
                 }
                 if let bare = target.bareURL() {
                     UIApplication.shared.open(bare) { bareSuccess in
-                        if bareSuccess {
-                            // 兜底 scheme 也成功：同样记为最近使用
-                            AppSearchRecentsStore.touch(target.id)
-                        } else if protect {
+                    if bareSuccess {
+                        // 兜底 scheme 也成功：同样记为最近使用
+                        AppSearchRecentsStore.touch(target.id)
+                        AppSearchHistoryStore.append(keyword, targetId: target.id)
+                    } else if protect {
                             // 兜底：两个 scheme 都失败才写入，给用户最后手动粘贴的机会
                             UIPasteboard.general.string = keyword
                             print("[Faircopy] app search: jump failed, keyword left on clipboard")
