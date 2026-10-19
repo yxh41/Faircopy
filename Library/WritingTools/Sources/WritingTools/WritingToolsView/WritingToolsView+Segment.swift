@@ -26,6 +26,22 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
         self.lineBreakAfter = lineBreakAfter
     }
 
+    /// True when the token is only whitespace / newlines. These are kept as
+    /// real tokens so that concatenating the picked tokens (with no separator)
+    /// can reproduce the original spacing exactly.
+    public var isWhitespaceOnly: Bool {
+        !text.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Visible stand-in for a whitespace token. A raw space / newline would draw
+    /// an invisible chip that's impossible to tap on purpose.
+    public var displayText: String {
+        guard isWhitespaceOnly else { return text }
+        if text.contains("\n") || text.contains("\r") { return "↵" }
+        if text.contains("\t") { return "⇥" }
+        return "·"
+    }
+
     // Manual conformances: NSRange's own Hashable synthesis is not something
     // we want to depend on across SDK versions.
     public static func == (lhs: SegmentToken, rhs: SegmentToken) -> Bool {
@@ -240,7 +256,12 @@ private final class SegmentEngine {
             options: .byComposedCharacterSequences
         ) { piece, pieceRange, _, _ in
             guard let piece else { return }
-            if Self.containsCJK(piece) {
+            if Self.containsCJK(piece) || Self.isStandalone(piece) {
+                // CJK characters, punctuation/symbols and whitespace each become
+                // their own token. Because Copy now concatenates with no
+                // separator, keeping every original character as a token means
+                // "select all" reproduces the source verbatim and skipping a
+                // token simply drops it (no synthesised spaces).
                 flush()
                 let actual = NSRange(location: range.location + pieceRange.location, length: pieceRange.length)
                 self.addToken(in: actual)
@@ -290,11 +311,25 @@ private final class SegmentEngine {
     // MARK: - Helpers
 
     private static func isValid(_ text: String) -> Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        // Whitespace / newlines are now real tokens (see isWhitespaceOnly), so
+        // only an empty piece is rejected.
+        !text.isEmpty
     }
 
     private static func containsCJK(_ text: String) -> Bool {
         text.rangeOfCharacter(from: cjkCharacterSet) != nil
+    }
+
+    /// True when `text` should stand alone as its own token: any whitespace,
+    /// punctuation or symbol character. Latin words/digits are the only things
+    /// that stay grouped into runs.
+    private static func isStandalone(_ text: String) -> Bool {
+        for scalar in text.unicodeScalars {
+            if CharacterSet.whitespacesAndNewlines.contains(scalar) { return true }
+            if CharacterSet.punctuationCharacters.contains(scalar) { return true }
+            if CharacterSet.symbols.contains(scalar) { return true }
+        }
+        return false
     }
 
     private static let cjkCharacterSet: CharacterSet = {
@@ -402,7 +437,7 @@ struct SegmentRowView: View {
         HStack(spacing: 6) {
             ForEach(tokens) { token in
                 SegmentChip(
-                    text: token.text,
+                    text: token.displayText,
                     isSelected: selected.contains(token.id),
                     width: frames[token.id]?.width ?? 60
                 )
@@ -481,7 +516,7 @@ extension WritingToolsView {
         for token in tokens {
             // `ceil` keeps every chip width integral: fractional widths would be
             // snapped independently at render time and cost up to 0.5pt per chip.
-            let textWidth = ceil((token.text as NSString).size(withAttributes: [.font: font]).width)
+            let textWidth = ceil((token.displayText as NSString).size(withAttributes: [.font: font]).width)
             let chipWidth = min(textWidth + chipPadding, innerWidth)
             let candidate = current.isEmpty ? chipWidth : currentWidth + spacing + chipWidth
             let newRow = !current.isEmpty && candidate > innerWidth
@@ -522,7 +557,7 @@ extension WritingToolsView {
     var segmentStatsLine: some View {
         HStack(spacing: 8) {
             Image(systemName: "textformat.abc")
-            Text(String(format: "%d words".localized, segmentTokens.count))
+            Text(String(format: "%d words".localized, segmentWordCount))
             if segmentTruncated {
                 Text("· " + String(format: "First %d chars".localized, kSegmentMaxLength))
             }
@@ -542,6 +577,12 @@ extension WritingToolsView {
         segmentCopyOrder == .source ? "Order: Source".localized : "Order: Selection".localized
     }
 
+    /// Token count shown in the stats line: whitespace tokens are kept for
+    /// reconstruction but shouldn't inflate the "words" figure.
+    private var segmentWordCount: Int {
+        segmentTokens.reduce(0) { $0 + ($1.isWhitespaceOnly ? 0 : 1) }
+    }
+
     // MARK: - State
 
     func runSegmentation() {
@@ -551,6 +592,7 @@ extension WritingToolsView {
         segmentTruncated = result.truncated
         selectedSegmentIndexes = []
         segmentSelectionOrder = []
+        print("[Faircopy] segment: \(result.tokens.count) tokens, punctuation and whitespace preserved")
         segmentActive = true
         output = ""
         isRunning = false
@@ -646,24 +688,26 @@ extension WritingToolsView {
         return result
     }
 
-    /// Copy output for the requested ordering. Only the token order differs;
-    /// tokens are still joined the classic way (a single space between chips).
+    /// Copy output for the requested ordering. Tokens are concatenated with no
+    /// separator in both orderings; only the order differs.
     func segmentText(as order: SegmentCopyOrder) -> String {
         switch order {
         case .source:
-            return segmentSpacedText
+            return segmentJoinedText
         case .selection:
             let tokens = segmentSelectedTokensInSelectionOrder
             let resolved = tokens.isEmpty ? segmentTokens : tokens
-            return resolved.map(\.text).joined(separator: " ")
+            return resolved.map(\.text).joined()
         }
     }
 
-    /// Space-joined tokens — the classic segmentation output. Uses the
-    /// selection when one exists, otherwise every token.
-    var segmentSpacedText: String {
+    /// Selected tokens concatenated with **no** separator. Whitespace and
+    /// punctuation are tokens too, so "select all" reproduces the source and a
+    /// subset simply drops whatever you skip. Uses the whole token list when
+    /// nothing is selected.
+    var segmentJoinedText: String {
         let tokens = segmentSelectedTokens.isEmpty ? segmentTokens : segmentSelectedTokens
-        return tokens.map(\.text).joined(separator: " ")
+        return tokens.map(\.text).joined()
     }
 
     /// Selected tokens rejoined so that on Accept, unselected words are actually
@@ -728,7 +772,7 @@ extension WritingToolsView {
     /// Share the current selection (or all tokens). Clears the selection after
     /// handing the text off, mirroring copySegmentResult.
     func shareSegmentResult() {
-        shareText(segmentSpacedText)
+        shareText(segmentJoinedText)
         selectedSegmentIndexes.removeAll()
         segmentSelectionOrder.removeAll()
     }

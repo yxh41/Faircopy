@@ -279,8 +279,12 @@ extension WritingToolsView {
     /// consecutive Latin words. Falls back to the full selected text when
     /// nothing is picked.
     var segmentSearchKeyword: String {
-        let tokens = segmentSelectedTokens
-        guard !tokens.isEmpty else { return context.textProxy.selectedText }
+        let raw = segmentSelectedTokens
+        guard !raw.isEmpty else { return context.textProxy.selectedText }
+        // Whitespace is its own token now, but the search keyword already
+        // synthesises spacing between Latin words — drop whitespace tokens so we
+        // don't double-space.
+        let tokens = raw.filter { !$0.isWhitespaceOnly }
         var result = ""
         var previousText: String?
         for token in tokens {
