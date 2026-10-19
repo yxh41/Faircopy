@@ -197,7 +197,7 @@ struct AppSearchRecentsStore {
 struct SearchHistoryItem: Codable, Identifiable {
     let keyword: String
     var targets: [String]
-    let timestamp: Double
+    var timestamp: Double
     var id: String { keyword }
 }
 
