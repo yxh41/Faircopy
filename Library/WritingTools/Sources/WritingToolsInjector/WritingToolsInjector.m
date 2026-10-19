@@ -16,6 +16,11 @@
 #import <objc/runtime.h>
 #import <unistd.h>
 
+// 3.0.41: the cross-process panel ticket is created with an exclusive
+// open(O_CREAT|O_EXCL), which needs <fcntl.h>, and arbitrated on errno.
+#import <errno.h>
+#import <fcntl.h>
+
 // NOTE: no <notify/notify.h> here — the iOS SDK does not ship it, and the
 // Darwin notification observer below only needs CoreFoundation
 // (CFNotificationCenter*), which UIKit already links.
@@ -66,6 +71,13 @@ static const NSTimeInterval kFCStalePresentationLockTimeout = 120;
 /// Defined below; the circuit breaker consults the live panel state.
 static BOOL FC_IsPanelOnScreen(void);
 
+// The cross-process ticket lives further down (see "Cross-process panel claim").
+// Since 3.0.41 its lifetime follows the panel itself, so the presentation lock —
+// the one piece of state both the menu path and the external paths share — owns
+// its heartbeat: taken when the count goes 0 → 1, dropped when it falls back to 0.
+static void FC_TicketHeartbeatStart(void);
+static void FC_TicketHeartbeatStopAndDrop(void);
+
 BOOL FC_PanelPresentationIsLocked(void) {
     if (__fc_panelPresentationCount <= 0) { return NO; }
     if (CFAbsoluteTimeGetCurrent() - __fc_panelPresentationLockedAt > kFCStalePresentationLockTimeout
@@ -73,6 +85,9 @@ BOOL FC_PanelPresentationIsLocked(void) {
         __fc_panelPresentationCount = 0;
         __fc_panelPresentationLockedAt = 0;
         NSLog(@"[Faircopy] presentation lock reset: stale count with no panel on screen");
+        // 3.0.41: the ticket must not outlive the panel it guards — a leaked
+        // heartbeat would keep every other process silent until it restarts.
+        FC_TicketHeartbeatStopAndDrop();
         return NO;
     }
     return YES;
@@ -81,6 +96,7 @@ BOOL FC_PanelPresentationIsLocked(void) {
 void FC_LockPanelPresentation(void) {
     if (__fc_panelPresentationCount == 0) {
         __fc_panelPresentationLockedAt = CFAbsoluteTimeGetCurrent();
+        FC_TicketHeartbeatStart();
     }
     __fc_panelPresentationCount++;
 }
@@ -90,6 +106,7 @@ void FC_UnlockPanelPresentation(void) {
         __fc_panelPresentationCount--;
         if (__fc_panelPresentationCount == 0) {
             __fc_panelPresentationLockedAt = 0;
+            FC_TicketHeartbeatStopAndDrop();
         }
     }
 }
@@ -399,7 +416,7 @@ static UIResponder *FC_MakeStandaloneAnchor(NSString *prefill) {
     return textView;
 }
 
-// MARK: - Cross-process panel claim (3.0.35)
+// MARK: - Cross-process panel claim (3.0.35; heartbeat since 3.0.41)
 //
 // Everything above is per-process state, which is exactly why 3.0.31–3.0.34
 // could not fix the "two panels / needs two taps to dismiss" report: a
@@ -413,9 +430,27 @@ static UIResponder *FC_MakeStandaloneAnchor(NSString *prefill) {
 // The fix is an arbitration ticket in the same shared directory the pending
 // invocation already uses: the first process to present publishes
 // {pid, bundle, at}, and every other process answering the same broadcast sees
-// a foreign, fresh ticket and stands down. The ticket is deliberately
-// SHORT-LIVED rather than panel-lifetime, so a leaked ticket can never silence
-// the next real trigger and no liveness probe on the owning pid is needed.
+// a foreign, fresh ticket and stands down.
+//
+// 3.0.41 rewrote three parts of that design, because the 3.0.35 ticket was
+// still short-lived — it expired 2.5 s after the claim while the panel stayed
+// up for as long as the user kept it open. Any broadcast arriving after that
+// window (a replayed Darwin notification, an app resuming, a second tap) found
+// a STALE ticket, so the process that had not presented yet — SpringBoard above
+// all — opened a SECOND panel over the first. That is the "one panel appears,
+// another one shows up a moment later" report.
+//
+//  1. The claim is atomic: `open(O_CREAT|O_EXCL)`. Two processes answering the
+//     same broadcast can no longer both read "no ticket" and both present —
+//     exactly one create wins, the loser re-reads and stands down. The old
+//     read-then-write had a TOCTOU window at exactly the moment that mattered.
+//  2. The ticket now has the panel's lifetime: a 1 s heartbeat refreshes `at`
+//     while a panel is on screen, and the ticket is deleted the moment the
+//     presentation count returns to zero. A live panel is protected for as
+//     long as it lives; a closed one blocks nothing.
+//  3. The heartbeat self-releases when no panel is on screen any more, so a
+//     missed unlock can never silence other processes permanently — the single
+//     reason 3.0.35 chose a short TTL in the first place.
 
 /// KEEP IN SYNC with the shared directory used by AIGate's PanelPendingStore.
 static NSString *const kFCPanelClaimDirectory =
@@ -423,14 +458,28 @@ static NSString *const kFCPanelClaimDirectory =
 static NSString *const kFCPanelClaimPath =
     @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_claim.json";
 
-/// How long a claim stays valid: long enough to cover two processes answering
-/// one broadcast (including SpringBoard's deferral below), short enough that
-/// the next user trigger is never affected.
-static const NSTimeInterval kFCPanelClaimTTL = 2.5;
+/// How long a claim survives WITHOUT a heartbeat. The heartbeat refreshes it
+/// every second while a panel is up, so this only has to cover one missed beat
+/// plus SpringBoard's deferral below: an owner that crashed frees the panel
+/// ~3.5 s later, and an owner that closed its panel frees it immediately.
+static const NSTimeInterval kFCPanelClaimTTL = 3.5;
+/// Beat interval while a panel is on screen.
+static const NSTimeInterval kFCPanelClaimHeartbeatInterval = 1.0;
+/// Grace before a heartbeat may declare the panel gone: dismissal animations
+/// tear the controller down over a few hundred milliseconds.
+static const NSTimeInterval kFCPanelClaimHeartbeatGrace = 2.5;
 /// SpringBoard answers the same broadcast as the caller, but it is the wrong
 /// presenter whenever an app is frontmost. It waits this long so the foreground
 /// app can claim first — the home screen is the only place SpringBoard wins.
 static const NSTimeInterval kFCSpringBoardPresentationDelay = 0.8;
+
+/// Repeating timer that keeps our ticket warm while the panel lives. Only ever
+/// touched on the main queue.
+static dispatch_source_t gFCPanelClaimHeartbeat = NULL;
+/// YES while the heartbeat believes this process owns the ticket.
+static BOOL gFCPanelClaimHeartbeatOwnsTicket = NO;
+/// When the heartbeat started, for the "panel is gone" grace period.
+static CFAbsoluteTime gFCPanelClaimHeartbeatStartAt = 0;
 
 static BOOL FC_IsSpringBoard(void) {
     return [[NSBundle mainBundle].bundleIdentifier isEqualToString:@"com.apple.springboard"];
@@ -438,6 +487,15 @@ static BOOL FC_IsSpringBoard(void) {
 
 static NSString *FC_CurrentBundleIdentifier(void) {
     return [NSBundle mainBundle].bundleIdentifier ?: @"";
+}
+
+static void FC_EnsurePanelClaimDirectory(void) {
+    NSFileManager *fm = [NSFileManager defaultManager];
+    if ([fm fileExistsAtPath:kFCPanelClaimDirectory]) { return; }
+    [fm createDirectoryAtPath:kFCPanelClaimDirectory
+  withIntermediateDirectories:YES
+                   attributes:nil
+                        error:nil];
 }
 
 /// Reads the ticket without any freshness filter (nil when absent / malformed).
@@ -450,56 +508,228 @@ static NSDictionary *FC_ReadPanelClaimRaw(void) {
     return dict;
 }
 
+static NSTimeInterval FC_PanelClaimAge(NSDictionary *claim) {
+    if (!claim) { return CGFLOAT_MAX; }
+    return [[NSDate date] timeIntervalSince1970] - [claim[@"at"] doubleValue];
+}
+
+/// A ticket is fresh while its owner's heartbeat is still beating. A negative
+/// age means the owner's clock ran ahead of ours — treat it as stale-bad and
+/// let the arbitration overwrite it, otherwise a skewed clock could pin the
+/// panel forever.
+static BOOL FC_PanelClaimIsFresh(NSDictionary *claim) {
+    if (!claim) { return NO; }
+    NSTimeInterval age = FC_PanelClaimAge(claim);
+    return age >= 0 && age <= kFCPanelClaimTTL;
+}
+
+static BOOL FC_PanelClaimBelongsToThisProcess(NSDictionary *claim) {
+    if (!claim) { return NO; }
+    return [claim[@"pid"] integerValue] == (NSInteger)getpid();
+}
+
 /// The ticket, but only while it is still inside the arbitration window.
 static NSDictionary *FC_ReadPanelClaim(void) {
     NSDictionary *claim = FC_ReadPanelClaimRaw();
-    if (!claim) { return nil; }
-    NSTimeInterval age = [[NSDate date] timeIntervalSince1970] - [claim[@"at"] doubleValue];
-    if (age < 0 || age > kFCPanelClaimTTL) { return nil; }
-    return claim;
+    return FC_PanelClaimIsFresh(claim) ? claim : nil;
 }
 
-/// True when ANOTHER process claimed the panel inside the arbitration window.
-/// Our own ticket never blocks us, so a failed presentation can still fall back
-/// to the standalone path within the same trigger.
+/// True when ANOTHER process is holding the panel in a way that must silence
+/// this one.
+///
+/// Three conditions, and each of them exists for a separate failure mode:
+///  - the ticket is fresh (the owner's heartbeat is still beating);
+///  - it is not ours (our own ticket must never block our own fallback);
+///  - its owner reported a FOREGROUND app (`fg`). A panel belongs to the app
+///    that is frontmost; once that app is backgrounded its panel is off screen
+///    even though the heartbeat keeps running (the controller is still in that
+///    app's window tree), so blocking on it would make the panel look dead to
+///    the app the user is actually looking at.
 static BOOL FC_PanelClaimIsForeign(void) {
     NSDictionary *claim = FC_ReadPanelClaim();
     if (!claim) { return NO; }
-    return [claim[@"pid"] integerValue] != (NSInteger)getpid();
+    if (FC_PanelClaimBelongsToThisProcess(claim)) { return NO; }
+    if (![claim[@"fg"] isKindOfClass:[NSNumber class]]) { return NO; }
+    return [claim[@"fg"] boolValue];
 }
 
-/// Publishes this process as the panel owner. Best effort: the shared directory
-/// lives outside the app container, and a denied write must never stop a panel
-/// from appearing — it only disables the cross-process guard for this trigger.
-static void FC_ClaimPanelForThisProcess(void) {
-    NSFileManager *fm = [NSFileManager defaultManager];
-    if (![fm fileExistsAtPath:kFCPanelClaimDirectory]) {
-        [fm createDirectoryAtPath:kFCPanelClaimDirectory
-      withIntermediateDirectories:YES
-                       attributes:nil
-                            error:nil];
-    }
+static NSData *FC_PanelClaimPayload(void) {
+    // `applicationState` is main-thread only, and every caller is either a
+    // main-queue block or the main-queue heartbeat.
+    BOOL foreground = [UIApplication sharedApplication].applicationState == UIApplicationStateActive;
     NSDictionary *claim = @{
         @"pid": @(getpid()),
         @"bundle": FC_CurrentBundleIdentifier(),
         @"at": @([[NSDate date] timeIntervalSince1970]),
+        @"fg": @(foreground),
     };
-    NSData *data = [NSJSONSerialization dataWithJSONObject:claim options:0 error:nil];
-    if (!data || ![data writeToFile:kFCPanelClaimPath atomically:YES]) {
-        NSLog(@"[Faircopy] panel claim: could not publish the cross-process ticket");
-        return;
+    return [NSJSONSerialization dataWithJSONObject:claim options:0 error:nil];
+}
+
+/// Takes the ticket, atomically. Returns NO only when another LIVE process owns
+/// it — the caller then stands down instead of presenting a second panel.
+///
+/// The claim is an exclusive create, so of two processes answering one
+/// broadcast exactly one wins; the loser reads the winner's ticket and backs
+/// off. A stale or malformed ticket (crashed owner) is removed and the race is
+/// re-run once, which keeps `fcntl` as the only arbiter instead of a
+/// read-then-write window.
+///
+/// Best effort by design: if the shared directory is not writable, the panel
+/// still appears — only the cross-process guard is skipped for that trigger.
+static BOOL FC_TryClaimPanelTicket(void) {
+    FC_EnsurePanelClaimDirectory();
+    NSData *payload = FC_PanelClaimPayload();
+    if (!payload) { return YES; }
+    const char *path = [kFCPanelClaimPath fileSystemRepresentation];
+    for (NSInteger attempt = 0; attempt < 2; attempt++) {
+        int fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0644);
+        if (fd >= 0) {
+            ssize_t written = write(fd, payload.bytes, payload.length);
+            close(fd);
+            if (written != (ssize_t)payload.length) {
+                NSLog(@"[Faircopy] panel claim: short write (%ld of %lu bytes)",
+                      (long)written, (unsigned long)payload.length);
+            }
+            NSLog(@"[Faircopy] panel claim: exclusive create won by %@ (pid %d)",
+                  FC_CurrentBundleIdentifier(), (int)getpid());
+            return YES;
+        }
+        if (errno != EEXIST) {
+            NSLog(@"[Faircopy] panel claim: open failed (errno %d), presenting unguarded", errno);
+            return YES;
+        }
+        NSDictionary *claim = FC_ReadPanelClaimRaw();
+        BOOL fresh = FC_PanelClaimIsFresh(claim);
+        BOOL mine = FC_PanelClaimBelongsToThisProcess(claim);
+        BOOL ownerForeground =
+            [claim[@"fg"] isKindOfClass:[NSNumber class]] && [claim[@"fg"] boolValue];
+        if (fresh && !mine) {
+            if (ownerForeground) {
+                NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
+                    ? claim[@"bundle"] : @"?";
+                NSLog(@"[Faircopy] panel claim: %@ (pid %ld) owns the panel, standing down",
+                      owner, (long)[claim[@"pid"] integerValue]);
+                return NO;
+            }
+            // Live owner, but its app is backgrounded: its panel is off screen,
+            // so this trigger belongs to the app the user is looking at. Take
+            // the ticket over in place — deleting it first would let the two
+            // heartbeats ping-pong over the same file.
+            [payload writeToFile:kFCPanelClaimPath atomically:YES];
+            NSLog(@"[Faircopy] panel claim: took the ticket over from a backgrounded owner");
+            return YES;
+        }
+        // Stale, malformed, or our own leftover: clear it and race again.
+        [[NSFileManager defaultManager] removeItemAtPath:kFCPanelClaimPath error:nil];
     }
-    NSLog(@"[Faircopy] panel claim: %@ (pid %d) owns the panel",
-          FC_CurrentBundleIdentifier(), (int)getpid());
+    // Two rounds lost to a racing process — present rather than swallow the
+    // user's trigger, the in-process lock still rules out a local duplicate.
+    NSLog(@"[Faircopy] panel claim: arbitration raced twice, presenting anyway");
+    return YES;
 }
 
 /// Drops our ticket after a presentation that never happened, so another
 /// process (SpringBoard above all) is still free to show the panel.
 static void FC_RelinquishPanelClaim(void) {
     NSDictionary *claim = FC_ReadPanelClaimRaw();
-    if (!claim) { return; }
-    if ([claim[@"pid"] integerValue] != (NSInteger)getpid()) { return; }
+    if (!FC_PanelClaimBelongsToThisProcess(claim)) { return; }
     [[NSFileManager defaultManager] removeItemAtPath:kFCPanelClaimPath error:nil];
+}
+
+// MARK: - Ticket heartbeat (3.0.41)
+
+static void FC_TicketHeartbeatStopAndDrop(void);
+
+/// One beat: keep the ticket warm, or give it up when it is no longer ours to
+/// keep. Runs on the main queue, once a second, only while a panel is on
+/// screen.
+static void FC_RefreshPanelClaim(void) {
+    if (!gFCPanelClaimHeartbeatOwnsTicket) { return; }
+    // A panel torn down without going through the unlock path (host app
+    // killed, system dismissal) must not hold the ticket forever: after the
+    // grace period, verify a panel is really still there.
+    if (CFAbsoluteTimeGetCurrent() - gFCPanelClaimHeartbeatStartAt > kFCPanelClaimHeartbeatGrace
+        && !FC_IsPanelOnScreen()) {
+        NSLog(@"[Faircopy] panel claim: no panel on screen any more, releasing the ticket");
+        FC_TicketHeartbeatStopAndDrop();
+        return;
+    }
+    NSDictionary *claim = FC_ReadPanelClaimRaw();
+    if (claim && !FC_PanelClaimBelongsToThisProcess(claim)) {
+        // Someone else legitimately took over while we were quiet. Never fight
+        // over the file — just stop beating and leave theirs alone.
+        NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
+            ? claim[@"bundle"] : @"?";
+        NSLog(@"[Faircopy] panel claim: %@ took the ticket over, heartbeat stops", owner);
+        gFCPanelClaimHeartbeatOwnsTicket = NO;
+        FC_TicketHeartbeatStopAndDrop();
+        return;
+    }
+    if (!claim) {
+        // Deleted under us (a takeover removed and lost it): recreate it while
+        // our panel is still on screen.
+        FC_TryClaimPanelTicket();
+        return;
+    }
+    NSData *payload = FC_PanelClaimPayload();
+    if (payload && ![payload writeToFile:kFCPanelClaimPath atomically:YES]) {
+        NSLog(@"[Faircopy] panel claim: heartbeat write failed");
+    }
+}
+
+/// Starts beating for a panel that is about to stay on screen. Called from
+/// FC_LockPanelPresentation, i.e. once per 0 → 1 transition of the presentation
+/// count, so the menu path and both external paths share one ticket.
+static void FC_TicketHeartbeatStart(void) {
+    if (gFCPanelClaimHeartbeat) { return; }
+    // SpringBoard deliberately does NOT beat. Its `applicationState` is `Active`
+    // even while an app is frontmost, so a beating SpringBoard ticket would
+    // report `fg` = YES forever and silence every app for as long as a home
+    // screen panel stays in its window tree. SpringBoard only needs the ticket
+    // to win the single-broadcast race (its own duplicates are already stopped
+    // by the in-process count), so the plain TTL covers it — and that keeps a
+    // home screen panel from outliving its usefulness.
+    if (FC_IsSpringBoard()) {
+        NSLog(@"[Faircopy] panel claim: SpringBoard keeps the ticket on TTL only (no heartbeat)");
+        return;
+    }
+    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0,
+                                                     dispatch_get_main_queue());
+    if (!timer) { return; }
+    gFCPanelClaimHeartbeatOwnsTicket = YES;
+    gFCPanelClaimHeartbeatStartAt = CFAbsoluteTimeGetCurrent();
+    uint64_t interval = (uint64_t)(kFCPanelClaimHeartbeatInterval * NSEC_PER_SEC);
+    dispatch_source_set_timer(timer,
+                              dispatch_time(DISPATCH_TIME_NOW, (int64_t)interval),
+                              interval,
+                              (uint64_t)(0.25 * NSEC_PER_SEC));
+    dispatch_source_set_event_handler(timer, ^{ FC_RefreshPanelClaim(); });
+    dispatch_resume(timer);
+    gFCPanelClaimHeartbeat = timer;
+    NSLog(@"[Faircopy] panel claim: heartbeat started (pid %d, ttl %.1fs)",
+          (int)getpid(), kFCPanelClaimTTL);
+}
+
+/// Stops beating and removes our ticket, so the next trigger — from this
+/// process or any other — is free again. Safe to call when nothing is running.
+///
+/// Main queue only: the timer, its flags and the ticket file are touched from
+/// here and from the heartbeat handler, and the dismiss path that drives it can
+/// in principle arrive on another thread.
+static void FC_TicketHeartbeatStopAndDrop(void) {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ FC_TicketHeartbeatStopAndDrop(); });
+        return;
+    }
+    dispatch_source_t timer = gFCPanelClaimHeartbeat;
+    gFCPanelClaimHeartbeat = NULL;  // clear first: the handler must not re-enter
+    gFCPanelClaimHeartbeatOwnsTicket = NO;
+    if (timer) { dispatch_source_cancel(timer); }
+    NSDictionary *claim = FC_ReadPanelClaimRaw();
+    if (!FC_PanelClaimBelongsToThisProcess(claim)) { return; }
+    [[NSFileManager defaultManager] removeItemAtPath:kFCPanelClaimPath error:nil];
+    NSLog(@"[Faircopy] panel claim: released by pid %d", (int)getpid());
 }
 
 /// Present the writing panel in the current (foreground) app, with no app
@@ -520,25 +750,25 @@ static void FC_RelinquishPanelClaim(void) {
 /// 3.0.35: the arbitration ticket is checked and published inside that same
 /// block, and SpringBoard — which receives the identical system-wide broadcast —
 /// defers one pass so the foreground app claims first.
-static BOOL gFCSpringBoardDeferralConsumed = NO;
-
-static void FC_PresentPanelInPlace(NSString *keyword) {
+///
+/// 3.0.41: SpringBoard defers EVERY trigger, not just the first one. The old
+/// one-shot flag re-armed itself on the deferred pass, so a second broadcast
+/// inside the arbitration window skipped the deferral entirely and presented
+/// immediately — which is one of the ways a second panel appeared. `deferred`
+/// now travels with the call, so a deferred pass is unambiguous and no global
+/// flag has to be re-armed (and therefore cannot be re-armed at the wrong time).
+static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred) {
     dispatch_async(dispatch_get_main_queue(), ^{
-        if (FC_IsSpringBoard()) {
-            if (!gFCSpringBoardDeferralConsumed) {
-                gFCSpringBoardDeferralConsumed = YES;
-                NSLog(@"[Faircopy] SpringBoard defers the panel by %.0f ms so the caller claims it first",
-                      kFCSpringBoardPresentationDelay * 1000.0);
-                dispatch_after(
-                    dispatch_time(DISPATCH_TIME_NOW,
-                                  (int64_t)(kFCSpringBoardPresentationDelay * NSEC_PER_SEC)),
-                    dispatch_get_main_queue(), ^{
-                        FC_PresentPanelInPlace(keyword);
-                    });
-                return;
-            }
-            // This is the deferred pass: re-arm for the next trigger.
-            gFCSpringBoardDeferralConsumed = NO;
+        if (FC_IsSpringBoard() && !deferred) {
+            NSLog(@"[Faircopy] SpringBoard defers the panel by %.0f ms so the caller claims it first",
+                  kFCSpringBoardPresentationDelay * 1000.0);
+            dispatch_after(
+                dispatch_time(DISPATCH_TIME_NOW,
+                              (int64_t)(kFCSpringBoardPresentationDelay * NSEC_PER_SEC)),
+                dispatch_get_main_queue(), ^{
+                    FC_PresentPanelInPlace(keyword, YES);
+                });
+            return;
         }
         // 3.0.25: the home screen is now allowed. The tweak's filter is
         // UIKit-wide, so SpringBoard is injected too and receives the trigger;
@@ -559,18 +789,13 @@ static void FC_PresentPanelInPlace(NSString *keyword) {
         // 3.0.35: another PROCESS may own the panel. A payload-less broadcast
         // wakes every injected app and SpringBoard at once, and no in-process
         // lock can see across that boundary — this ticket is the only arbiter.
-        if (FC_PanelClaimIsForeign()) {
-            NSDictionary *claim = FC_ReadPanelClaim();
-            NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
-                ? claim[@"bundle"] : @"?";
-            NSLog(@"[Faircopy] external trigger ignored: another process owns the panel (%@ pid %ld)",
-                  owner, (long)[claim[@"pid"] integerValue]);
+        // 3.0.41: the claim itself is an exclusive create, so of two processes
+        // racing on this exact instant exactly one wins and the loser stands
+        // down here instead of stacking a second panel on top.
+        if (!FC_TryClaimPanelTicket()) {
+            NSLog(@"[Faircopy] external trigger ignored: another process owns the panel");
             return;
         }
-        // Publish before presenting so the racing process sees it on entry. Our
-        // own pid is exempt from the check above, so the in-process fallback
-        // below still works when the first attempt declines.
-        FC_ClaimPanelForThisProcess();
 
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         BOOL presented = NO;
@@ -790,7 +1015,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL
                 NSLog(@"[Faircopy] external trigger dropped: stale re-broadcast right after resume");
                 return;
             }
-            FC_PresentPanelInPlace(keyword);
+            FC_PresentPanelInPlace(keyword, NO);
             return;
         }
         if (state == UIApplicationStateBackground) {
@@ -935,8 +1160,28 @@ static void new_UIApplication_openURL_options_completion_(UIApplication *self, S
 
 static void add_UIResponder_openWriteTools(id self, SEL _cmd) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        // 3.0.41: the menu path is user-initiated inside THIS process, but it can
+        // still collide with a panel another process is showing (SpringBoard, or
+        // the app the user just came from) and the in-process count cannot see
+        // across that boundary. Arbitrate on the same ticket the external paths
+        // use, so the menu can never be the second of two panels either.
+        if (FC_PanelClaimIsForeign()) {
+            NSDictionary *claim = FC_ReadPanelClaim();
+            NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
+                ? claim[@"bundle"] : @"?";
+            NSLog(@"[Faircopy] menu trigger ignored: another process owns the panel (%@ pid %ld)",
+                  owner, (long)[claim[@"pid"] integerValue]);
+            return;
+        }
+        FC_TryClaimPanelTicket();
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         [presenter presentToolController:self];
+        // Nothing reached the screen (ineligible responder, no parent controller,
+        // or a panel was already up): hand the ticket back, otherwise an external
+        // trigger would be blocked for the whole TTL.
+        if (!FC_PanelPresentationIsLocked()) {
+            FC_RelinquishPanelClaim();
+        }
     });
 }
 

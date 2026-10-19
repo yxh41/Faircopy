@@ -55,6 +55,12 @@ void FC_SetLastEditingResponder(UIResponder *_Nullable responder);
 /// (`presentToolController:` and `presentCenteredCard`) check the count
 /// themselves before presenting, so the menu path and both external paths
 /// share one guard; the panel controller decrements only on a true dismissal.
+///
+/// 3.0.41: the count also drives the cross-process ticket's heartbeat — 0 → 1
+/// starts it, 0 on the way down deletes the ticket. That is what lets a live
+/// panel keep other processes (SpringBoard above all) silent for its whole
+/// lifetime instead of a fixed 2.5 s window, which is how a late duplicate
+/// broadcast used to produce a second panel.
 BOOL FC_PanelPresentationIsLocked(void);
 void FC_LockPanelPresentation(void);
 void FC_UnlockPanelPresentation(void);
