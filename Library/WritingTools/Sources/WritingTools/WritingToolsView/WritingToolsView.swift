@@ -44,6 +44,9 @@ struct WritingToolsView: View {
     /// Tap/drag order of the selected tokens, so Copy can emit them in the
     /// order the user picked them (independent of their order in the source).
     @State var segmentSelectionOrder: [Int] = []
+    /// Mirror of `SegmentCopyOrder.remembered` so the stats line can show — and
+    /// live-update — which ordering Copy will use next.
+    @State var segmentCopyOrder: SegmentCopyOrder = SegmentCopyOrder.remembered
     @State var segmentActive: Bool = false
     @State var segmentTruncated: Bool = false
 

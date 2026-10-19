@@ -528,9 +528,18 @@ extension WritingToolsView {
             }
             Text("· " + String(format: "%d selected".localized, selectedSegmentIndexes.count))
             Spacer()
+            // Copy-order indicator: shows which ordering the Copy button will use
+            // next. Right-aligned so it reads as state, not another counter.
+            Text(segmentOrderLabel)
+                .foregroundStyle(.white.opacity(0.8))
         }
         .font(.caption2)
         .foregroundStyle(.white.opacity(0.55))
+    }
+
+    /// Current Copy ordering, e.g. "顺序：原文" / "顺序：选择".
+    private var segmentOrderLabel: String {
+        segmentCopyOrder == .source ? "Order: Source".localized : "Order: Selection".localized
     }
 
     // MARK: - State
@@ -707,6 +716,7 @@ extension WritingToolsView {
     /// manually deselecting first.
     func copySegmentResult(as order: SegmentCopyOrder) {
         SegmentCopyOrder.remembered = order
+        segmentCopyOrder = order
         if order == .selection {
             print("[Faircopy] segment: copy selection-order")
         }
