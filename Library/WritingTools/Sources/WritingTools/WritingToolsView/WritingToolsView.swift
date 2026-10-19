@@ -41,6 +41,9 @@ struct WritingToolsView: View {
     // Word segmentation (分词) state
     @State var segmentTokens: [SegmentToken] = []
     @State var selectedSegmentIndexes: Set<Int> = []
+    /// Tap/drag order of the selected tokens, so Copy can emit them in the
+    /// order the user picked them (independent of their order in the source).
+    @State var segmentSelectionOrder: [Int] = []
     @State var segmentActive: Bool = false
     @State var segmentTruncated: Bool = false
 

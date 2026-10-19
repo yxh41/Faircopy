@@ -88,6 +88,7 @@ extension WritingToolsView {
         segmentActive = false
         segmentTokens = []
         selectedSegmentIndexes = []
+        segmentSelectionOrder = []
         liveChars = 0
         liveSpeed = 0
         context.streamCancelled = false
@@ -297,6 +298,7 @@ extension WritingToolsView {
         segmentActive = false
         segmentTokens = []
         selectedSegmentIndexes = []
+        segmentSelectionOrder = []
     }
 
     func accept() {

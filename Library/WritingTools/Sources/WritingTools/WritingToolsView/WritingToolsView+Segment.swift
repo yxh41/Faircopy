@@ -49,6 +49,27 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
 /// token per character, so this bounds how many chips get rendered.
 let kSegmentMaxLength = 1000
 
+/// Which ordering the segment "Copy" action emits its tokens in.
+enum SegmentCopyOrder: String, CaseIterable {
+    /// Source order — the order the words appear in the original text.
+    case source
+    /// Selection order — the order the user tapped / dragged the words.
+    case selection
+
+    /// Remembered across panel re-opens (and across launches, per host app) so
+    /// a plain Copy tap keeps using the order the user last chose.
+    static let defaultsKey = "faircopy.segment.copyOrder"
+
+    static var remembered: SegmentCopyOrder {
+        get {
+            SegmentCopyOrder(rawValue: UserDefaults.standard.string(forKey: defaultsKey) ?? "") ?? .source
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: defaultsKey)
+        }
+    }
+}
+
 public enum WordSegmenter {
     /// Tokenizes text into word tokens.
     /// - Returns: the tokens plus whether the source was truncated.
@@ -520,6 +541,7 @@ extension WritingToolsView {
         segmentTokens = result.tokens
         segmentTruncated = result.truncated
         selectedSegmentIndexes = []
+        segmentSelectionOrder = []
         segmentActive = true
         output = ""
         isRunning = false
@@ -528,8 +550,10 @@ extension WritingToolsView {
     func toggleSegmentSelection(_ index: Int) {
         if selectedSegmentIndexes.contains(index) {
             selectedSegmentIndexes.remove(index)
+            segmentSelectionOrder.removeAll { $0 == index }
         } else {
             selectedSegmentIndexes.insert(index)
+            segmentSelectionOrder.append(index)
         }
     }
 
@@ -578,11 +602,52 @@ extension WritingToolsView {
         }
         guard updated != selectedSegmentIndexes else { return }
         selectedSegmentIndexes = updated
+        // Keep the tap-order list in sync: drop tokens no longer selected, then
+        // append newly-covered ones in the direction the finger travelled
+        // (downward drag records lower -> upper, upward records the reverse).
+        var order = segmentSelectionOrder.filter { updated.contains($0) }
+        let added = updated.subtracting(segmentDragOriginalSelection)
+        let sequence: [Int] = index >= anchor
+            ? Array(lower ... upper)
+            : Array((lower ... upper).reversed())
+        for i in sequence where added.contains(i) && !order.contains(i) {
+            order.append(i)
+        }
+        segmentSelectionOrder = order
         SegmentHaptics.light.impactOccurred()
     }
 
     var segmentSelectedTokens: [SegmentToken] {
         segmentTokens.filter { selectedSegmentIndexes.contains($0.id) }
+    }
+
+    /// Selected tokens in the order the user tapped / dragged them. Falls back
+    /// to source order when no order has been recorded.
+    var segmentSelectedTokensInSelectionOrder: [SegmentToken] {
+        let selected = segmentSelectedTokens
+        guard !segmentSelectionOrder.isEmpty else { return selected }
+        let byID = Dictionary(uniqueKeysWithValues: segmentTokens.map { ($0.id, $0) })
+        var result: [SegmentToken] = []
+        var seen = Set<Int>()
+        for id in segmentSelectionOrder where selectedSegmentIndexes.contains(id) {
+            if let token = byID[id], seen.insert(id).inserted { result.append(token) }
+        }
+        // Defensive: include any selected token the order list somehow missed.
+        for token in selected where !seen.contains(token.id) { result.append(token) }
+        return result
+    }
+
+    /// Copy output for the requested ordering. Only the token order differs;
+    /// tokens are still joined the classic way (a single space between chips).
+    func segmentText(as order: SegmentCopyOrder) -> String {
+        switch order {
+        case .source:
+            return segmentSpacedText
+        case .selection:
+            let tokens = segmentSelectedTokensInSelectionOrder
+            let resolved = tokens.isEmpty ? segmentTokens : tokens
+            return resolved.map(\.text).joined(separator: " ")
+        }
     }
 
     /// Space-joined tokens — the classic segmentation output. Uses the
@@ -634,10 +699,20 @@ extension WritingToolsView {
     }
 
     func copySegmentResult() {
-        UIPasteboard.general.string = segmentSpacedText
-        // Clear the selection so the next batch of words can be picked without
-        // manually deselecting first.
+        copySegmentResult(as: SegmentCopyOrder.remembered)
+    }
+
+    /// Copy the picked words in `order`, remembering it for subsequent plain
+    /// taps. Clears the selection so the next batch can be picked without
+    /// manually deselecting first.
+    func copySegmentResult(as order: SegmentCopyOrder) {
+        SegmentCopyOrder.remembered = order
+        if order == .selection {
+            print("[Faircopy] segment: copy selection-order")
+        }
+        UIPasteboard.general.string = segmentText(as: order)
         selectedSegmentIndexes.removeAll()
+        segmentSelectionOrder.removeAll()
     }
 
     /// Share the current selection (or all tokens). Clears the selection after
@@ -645,6 +720,7 @@ extension WritingToolsView {
     func shareSegmentResult() {
         shareText(segmentSpacedText)
         selectedSegmentIndexes.removeAll()
+        segmentSelectionOrder.removeAll()
     }
 
     func acceptSegmentResult() {

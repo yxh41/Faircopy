@@ -37,6 +37,8 @@ extension WritingToolsLocalizable {
             "Again": "重试",
             "Accept": "接受",
             "Copy": "复制",
+            "Copy in Source Order": "按原文顺序复制",
+            "Copy in Selection Order": "按选择顺序复制",
             "Share": "分享",
             "Cancel": "取消",
 

@@ -66,7 +66,24 @@ extension WritingToolsView {
                 if isRunning {
                     BeautifulButton(title: "Cancel".localized) { cancelActiveStream() }
                 } else if taskPrompt == .segment {
-                    BeautifulButton(title: "Copy".localized) { copySegmentResult() }
+                    // Copy uses the remembered order on a plain tap; a long-press
+                    // opens the order picker (source order / selection order).
+                    Menu {
+                        Button {
+                            copySegmentResult(as: .source)
+                        } label: {
+                            Label("Copy in Source Order".localized, systemImage: "text.alignleft")
+                        }
+                        Button {
+                            copySegmentResult(as: .selection)
+                        } label: {
+                            Label("Copy in Selection Order".localized, systemImage: "hand.tap")
+                        }
+                    } label: {
+                        BeautifulMenuLabel(title: "Copy".localized)
+                    } primaryAction: {
+                        copySegmentResult()
+                    }
                     BeautifulButton(title: "Share".localized) { shareSegmentResult() }
                     BeautifulButton(title: "Discard".localized) { discard() }
                     // The 4th slot always exists so inserting/removing Accept
