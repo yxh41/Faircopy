@@ -1,0 +1,74 @@
+[
+  {
+    "id": "appstore",
+    "name": "AppStore",
+    "searchTemplate": "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@",
+    "bareScheme": "itms-apps://"
+  },
+  {
+    "id": "pdd",
+    "name": "拼多多",
+    "searchTemplate": "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%@",
+    "bareScheme": "pinduoduo://"
+  },
+  {
+    "id": "taobao",
+    "name": "淘宝",
+    "searchTemplate": "taobao://s.taobao.com/?q=%@",
+    "bareScheme": "taobao://"
+  },
+  {
+    "id": "jd",
+    "name": "京东",
+    "searchTemplate": "openjd://virtual?params={\"des\":\"productList\",\"keyWord\":\"%@\",\"from\":\"search\",\"category\":\"jump\"}",
+    "bareScheme": "openjd://"
+  },
+  {
+    "id": "weibo",
+    "name": "Weibo",
+    "searchTemplate": "sinaweibo://searchall?q=%@",
+    "bareScheme": "sinaweibo://"
+  },
+  {
+    "id": "bilibili",
+    "name": "BiliBili",
+    "searchTemplate": "bilibili://search?keyword=%@",
+    "bareScheme": "bilibili://"
+  },
+  {
+    "id": "twitter",
+    "name": "Twitter",
+    "searchTemplate": "twitter://search?query=%@",
+    "bareScheme": "twitter://"
+  },
+  {
+    "id": "applemaps",
+    "name": "苹果地图",
+    "searchTemplate": "maps://?q=%@",
+    "bareScheme": "maps://"
+  },
+  {
+    "id": "baidumap",
+    "name": "百度地图",
+    "searchTemplate": "baidumap://map/place/search?query=%@&src=Faircopy",
+    "bareScheme": "baidumap://"
+  },
+  {
+    "id": "amap",
+    "name": "高德地图",
+    "searchTemplate": "iosamap://poi?sourceApplication=Faircopy&name=%@&dev=0",
+    "bareScheme": "iosamap://"
+  },
+  {
+    "id": "zhihu",
+    "name": "知乎",
+    "searchTemplate": "zhihu://search?q=%@",
+    "bareScheme": "zhihu://"
+  },
+  {
+    "id": "xhs",
+    "name": "小红书",
+    "searchTemplate": "xhsdiscover://search/result?keyword=%@",
+    "bareScheme": "xhsdiscover://"
+  }
+]

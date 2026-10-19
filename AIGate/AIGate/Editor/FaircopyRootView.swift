@@ -652,44 +652,22 @@ enum AppSearchStore {
 
     /// KEEP IN SYNC with `kAppSearchDefaults` in
     /// Library/WritingTools/Sources/WritingTools/WritingToolsView/WritingToolsView+AppSearch.swift
-    static let defaults: [AppSearchEntry] = [
-        .init(id: "appstore", name: "AppStore",
-              searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@",
-              bareScheme: "itms-apps://"),
-        .init(id: "pdd", name: "拼多多",
-              searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%@",
-              bareScheme: "pinduoduo://"),
-        .init(id: "taobao", name: "淘宝",
-              searchTemplate: "taobao://s.taobao.com/?q=%@",
-              bareScheme: "taobao://"),
-        .init(id: "jd", name: "京东",
-              searchTemplate: "openjd://virtual?params={\"des\":\"productList\",\"keyWord\":\"%@\",\"from\":\"search\",\"category\":\"jump\"}",
-              bareScheme: "openjd://"),
-        .init(id: "weibo", name: "Weibo",
-              searchTemplate: "sinaweibo://searchall?q=%@",
-              bareScheme: "sinaweibo://"),
-        .init(id: "bilibili", name: "BiliBili",
-              searchTemplate: "bilibili://search?keyword=%@",
-              bareScheme: "bilibili://"),
-        .init(id: "twitter", name: "Twitter",
-              searchTemplate: "twitter://search?query=%@",
-              bareScheme: "twitter://"),
-        .init(id: "applemaps", name: "苹果地图",
-              searchTemplate: "maps://?q=%@",
-              bareScheme: "maps://"),
-        .init(id: "baidumap", name: "百度地图",
-              searchTemplate: "baidumap://map/place/search?query=%@&src=Faircopy",
-              bareScheme: "baidumap://"),
-        .init(id: "amap", name: "高德地图",
-              searchTemplate: "iosamap://poi?sourceApplication=Faircopy&name=%@&dev=0",
-              bareScheme: "iosamap://"),
-        .init(id: "zhihu", name: "知乎",
-              searchTemplate: "zhihu://search?q=%@",
-              bareScheme: "zhihu://"),
-        .init(id: "xhs", name: "小红书",
-              searchTemplate: "xhsdiscover://search/result?keyword=%@",
-              bareScheme: "xhsdiscover://"),
-    ]
+    // GENERATED FROM Resources/AppSearch/appsearch_defaults.json — DO NOT EDIT BY HAND.
+    // Edit the JSON, then run Scripts/gen_appsearch_defaults.py to regenerate both copies.
+    // >>> APPSEARCH_DEFAULTS_GENERATED >>>
+        .init(id: "appstore", name: "AppStore", searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@", bareScheme: "itms-apps://"),
+        .init(id: "pdd", name: "拼多多", searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%@", bareScheme: "pinduoduo://"),
+        .init(id: "taobao", name: "淘宝", searchTemplate: "taobao://s.taobao.com/?q=%@", bareScheme: "taobao://"),
+        .init(id: "jd", name: "京东", searchTemplate: "openjd://virtual?params={\"des\":\"productList\",\"keyWord\":\"%@\",\"from\":\"search\",\"category\":\"jump\"}", bareScheme: "openjd://"),
+        .init(id: "weibo", name: "Weibo", searchTemplate: "sinaweibo://searchall?q=%@", bareScheme: "sinaweibo://"),
+        .init(id: "bilibili", name: "BiliBili", searchTemplate: "bilibili://search?keyword=%@", bareScheme: "bilibili://"),
+        .init(id: "twitter", name: "Twitter", searchTemplate: "twitter://search?query=%@", bareScheme: "twitter://"),
+        .init(id: "applemaps", name: "苹果地图", searchTemplate: "maps://?q=%@", bareScheme: "maps://"),
+        .init(id: "baidumap", name: "百度地图", searchTemplate: "baidumap://map/place/search?query=%@&src=Faircopy", bareScheme: "baidumap://"),
+        .init(id: "amap", name: "高德地图", searchTemplate: "iosamap://poi?sourceApplication=Faircopy&name=%@&dev=0", bareScheme: "iosamap://"),
+        .init(id: "zhihu", name: "知乎", searchTemplate: "zhihu://search?q=%@", bareScheme: "zhihu://"),
+        .init(id: "xhs", name: "小红书", searchTemplate: "xhsdiscover://search/result?keyword=%@", bareScheme: "xhsdiscover://"),
+    // <<< APPSEARCH_DEFAULTS_GENERATED <<<
 
     static func load() -> [AppSearchEntry] {
         guard
