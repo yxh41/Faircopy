@@ -668,6 +668,14 @@ enum AppSearchStore {
         .init(id: "amap", name: "高德地图", searchTemplate: "iosamap://poi?sourceApplication=Faircopy&name=%@&dev=0", bareScheme: "iosamap://"),
         .init(id: "zhihu", name: "知乎", searchTemplate: "zhihu://search?q=%@", bareScheme: "zhihu://"),
         .init(id: "xhs", name: "小红书", searchTemplate: "xhsdiscover://search/result?keyword=%@", bareScheme: "xhsdiscover://"),
+        .init(id: "douyin", name: "抖音", searchTemplate: "snssdk1128://search/result?keyword=%@", bareScheme: "snssdk1128://"),
+        .init(id: "kuaishou", name: "快手", searchTemplate: "kwai://search?keyword=%@", bareScheme: "kwai://"),
+        .init(id: "meituan", name: "美团", searchTemplate: "imeituan://www.meituan.com/search?q=%@", bareScheme: "imeituan://"),
+        .init(id: "douban", name: "豆瓣", searchTemplate: "douban:///search?q=%@", bareScheme: "douban://"),
+        .init(id: "iqiyi", name: "爱奇艺", searchTemplate: "iqiyi://mobile/search?keyword=%@", bareScheme: "iqiyi://"),
+        .init(id: "smzdm", name: "什么值得买", searchTemplate: "smzdm://search?json={\"channelName\":\"home\",\"search_type\":\"1\",\"keyWord\":\"%@\"}", bareScheme: "smzdm://"),
+        .init(id: "coolapk", name: "酷安", searchTemplate: "coolmarket://com.coolapk.market/search?keyword=%@", bareScheme: "coolmarket://"),
+        .init(id: "youdao", name: "有道词典", searchTemplate: "yddict://dict/query?q=%@", bareScheme: "yddict://"),
     // <<< APPSEARCH_DEFAULTS_GENERATED <<<
     ]
 

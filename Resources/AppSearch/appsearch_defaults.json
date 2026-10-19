@@ -70,5 +70,53 @@
     "name": "小红书",
     "searchTemplate": "xhsdiscover://search/result?keyword=%@",
     "bareScheme": "xhsdiscover://"
+  },
+  {
+    "id": "douyin",
+    "name": "抖音",
+    "searchTemplate": "snssdk1128://search/result?keyword=%@",
+    "bareScheme": "snssdk1128://"
+  },
+  {
+    "id": "kuaishou",
+    "name": "快手",
+    "searchTemplate": "kwai://search?keyword=%@",
+    "bareScheme": "kwai://"
+  },
+  {
+    "id": "meituan",
+    "name": "美团",
+    "searchTemplate": "imeituan://www.meituan.com/search?q=%@",
+    "bareScheme": "imeituan://"
+  },
+  {
+    "id": "douban",
+    "name": "豆瓣",
+    "searchTemplate": "douban:///search?q=%@",
+    "bareScheme": "douban://"
+  },
+  {
+    "id": "iqiyi",
+    "name": "爱奇艺",
+    "searchTemplate": "iqiyi://mobile/search?keyword=%@",
+    "bareScheme": "iqiyi://"
+  },
+  {
+    "id": "smzdm",
+    "name": "什么值得买",
+    "searchTemplate": "smzdm://search?json={\"channelName\":\"home\",\"search_type\":\"1\",\"keyWord\":\"%@\"}",
+    "bareScheme": "smzdm://"
+  },
+  {
+    "id": "coolapk",
+    "name": "酷安",
+    "searchTemplate": "coolmarket://com.coolapk.market/search?keyword=%@",
+    "bareScheme": "coolmarket://"
+  },
+  {
+    "id": "youdao",
+    "name": "有道词典",
+    "searchTemplate": "yddict://dict/query?q=%@",
+    "bareScheme": "yddict://"
   }
 ]
