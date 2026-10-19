@@ -72,6 +72,7 @@ extension AppSearchTarget {
 /// framework).
 // GENERATED FROM Resources/AppSearch/appsearch_defaults.json — DO NOT EDIT BY HAND.
 // Edit the JSON, then run Scripts/gen_appsearch_defaults.py to regenerate both copies.
+let kAppSearchDefaults: [AppSearchTarget] = [
 // >>> APPSEARCH_DEFAULTS_GENERATED >>>
     .init(id: "appstore", name: "AppStore", searchTemplate: "itms-apps://search.itunes.apple.com/WebObjects/MZSearch.woa/wa/search?term=%@", bareScheme: "itms-apps://"),
     .init(id: "pdd", name: "拼多多", searchTemplate: "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key=%@", bareScheme: "pinduoduo://"),
@@ -86,6 +87,7 @@ extension AppSearchTarget {
     .init(id: "zhihu", name: "知乎", searchTemplate: "zhihu://search?q=%@", bareScheme: "zhihu://"),
     .init(id: "xhs", name: "小红书", searchTemplate: "xhsdiscover://search/result?keyword=%@", bareScheme: "xhsdiscover://"),
 // <<< APPSEARCH_DEFAULTS_GENERATED <<<
+]
 
 /// Panel-side reader for the user-edited destination list.
 ///
