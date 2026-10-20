@@ -37,11 +37,7 @@
 /* No comment provided by engineer. */
 "Bringing back the most advanced system and security analysis tool." = "Bringing back the most advanced system and security analysis tool.";
 
-/* No comment provided by engineer. */
-"Built-in Endpoint" = "Built-in Endpoint";
 
-/* No comment provided by engineer. */
-"Built-in Endpoint Activated" = "Built-in Endpoint Activated";
 
 /* No comment provided by engineer. */
 "Cancel" = "Cancel";
@@ -385,8 +381,6 @@
 /* No comment provided by engineer. */
 "The authorization of this endpoint. It may be optional." = "The authorization of this endpoint. It may be optional.";
 
-/* No comment provided by engineer. */
-"The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it." = "The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it.";
 
 /* No comment provided by engineer. */
 "The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies." = "The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies.";
@@ -457,8 +451,6 @@
 /* No comment provided by engineer. */
 "URL Scheme" = "URL Scheme";
 
-/* No comment provided by engineer. */
-"Use Built-in Endpoint" = "Use Built-in Endpoint";
 
 /* HTTP 305 */
 "Use Proxy" = "Use Proxy";

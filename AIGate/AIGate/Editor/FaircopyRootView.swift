@@ -122,7 +122,6 @@ struct FaircopyRootView: View {
 
             enableServiceSection
             endpointListSection
-            builtInEndpointSection
             customPromptsSection
             appSearchSection
             usageSection
@@ -199,31 +198,6 @@ struct FaircopyRootView: View {
         .onAppear {
             configuration.reloadViewModel()
         }
-    }
-
-    var builtInEndpointSection: some View {
-        Section {
-            if configurationViewModel.uiActivatedEndpointIsLimited {
-                HStack(spacing: 16) {
-                    Text(NSLocalizedString("Built-in Endpoint Activated", bundle: Bundle.wrti_support, comment: ""))
-                    Spacer()
-                    Image(systemName: "checkmark")
-                }
-                .foregroundStyle(Color.accent)
-                .transition(.opacity)
-            } else {
-                Button(NSLocalizedString("Use Built-in Endpoint", bundle: Bundle.wrti_support, comment: "")) {
-                    configuration.activateLimited()
-                }
-                .transition(.opacity)
-            }
-        } header: {
-            Text(NSLocalizedString("Built-in Endpoint", bundle: Bundle.wrti_support, comment: ""))
-        } footer: {
-            Text(NSLocalizedString("The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it.", bundle: Bundle.wrti_support, comment: ""))
-        }
-        .disabled(true)
-        .animation(.smooth, value: configurationViewModel.uiActivatedEndpointIsLimited)
     }
 
     var customPromptsSection: some View {

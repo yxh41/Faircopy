@@ -93,20 +93,22 @@ struct AddEndpointView: View {
     @State var isFetchingValues: Bool = false
     @State var lastError: Error? = nil
 
-    @State var isFirstAppear: Bool = true
+    @FocusState private var isEndpointURLFocused: Bool
+    @FocusState private var isEndpointKeyFocused: Bool
+
+    /// Each add starts blank so adding a different provider never disturbs the
+    /// ones already saved — they stay in the Endpoints list and are reactivated
+    /// with a tap. (Previously this pre-filled the last-used URL/key, forcing
+    /// the user to clear it before entering a new provider.)
+    init() {
+        _endpointURL = State(initialValue: "")
+        _endpointKey = State(initialValue: "")
+    }
 
     var url: URL? { URL(string: endpointURL) }
     var urlHost: String { url?.host ?? "" }
 
     var isFetchingOrFetchedValues: Bool { isFetchingValues || !usableModels.isEmpty }
-
-    @FocusState private var isEndpointURLFocused: Bool
-    @FocusState private var isEndpointKeyFocused: Bool
-
-    init() {
-        _endpointURL = State(initialValue: Configuration.shared.lastEndpointURL)
-        _endpointKey = State(initialValue: Configuration.shared.lastEndpointKey)
-    }
 
     var recommendedModels: [String] {
         usableModels.filter { model in
@@ -154,7 +156,6 @@ struct AddEndpointView: View {
                     destination: {
                         CommonProviderPicker { url in
                             if let url { endpointURL = url }
-                            save()
                         }
                     },
                     label: {
@@ -371,28 +372,9 @@ struct AddEndpointView: View {
         .animation(.smooth, value: recommendedModels)
         .animation(.spring, value: isFetchingValues)
         .listStyle(.insetGrouped)
-        .onAppear {
-            guard isFirstAppear else { return }
-            isFirstAppear = false
-            if !cvm.lastEndpointURL.isEmpty { endpointURL = cvm.lastEndpointURL }
-            if !cvm.lastEndpointKey.isEmpty { endpointKey = cvm.lastEndpointKey }
-        }
-        .onChange(of: isEndpointURLFocused) { _ in
-            save()
-        }
-        .onChange(of: isEndpointKeyFocused) { _ in
-            save()
-        }
-    }
-
-    func save() {
-        cvm.lastEndpointURL = endpointURL
-        cvm.lastEndpointKey = endpointKey
     }
 
     func fetchModels() {
-        cvm.lastEndpointURL = endpointURL
-        cvm.lastEndpointKey = endpointKey
         isFetchingValues = true
         lastError = nil
         DispatchQueue.global(qos: .userInteractive).async {

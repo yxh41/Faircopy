@@ -37,11 +37,7 @@
 /* No comment provided by engineer. */
 "Bringing back the most advanced system and security analysis tool." = "最先进的系统和安全分析工具，再次归来！";
 
-/* No comment provided by engineer. */
-"Built-in Endpoint" = "内置节点";
 
-/* No comment provided by engineer. */
-"Built-in Endpoint Activated" = "内置节点已激活";
 
 /* No comment provided by engineer. */
 "Cancel" = "取消";
@@ -385,8 +381,6 @@
 /* No comment provided by engineer. */
 "The authorization of this endpoint. It may be optional." = "使用此节点所需的授权信息（可选）。";
 
-/* No comment provided by engineer. */
-"The built-in endpoint is a limited service provided by the tweak. It is free to use and no need to configure. Your request will be logged and stored on our server. Currently we do not offer a way to delete it." = "内置节点是插件提供的有限服务。此服务免费且无需配置。你的请求将被记录并存储在我们的服务器上。目前我们没有提供删除的方法。";
 
 /* No comment provided by engineer. */
 "The support tweak is required to enable “%@” shortcut in editing menus. You can inject it into other applications via TrollFools or similar technologies." = "支持插件是启用编辑菜单中的 “%@” 快捷方式所必需的。你可以通过 TrollFools 或类似的技术将其注入到其他应用程序中。";
@@ -457,8 +451,6 @@
 /* No comment provided by engineer. */
 "URL Scheme" = "URL 方案";
 
-/* No comment provided by engineer. */
-"Use Built-in Endpoint" = "使用内置节点";
 
 /* HTTP 305 */
 "Use Proxy" = "Use Proxy";
