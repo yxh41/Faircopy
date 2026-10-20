@@ -123,6 +123,7 @@ struct FaircopyRootView: View {
             enableServiceSection
             endpointListSection
             customPromptsSection
+            panelModesSection
             appSearchSection
             usageSection
 
@@ -232,6 +233,22 @@ struct FaircopyRootView: View {
         } footer: {
             Text(NSLocalizedString(
                 "User-defined prompts shown next to the built-in modes in the writing panel.",
+                bundle: Bundle.wrti_support,
+                comment: ""
+            ))
+        }
+    }
+
+    var panelModesSection: some View {
+        Section {
+            NavigationLink {
+                PanelModesSettingsView()
+            } label: {
+                Text(NSLocalizedString("Panel Modes", bundle: Bundle.wrti_support, comment: ""))
+            }
+        } footer: {
+            Text(NSLocalizedString(
+                "Choose which writing modes appear in the panel, and drag to reorder them.",
                 bundle: Bundle.wrti_support,
                 comment: ""
             ))
@@ -497,6 +514,170 @@ struct FaircopyRootView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Panel Modes Settings Subpage (3.0.48)
+
+/// Mirrors `FaircopyPanelModesStore` in
+/// Library/WritingTools/.../WritingToolsView+PanelModes.swift — the two modules
+/// cannot share a source file (AIGate does not link the WritingTools framework),
+/// so the path, defaults and JSON shape MUST stay in sync. The file lives in
+/// AIGate's global storage directory so the injected dylib can read it too.
+enum FaircopyPanelModesStore {
+    /// KEEP IN SYNC with the same path in WritingToolsView+PanelModes.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_modes.json"
+
+    /// Visual order of the original hardcoded panel rows; also the master order
+    /// used to re-append modes the user has switched off. Values are
+    /// `Prompt.rawValue` on the panel side.
+    static let defaults: [String] = [
+        "proofread", "rewrite", "translate",
+        "friendly", "professional", "concise",
+        "expand", "summarize", "segment",
+    ]
+
+    static func load() -> [String] {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let list = try? JSONDecoder().decode([String].self, from: data)
+        else { return defaults }
+        return list.filter { defaults.contains($0) }
+    }
+
+    static func save(_ list: [String]) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(list) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+
+    /// Human-readable mode name. AIGate cannot see WritingTools' localizable
+    /// tables, so the nine names are declared here as well and MUST match the
+    /// Chinese used in WritingToolsLocalizable+zh-Hans.swift.
+    static func displayName(_ id: String) -> String {
+        switch id {
+        case "proofread": return NSLocalizedString("Proofread", bundle: Bundle.wrti_support, comment: "")
+        case "rewrite": return NSLocalizedString("Rewrite", bundle: Bundle.wrti_support, comment: "")
+        case "translate": return NSLocalizedString("Translate", bundle: Bundle.wrti_support, comment: "")
+        case "friendly": return NSLocalizedString("Friendly", bundle: Bundle.wrti_support, comment: "")
+        case "professional": return NSLocalizedString("Professional", bundle: Bundle.wrti_support, comment: "")
+        case "concise": return NSLocalizedString("Concise", bundle: Bundle.wrti_support, comment: "")
+        case "expand": return NSLocalizedString("Expand", bundle: Bundle.wrti_support, comment: "")
+        case "summarize": return NSLocalizedString("Summarize", bundle: Bundle.wrti_support, comment: "")
+        case "segment": return NSLocalizedString("Segment", bundle: Bundle.wrti_support, comment: "")
+        default: return id
+        }
+    }
+
+    static func iconName(_ id: String) -> String {
+        switch id {
+        case "proofread": return "doc.text.magnifyingglass"
+        case "rewrite": return "arrow.counterclockwise"
+        case "translate": return "character.book.closed"
+        case "friendly": return "bubble.left.and.bubble.right"
+        case "professional": return "books.vertical"
+        case "concise": return "textformat.abc.dottedunderline"
+        case "expand": return "arrow.up.left.and.arrow.down.right"
+        case "summarize": return "list.bullet.below.rectangle"
+        case "segment": return "scissors"
+        default: return "sparkles"
+        }
+    }
+}
+
+/// Lets the user pick which writing modes appear in the panel, and in what
+/// order. Only the enabled subset is persisted (in order); hidden modes are
+/// re-appended in their built-in order when the list is loaded back.
+struct PanelModesSettingsView: View {
+    @State var enabledIDs: [String] = FaircopyPanelModesStore.load()
+    @State var editMode: EditMode = .inactive
+    @State private var showResetConfirm = false
+
+    /// Enabled modes first (in the user's order), then the switched-off ones in
+    /// their built-in order so the toggle rows stay stable.
+    var displayIDs: [String] {
+        enabledIDs + FaircopyPanelModesStore.defaults.filter { !enabledIDs.contains($0) }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(displayIDs, id: \.self) { id in
+                    Toggle(isOn: binding(for: id)) {
+                        Label {
+                            Text(FaircopyPanelModesStore.displayName(id))
+                        } icon: {
+                            Image(systemName: FaircopyPanelModesStore.iconName(id))
+                        }
+                    }
+                }
+                .onMove(perform: move)
+            } header: {
+                Text(NSLocalizedString("Visible Modes", bundle: Bundle.wrti_support, comment: ""))
+            } footer: {
+                Text(NSLocalizedString(
+                    "Modes you switch off are hidden from the panel. Drag to change the order.",
+                    bundle: Bundle.wrti_support,
+                    comment: ""
+                ))
+            }
+
+            Section {
+                Button {
+                    showResetConfirm = true
+                } label: {
+                    Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("Panel Modes", bundle: Bundle.wrti_support, comment: ""))
+        .environment(\.editMode, $editMode)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(editMode.isEditing
+                       ? NSLocalizedString("Done", bundle: Bundle.wrti_support, comment: "")
+                       : NSLocalizedString("Edit", bundle: Bundle.wrti_support, comment: "")) {
+                    editMode = editMode.isEditing ? .inactive : .active
+                }
+            }
+        }
+        .alert(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""),
+               isPresented: $showResetConfirm) {
+            Button(NSLocalizedString("Cancel", bundle: Bundle.wrti_support, comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Restore", bundle: Bundle.wrti_support, comment: ""), role: .destructive) {
+                enabledIDs = FaircopyPanelModesStore.defaults
+                FaircopyPanelModesStore.save(enabledIDs)
+            }
+        } message: {
+            Text(NSLocalizedString("Show every built-in writing mode again in its default order?",
+                                   bundle: Bundle.wrti_support,
+                                   comment: ""))
+        }
+    }
+
+    private func binding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { enabledIDs.contains(id) },
+            set: { on in
+                if on {
+                    guard !enabledIDs.contains(id) else { return }
+                    enabledIDs.append(id)
+                } else {
+                    enabledIDs.removeAll { $0 == id }
+                }
+                FaircopyPanelModesStore.save(enabledIDs)
+            }
+        )
+    }
+
+    private func move(from source: IndexSet, to destination: Int) {
+        var display = displayIDs
+        display.move(fromOffsets: source, toOffset: destination)
+        // Only enabled ids are persisted; keep them in the new display order.
+        enabledIDs = display.filter { enabledIDs.contains($0) }
+        FaircopyPanelModesStore.save(enabledIDs)
     }
 }
 

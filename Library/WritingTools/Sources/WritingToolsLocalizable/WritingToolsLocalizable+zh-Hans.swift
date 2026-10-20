@@ -33,6 +33,9 @@ extension WritingToolsLocalizable {
             "Custom": "自定义",
             "Manage Custom Prompts": "管理自定义提示词",
 
+            /* 3.0.48: 面板模式全部隐藏时的空态提示（可在设置→写作面板模式里重新启用） */
+            "All panel modes are hidden. Turn some back on in Settings.": "所有面板模式均已隐藏，可在设置中重新启用。",
+
             "Discard": "丢弃",
             "Again": "重试",
             "Accept": "接受",

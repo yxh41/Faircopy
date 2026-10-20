@@ -30,60 +30,34 @@ extension WritingToolsView {
     @ViewBuilder
     var selectiveButtonPanels: some View {
         VStack(spacing: innerSpacing) {
-            HStack(spacing: innerSpacing) {
-                BeautifulButton(title: "Proofread".localized, icon: "doc.text.magnifyingglass") {
-                    taskPrompt = .proofread
-                    segmentActionSubject = nil
-                    executeCurrentTask()
+            // Modes come from the shared file written by the settings pane
+            // (FaircopyPanelModesStore); a missing/unreadable file falls back to
+            // every mode in its built-in order. Every row is 60pt tall now that
+            // the order is user-defined — there is no longer a "featured" row.
+            let modeIDs = FaircopyPanelModesStore.load()
+            ForEach(0 ..< (modeIDs.count + 2) / 3, id: \.self) { row in
+                HStack(spacing: innerSpacing) {
+                    ForEach(0 ..< min(3, modeIDs.count - row * 3), id: \.self) { column in
+                        let modeID = modeIDs[row * 3 + column]
+                        BeautifulButton(title: FaircopyPanelMode.title(modeID),
+                                        icon: FaircopyPanelMode.icon(modeID)) {
+                            if let prompt = FaircopyPanelMode.prompt(modeID) {
+                                taskPrompt = prompt
+                                segmentActionSubject = nil
+                                executeCurrentTask()
+                            }
+                        }
+                    }
                 }
-                BeautifulButton(title: "Rewrite".localized, icon: "arrow.counterclockwise") {
-                    taskPrompt = .rewrite
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-                BeautifulButton(title: "Translate".localized, icon: "character.book.closed") {
-                    taskPrompt = .translate
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
+                .frame(height: 60)
             }
-            .frame(height: 80)
-            HStack(spacing: innerSpacing) {
-                BeautifulButton(title: "Friendly".localized, icon: "bubble.left.and.bubble.right") {
-                    taskPrompt = .friendly
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-                BeautifulButton(title: "Professional".localized, icon: "books.vertical") {
-                    taskPrompt = .professional
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-                BeautifulButton(title: "Concise".localized, icon: "textformat.abc.dottedunderline") {
-                    taskPrompt = .concise
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
+            if modeIDs.isEmpty {
+                Text("All panel modes are hidden. Turn some back on in Settings.".localized)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 4)
             }
-            .frame(height: 60)
-            HStack(spacing: innerSpacing) {
-                BeautifulButton(title: "Expand".localized, icon: "arrow.up.left.and.arrow.down.right") {
-                    taskPrompt = .expand
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-                BeautifulButton(title: "Summarize".localized, icon: "list.bullet.below.rectangle") {
-                    taskPrompt = .summarize
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-                BeautifulButton(title: "Segment".localized, icon: "scissors") {
-                    taskPrompt = .segment
-                    segmentActionSubject = nil
-                    executeCurrentTask()
-                }
-            }
-            .frame(height: 60)
             HStack(spacing: innerSpacing) {
                 customPromptButton
             }

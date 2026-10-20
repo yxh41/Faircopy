@@ -94,6 +94,23 @@
 /* 3.0.47: 节点列表 header「测试全部」按钮（批量测速扫描） */
 "Test All" = "Test All";
 
+/* 3.0.48: panel mode visibility + ordering */
+"Panel Modes" = "Panel Modes";
+"Visible Modes" = "Visible Modes";
+"Done" = "Done";
+"Proofread" = "Proofread";
+"Rewrite" = "Rewrite";
+"Translate" = "Translate";
+"Friendly" = "Friendly";
+"Professional" = "Professional";
+"Concise" = "Concise";
+"Expand" = "Expand";
+"Summarize" = "Summarize";
+"Segment" = "Segment";
+"Choose which writing modes appear in the panel, and drag to reorder them." = "Choose which writing modes appear in the panel, and drag to reorder them.";
+"Modes you switch off are hidden from the panel. Drag to change the order." = "Modes you switch off are hidden from the panel. Drag to change the order.";
+"Show every built-in writing mode again in its default order?" = "Show every built-in writing mode again in its default order?";
+
 /* 3.0.45 */
 "Duplicate" = "Duplicate";
 

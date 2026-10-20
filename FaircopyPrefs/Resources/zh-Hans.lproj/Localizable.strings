@@ -95,6 +95,23 @@
 /* 3.0.47: 节点列表 header「测试全部」按钮（批量测速扫描） */
 "Test All" = "测试全部";
 
+/* 3.0.48: 写作面板模式自定义（显隐 + 排序） */
+"Panel Modes" = "面板模式";
+"Visible Modes" = "显示的模式";
+"Done" = "完成";
+"Proofread" = "校对";
+"Rewrite" = "重写";
+"Translate" = "翻译";
+"Friendly" = "友好";
+"Professional" = "专业";
+"Concise" = "简洁";
+"Expand" = "扩写";
+"Summarize" = "总结";
+"Segment" = "分词";
+"Choose which writing modes appear in the panel, and drag to reorder them." = "选择写作面板中显示哪些模式，并可拖动调整顺序。";
+"Modes you switch off are hidden from the panel. Drag to change the order." = "关闭的模式不会出现在面板中。拖动可调整顺序。";
+"Show every built-in writing mode again in its default order?" = "将所有内置写作模式恢复显示，并按默认顺序排列？";
+
 /* 3.0.45: 节点长按菜单「复制节点」—— 打开预填该节点地址/密钥的添加页 */
 "Duplicate" = "复制节点";
 
