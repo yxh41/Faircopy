@@ -190,7 +190,22 @@ struct FaircopyRootView: View {
                 .navigationViewStyle(.stack)
             }
         } header: {
-            Text(NSLocalizedString("Endpoints", bundle: Bundle.wrti_support, comment: ""))
+            HStack {
+                Text(NSLocalizedString("Endpoints", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Button {
+                    configuration.scanEndpoints()
+                } label: {
+                    if configuration.isScanningEndpoints {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "bolt.fill")
+                    }
+                }
+                .disabled(configuration.isScanningEndpoints)
+                .accessibilityLabel(NSLocalizedString("Test All", bundle: Bundle.wrti_support, comment: ""))
+            }
         } footer: {
             Text(NSLocalizedString("Tap to activate your endpoint. Long press for a menu.", bundle: Bundle.wrti_support, comment: ""))
         }

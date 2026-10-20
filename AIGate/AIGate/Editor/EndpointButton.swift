@@ -34,6 +34,22 @@ struct EndpointButton: View {
                         .font(.footnote)
                         .tint(.secondary)
                         .foregroundStyle(.secondary)
+                    if let reach = cvm.endpointReach[value.id] {
+                        HStack(spacing: 4) {
+                            Image(systemName: reach.reachable ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundStyle(reach.reachable ? .green : .red)
+                            if let ms = reach.latencyMs {
+                                Text("\(ms) ms")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let detail = reach.detail {
+                                Text(detail)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
                 Spacer()
                 Image(systemName: "checkmark")
@@ -126,50 +142,21 @@ struct EndpointButton: View {
     }
 
     func testConnection() {
-        let base = value.url
-        let key = value.token
-        DispatchQueue.global(qos: .userInitiated).async {
-            var message = ""
-            let targets = [
-                base.appendingPathComponent("v1").appendingPathComponent("models"),
-                base.appendingPathComponent("models"),
-            ]
-            for target in targets {
-                var req = URLRequest(url: target, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
-                if !key.isEmpty {
-                    req.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-                }
-                let sem = DispatchSemaphore(value: 0)
-                var outcome = ""
-                URLSession.shared.dataTask(with: req) { _, resp, err in
-                    defer { sem.signal() }
-                    if let err {
-                        outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), err.localizedDescription)
-                        return
-                    }
-                    if let http = resp as? HTTPURLResponse {
-                        if http.statusCode == 200 {
-                            outcome = NSLocalizedString("Reachable ✓", bundle: Bundle.wrti_support, comment: "")
-                        } else {
-                            outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), "HTTP \(http.statusCode)")
-                        }
-                    } else {
-                        outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
-                    }
-                }.resume()
-                sem.wait()
-                if !outcome.isEmpty {
-                    message = outcome
-                    break
-                }
+        cvm.probeReach(value) { result in
+            let message: String
+            if result.reachable {
+                message = NSLocalizedString("Reachable ✓", bundle: Bundle.wrti_support, comment: "")
+            } else {
+                message = result.detail
+                    ?? String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
             }
-            if message.isEmpty {
-                message = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
-            }
-            let final = message
-            DispatchQueue.main.async {
-                testMessage = final
-                showTestResult = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                var next = self.cvm.endpointReach
+                next[value.id] = result
+                self.cvm.endpointReach = next
+                self.testMessage = message
+                self.showTestResult = true
             }
         }
     }

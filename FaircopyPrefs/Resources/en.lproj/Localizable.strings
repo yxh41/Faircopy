@@ -91,6 +91,9 @@
 "Connection failed: %@" = "Connection failed: %@";
 "no HTTP response" = "no HTTP response";
 
+/* 3.0.47: 节点列表 header「测试全部」按钮（批量测速扫描） */
+"Test All" = "Test All";
+
 /* 3.0.45 */
 "Duplicate" = "Duplicate";
 

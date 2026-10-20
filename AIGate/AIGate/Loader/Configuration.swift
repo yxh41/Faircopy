@@ -35,6 +35,13 @@ class Configuration: NSObject, ObservableObject {
     @PublishedPersist(key: "ConfiguredEndpoints", defaultValue: [:])
     private var configuredEndpoints: [Endpoint.ID: Endpoint]
 
+    /// In-memory reachability probe results, keyed by endpoint id. Not persisted;
+    /// cleared on reload. Populated by `scanEndpoints()` and per-node `testConnection`.
+    @Published var endpointReach: [Endpoint.ID: EndpointReach] = [:]
+
+    /// True while `scanEndpoints()` is in flight.
+    @Published var isScanningEndpoints = false
+
     // Must be @PublishedPersist: the gate daemon caches Persist values in memory
     // and only refreshes them on the .reload command, which is emitted from
     // objectWillChange. Plain @Persist here would leave the daemon serving a
@@ -133,6 +140,75 @@ class Configuration: NSObject, ObservableObject {
         reloadViewModel()
     }
 
+    // MARK: - Endpoint reachability
+
+    /// Probe a single endpoint's `/models` (also tries `/v1/models`) and report
+    /// reachability plus round-trip latency in milliseconds. Used by both the bulk
+    /// "Test All" scan and the per-node "Test Connection" action.
+    func probeReach(_ endpoint: Endpoint, completion: @escaping (EndpointReach) -> Void) {
+        let base = endpoint.url
+        let key = endpoint.token
+        let targets = [
+            base.appendingPathComponent("v1").appendingPathComponent("models"),
+            base.appendingPathComponent("models"),
+        ]
+        let start = Date()
+        func attempt(_ index: Int) {
+            guard index < targets.count else {
+                let detail = NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: "")
+                completion(EndpointReach(reachable: false, latencyMs: nil, detail: detail))
+                return
+            }
+            var req = URLRequest(url: targets[index], cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
+            if !key.isEmpty {
+                req.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: req) { _, response, error in
+                if let error {
+                    attempt(index + 1)
+                    return
+                }
+                let latencyMs = Int(Date().timeIntervalSince(start) * 1000)
+                guard let http = response as? HTTPURLResponse else {
+                    attempt(index + 1)
+                    return
+                }
+                if http.statusCode == 200 {
+                    completion(EndpointReach(reachable: true, latencyMs: latencyMs, detail: nil))
+                } else {
+                    let detail = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), "HTTP \(http.statusCode)")
+                    completion(EndpointReach(reachable: false, latencyMs: latencyMs, detail: detail))
+                }
+            }.resume()
+        }
+        attempt(0)
+    }
+
+    /// Probe every configured endpoint concurrently and publish results to
+    /// `endpointReach`. Intended for the "Test All" bulk scan.
+    func scanEndpoints() {
+        let endpoints = Array(configuredEndpoints.values)
+        guard !endpoints.isEmpty else { return }
+        isScanningEndpoints = true
+        let group = DispatchGroup()
+        for endpoint in endpoints {
+            group.enter()
+            probeReach(endpoint) { result in
+                DispatchQueue.main.async { [weak self] in
+                    if let self {
+                        var next = self.endpointReach
+                        next[endpoint.id] = result
+                        self.endpointReach = next
+                    }
+                    group.leave()
+                }
+            }
+        }
+        group.notify(queue: .main) {
+            self.isScanningEndpoints = false
+        }
+    }
+
     func notifyConfigurationChangeToSystem() {
         AIGateClient.executeCommand(.reload)
     }
@@ -163,6 +239,18 @@ class Configuration: NSObject, ObservableObject {
     func hasEndpointWithID(_ uuid: UUID) -> Bool {
         configuredEndpoints.keys.contains(uuid)
     }
+}
+
+/// Result of a reachability probe for a single endpoint.
+struct EndpointReach: Equatable {
+    /// Whether the endpoint responded with HTTP 200 on its `/models` endpoint.
+    let reachable: Bool
+    /// Round-trip latency in milliseconds (from request start to first response),
+    /// or nil if no response was received.
+    let latencyMs: Int?
+    /// Human-readable failure detail (e.g. "HTTP 401" or "no HTTP response"),
+    /// nil when reachable.
+    let detail: String?
 }
 
 extension Configuration {
