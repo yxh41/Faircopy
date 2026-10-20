@@ -84,6 +84,9 @@
 /* No comment provided by engineer. */
 "Delete" = "Delete";
 
+/* 3.0.45 */
+"Duplicate" = "Duplicate";
+
 /* No comment provided by engineer. */
 "Darwin Notification" = "Darwin Notification";
 

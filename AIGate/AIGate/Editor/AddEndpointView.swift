@@ -96,13 +96,18 @@ struct AddEndpointView: View {
     @FocusState private var isEndpointURLFocused: Bool
     @FocusState private var isEndpointKeyFocused: Bool
 
-    /// Each add starts blank so adding a different provider never disturbs the
-    /// ones already saved — they stay in the Endpoints list and are reactivated
-    /// with a tap. (Previously this pre-filled the last-used URL/key, forcing
-    /// the user to clear it before entering a new provider.)
-    init() {
-        _endpointURL = State(initialValue: "")
-        _endpointKey = State(initialValue: "")
+    /// Each fresh "Add Endpoint" starts blank so adding a different provider
+    /// never disturbs the ones already saved — they stay in the Endpoints list
+    /// and are reactivated with a tap. (Previously this pre-filled the
+    /// last-used URL/key, forcing the user to clear it before entering a new
+    /// provider.)
+    ///
+    /// `Duplicate` in the endpoint context menu opens this view pre-filled with
+    /// an existing endpoint's URL/key (see EndpointButton), so adding another
+    /// model for the same provider only needs a model pick — no re-typing.
+    init(prefillURL: String = "", prefillKey: String = "") {
+        _endpointURL = State(initialValue: prefillURL)
+        _endpointKey = State(initialValue: prefillKey)
     }
 
     var url: URL? { URL(string: endpointURL) }

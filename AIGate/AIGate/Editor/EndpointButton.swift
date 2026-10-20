@@ -12,6 +12,8 @@ struct EndpointButton: View {
     @StateObject var cvm: Configuration = .shared
     let value: Configuration.Endpoint
 
+    @State private var openDuplicate = false
+
     init(endpoint: Configuration.Endpoint) {
         value = endpoint
     }
@@ -59,6 +61,11 @@ struct EndpointButton: View {
                     Label(NSLocalizedString("Deactivate", bundle: Bundle.wrti_support, comment: ""), systemImage: "xmark")
                 }
             }
+            Button {
+                openDuplicate = true
+            } label: {
+                Label(NSLocalizedString("Duplicate", bundle: Bundle.wrti_support, comment: ""), systemImage: "doc.on.doc")
+            }
             Section {
                 Button {
                     UIPasteboard.general.string = value.url.absoluteString
@@ -83,6 +90,13 @@ struct EndpointButton: View {
                     Label(NSLocalizedString("Delete", bundle: Bundle.wrti_support, comment: ""), systemImage: "trash")
                 }
             }
+        }
+        .sheet(isPresented: $openDuplicate) {
+            NavigationView {
+                AddEndpointView(prefillURL: value.url.absoluteString, prefillKey: value.token)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationViewStyle(.stack)
         }
     }
 }

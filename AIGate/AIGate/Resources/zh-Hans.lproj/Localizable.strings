@@ -96,6 +96,9 @@
 /* No comment provided by engineer. */
 "Delete" = "删除";
 
+/* 3.0.45: 节点长按菜单「复制节点」—— 打开预填该节点地址/密钥的添加页 */
+"Duplicate" = "复制节点";
+
 /* No comment provided by engineer. */
 "Darwin Notification" = "Darwin 通知";
 
