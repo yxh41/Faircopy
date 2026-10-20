@@ -561,3 +561,10 @@
 
 /* 3.0.28 */
 "e.g. weibo://" = "例如 weibo://";
+
+/* 3.0.43: 在应用中搜索 拆为子页 + 恢复默认/清除历史 加确认弹窗 */
+"Clear Search History" = "清除搜索历史";
+"Restore" = "恢复";
+"Clear" = "清除";
+"Reset app search list to built-in defaults?" = "将应用搜索列表恢复为内置默认？";
+"Remove recent keyword history shown in 在应用中搜索?" = "清除「在应用中搜索」中显示的近期关键词历史？";

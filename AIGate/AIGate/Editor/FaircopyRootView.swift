@@ -54,14 +54,8 @@ struct FaircopyRootView: View {
     @State var quickLookExport: URL?
     @State var copiedInvocationID: String?
 
-    // Search-in-app destinations (分词 → 在应用中搜索). The list lives in a
-    // shared preferences file the injected dylib also reads; see AppSearchStore.
-    @State var appSearchEntries: [AppSearchEntry] = AppSearchStore.load()
-    @State var appSearchEditing: AppSearchEntry? = nil
-    @State var isAppSearchEditing = false
-    /// Clipboard-protection toggle for the app-search jump. Persisted to a
-    /// sibling shared file the injected dylib reads; see AppSearchSettingsStore.
-    @State var protectClipboard: Bool = AppSearchSettingsStore.load().protectClipboard
+    // Search-in-app destinations state lives in AppSearchSettingsView
+    // (分词 → 在应用中搜索 subpage), keeping the main form short.
 
     @State var serviceStatus: ServiceStatus = .unknown
     @State var usageStats: UsageStats?
@@ -477,128 +471,21 @@ struct FaircopyRootView: View {
         }
     }
 
-    /// 分词 →「在应用中搜索」destination list. Read from the shared preferences
-    /// file on appear so edits made elsewhere (or a reset) are reflected, and
-    /// written back after every change so the injected dylib picks them up the
-    /// next time the panel is summoned.
+    /// 分词 →「在应用中搜索」entry point. Pushes AppSearchSettingsView so the
+    /// (longish) destination list stays off the main settings form.
     var appSearchSection: some View {
-        Section {
-            Toggle(isOn: $protectClipboard) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(NSLocalizedString("Clipboard Protection", bundle: Bundle.wrti_support, comment: ""))
-                    Text(NSLocalizedString("Keeps the app search jump from overwriting your clipboard unless both schemes fail.", bundle: Bundle.wrti_support, comment: ""))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+        NavigationLink {
+            AppSearchSettingsView()
+        } label: {
+            Label {
+                Text(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
+            } icon: {
+                Image(systemName: "magnifyingglass")
             }
-            .onChange(of: protectClipboard) { newValue in
-                AppSearchSettingsStore.save(AppSearchSettings(protectClipboard: newValue))
-            }
-            ForEach($appSearchEntries) { $entry in
-                Button {
-                    appSearchEditing = entry
-                    isAppSearchEditing = true
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color.accent)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.name.isEmpty ? NSLocalizedString("Untitled", bundle: Bundle.wrti_support, comment: "") : entry.name)
-                            Text(entry.searchTemplate)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-                .foregroundStyle(.primary)
-            }
-            .onDelete { indexSet in
-                appSearchEntries.remove(atOffsets: indexSet)
-                AppSearchStore.save(appSearchEntries)
-            }
-            .onMove { from, to in
-                appSearchEntries.move(fromOffsets: from, toOffset: to)
-                AppSearchStore.save(appSearchEntries)
-            }
-            Button {
-                let fresh = AppSearchEntry(id: UUID().uuidString, name: "",
-                                           searchTemplate: "", bareScheme: "")
-                appSearchEntries.append(fresh)
-                appSearchEditing = fresh
-                isAppSearchEditing = true
-            } label: {
-                Text(NSLocalizedString("Add App", bundle: Bundle.wrti_support, comment: ""))
-            }
-            .foregroundStyle(Color.accent)
-            Button {
-                appSearchEntries = AppSearchStore.defaults
-                AppSearchStore.save(appSearchEntries)
-            } label: {
-                Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
-            }
-            Button {
-                detectInstalledApps()
-            } label: {
-                Text(NSLocalizedString("Redetect Installed Apps", bundle: Bundle.wrti_support, comment: ""))
-            }
-            .foregroundStyle(Color.accent)
-            Button {
-                let url = URL(fileURLWithPath: "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_history.json")
-                try? FileManager.default.removeItem(at: url)
-            } label: {
-                Text(NSLocalizedString("Clear Search History", bundle: Bundle.wrti_support, comment: ""))
-            }
-            .foregroundStyle(.red)
-        } header: {
-            Text(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
-        } footer: {
-            Text(NSLocalizedString("Apps shown when you pick words in 分词 and choose 在应用中搜索. Use %@ in the search template where the keyword goes.", bundle: Bundle.wrti_support, comment: ""))
-        }
-        .onAppear {
-            appSearchEntries = AppSearchStore.load()
-            protectClipboard = AppSearchSettingsStore.load().protectClipboard
-            detectInstalledApps()
-        }
-        .sheet(isPresented: $isAppSearchEditing, onDismiss: {
-            AppSearchStore.save(appSearchEntries)
-        }) {
-            NavigationView {
-                AppSearchEditorView(entry: $appSearchEditing) { edited in
-                    if let index = appSearchEntries.firstIndex(where: { $0.id == edited.id }) {
-                        appSearchEntries[index] = edited
-                    }
-                    if edited.name.isEmpty && edited.searchTemplate.isEmpty {
-                        // Discard an entry the user opened but never filled in.
-                        appSearchEntries.removeAll { $0.id == edited.id }
-                    }
-                    AppSearchStore.save(appSearchEntries)
-                }
-                .navigationBarTitleDisplayMode(.inline)
-            }
-            .navigationViewStyle(.stack)
         }
     }
 
-    /// Probes which built-in search targets are installed by querying
-    /// `canOpenURL` for each built-in scheme (AIGate declares them in Info.plist
-    /// via LSApplicationQueriesSchemes). The map is written to a shared file the
-    /// injected dylib reads, so it can hide targets whose app isn't installed.
-    /// User-added targets use arbitrary schemes we can't declare, so they are
-    /// never probed and always shown.
-    func detectInstalledApps() {
-        var installed: [String: Bool] = [:]
-        for target in AppSearchStore.defaults {
-            guard let root = target.schemeRoot else { continue }
-            guard installed[root] == nil else { continue }
-            let url = URL(string: "\(root)://") ?? URL(string: "https://")!
-            installed[root] = UIApplication.shared.canOpenURL(url)
-        }
-        AppSearchInstalledStore.save(installed)
-        let count = installed.filter { $0.value }.count
-        print("[Faircopy] app search: detected \(count) installed apps")
-        appSearchEntries = AppSearchStore.load()
-    }
+    // detectInstalledApps moved to AppSearchSettingsView.
 
     func checkStatus() {
         spawnService()
@@ -624,6 +511,160 @@ struct FaircopyRootView: View {
     }
 }
 
+// MARK: - App Search Settings Subpage (分词 → 在应用中搜索)
+
+/// Dedicated subpage for the "在应用中搜索" destinations so the main settings
+/// form stays short. Holds its own state (previously inline in FaircopyRootView)
+/// plus confirm dialogs for the destructive "Restore Defaults" and
+/// "Clear Search History" actions.
+struct AppSearchSettingsView: View {
+    @State var appSearchEntries: [AppSearchEntry] = AppSearchStore.load()
+    @State var appSearchEditing: AppSearchEntry? = nil
+    @State var isAppSearchEditing = false
+    @State var protectClipboard: Bool = AppSearchSettingsStore.load().protectClipboard
+
+    @State private var showResetConfirm = false
+    @State private var showClearHistoryConfirm = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(isOn: $protectClipboard) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("Clipboard Protection", bundle: Bundle.wrti_support, comment: ""))
+                        Text(NSLocalizedString("Keeps the app search jump from overwriting your clipboard unless both schemes fail.", bundle: Bundle.wrti_support, comment: ""))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: protectClipboard) { newValue in
+                    AppSearchSettingsStore.save(AppSearchSettings(protectClipboard: newValue))
+                }
+            }
+            Section {
+                ForEach($appSearchEntries) { $entry in
+                    Button {
+                        appSearchEditing = entry
+                        isAppSearchEditing = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(Color.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.name.isEmpty ? NSLocalizedString("Untitled", bundle: Bundle.wrti_support, comment: "") : entry.name)
+                                Text(entry.searchTemplate)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                }
+                .onDelete { indexSet in
+                    appSearchEntries.remove(atOffsets: indexSet)
+                    AppSearchStore.save(appSearchEntries)
+                }
+                .onMove { from, to in
+                    appSearchEntries.move(fromOffsets: from, toOffset: to)
+                    AppSearchStore.save(appSearchEntries)
+                }
+                Button {
+                    let fresh = AppSearchEntry(id: UUID().uuidString, name: "",
+                                               searchTemplate: "", bareScheme: "")
+                    appSearchEntries.append(fresh)
+                    appSearchEditing = fresh
+                    isAppSearchEditing = true
+                } label: {
+                    Text(NSLocalizedString("Add App", bundle: Bundle.wrti_support, comment: ""))
+                }
+                .foregroundStyle(Color.accent)
+                Button {
+                    showResetConfirm = true
+                } label: {
+                    Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                }
+                Button {
+                    showClearHistoryConfirm = true
+                } label: {
+                    Text(NSLocalizedString("Clear Search History", bundle: Bundle.wrti_support, comment: ""))
+                }
+                .foregroundStyle(.red)
+            } footer: {
+                Text(NSLocalizedString("Apps shown when you pick words in 分词 and choose 在应用中搜索. Use %@ in the search template where the keyword goes.", bundle: Bundle.wrti_support, comment: ""))
+            }
+            Section {
+                Button {
+                    detectInstalledApps()
+                } label: {
+                    Text(NSLocalizedString("Redetect Installed Apps", bundle: Bundle.wrti_support, comment: ""))
+                }
+                .foregroundStyle(Color.accent)
+            }
+        }
+        .navigationTitle(NSLocalizedString("Search in Apps", bundle: Bundle.wrti_support, comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            appSearchEntries = AppSearchStore.load()
+            protectClipboard = AppSearchSettingsStore.load().protectClipboard
+            detectInstalledApps()
+        }
+        .alert(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""), isPresented: $showResetConfirm) {
+            Button(NSLocalizedString("Cancel", bundle: Bundle.wrti_support, comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Restore", bundle: Bundle.wrti_support, comment: ""), role: .destructive) {
+                appSearchEntries = AppSearchStore.defaults
+                AppSearchStore.save(appSearchEntries)
+            }
+        } message: {
+            Text(NSLocalizedString("Reset app search list to built-in defaults?", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .alert(NSLocalizedString("Clear Search History", bundle: Bundle.wrti_support, comment: ""), isPresented: $showClearHistoryConfirm) {
+            Button(NSLocalizedString("Cancel", bundle: Bundle.wrti_support, comment: ""), role: .cancel) { }
+            Button(NSLocalizedString("Clear", bundle: Bundle.wrti_support, comment: ""), role: .destructive) {
+                let url = URL(fileURLWithPath: "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_appsearch_history.json")
+                try? FileManager.default.removeItem(at: url)
+            }
+        } message: {
+            Text(NSLocalizedString("Remove recent keyword history shown in 在应用中搜索?", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .sheet(isPresented: $isAppSearchEditing, onDismiss: {
+            AppSearchStore.save(appSearchEntries)
+        }) {
+            NavigationView {
+                AppSearchEditorView(entry: $appSearchEditing) { edited in
+                    if let index = appSearchEntries.firstIndex(where: { $0.id == edited.id }) {
+                        appSearchEntries[index] = edited
+                    }
+                    if edited.name.isEmpty && edited.searchTemplate.isEmpty {
+                        // Discard an entry the user opened but never filled in.
+                        appSearchEntries.removeAll { $0.id == edited.id }
+                    }
+                    AppSearchStore.save(appSearchEntries)
+                }
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationViewStyle(.stack)
+        }
+    }
+
+    /// Probes which built-in search targets are installed by querying
+    /// `canOpenURL` for each built-in scheme (AIGate declares them in Info.plist
+    /// via LSApplicationQueriesSchemes). Mirrors the logic formerly inline in
+    /// FaircopyRootView.
+    func detectInstalledApps() {
+        var installed: [String: Bool] = [:]
+        for target in AppSearchStore.defaults {
+            guard let root = target.schemeRoot else { continue }
+            guard installed[root] == nil else { continue }
+            let url = URL(string: "\(root)://") ?? URL(string: "https://")!
+            installed[root] = UIApplication.shared.canOpenURL(url)
+        }
+        AppSearchInstalledStore.save(installed)
+        let count = installed.filter { $0.value }.count
+        print("[Faircopy] app search: detected \(count) installed apps")
+        appSearchEntries = AppSearchStore.load()
+    }
+}
 
 // MARK: - Search in Apps (分词 → 在应用中搜索)
 
