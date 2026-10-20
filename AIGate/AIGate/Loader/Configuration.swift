@@ -164,7 +164,7 @@ class Configuration: NSObject, ObservableObject {
                 req.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
             }
             URLSession.shared.dataTask(with: req) { _, response, error in
-                if let error {
+                if error != nil {
                     attempt(index + 1)
                     return
                 }

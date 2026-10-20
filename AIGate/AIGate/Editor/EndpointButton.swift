@@ -150,13 +150,12 @@ struct EndpointButton: View {
                 message = result.detail
                     ?? String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
             }
-            DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
-                var next = self.cvm.endpointReach
+            DispatchQueue.main.async {
+                var next = cvm.endpointReach
                 next[value.id] = result
-                self.cvm.endpointReach = next
-                self.testMessage = message
-                self.showTestResult = true
+                cvm.endpointReach = next
+                testMessage = message
+                showTestResult = true
             }
         }
     }
