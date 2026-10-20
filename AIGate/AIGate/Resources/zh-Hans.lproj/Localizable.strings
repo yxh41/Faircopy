@@ -96,6 +96,14 @@
 /* No comment provided by engineer. */
 "Delete" = "删除";
 
+/* 3.0.46: 节点长按菜单「编辑」+「测试连接」 */
+"Edit" = "编辑";
+"Test Connection" = "测试连接";
+/* 3.0.46: 测试连接结果文案 */
+"Reachable ✓" = "可达 ✓";
+"Connection failed: %@" = "连接失败：%@";
+"no HTTP response" = "无 HTTP 响应";
+
 /* 3.0.45: 节点长按菜单「复制节点」—— 打开预填该节点地址/密钥的添加页 */
 "Duplicate" = "复制节点";
 

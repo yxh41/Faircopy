@@ -84,6 +84,13 @@
 /* No comment provided by engineer. */
 "Delete" = "Delete";
 
+/* 3.0.46 */
+"Edit" = "Edit";
+"Test Connection" = "Test Connection";
+"Reachable ✓" = "Reachable ✓";
+"Connection failed: %@" = "Connection failed: %@";
+"no HTTP response" = "no HTTP response";
+
 /* 3.0.45 */
 "Duplicate" = "Duplicate";
 

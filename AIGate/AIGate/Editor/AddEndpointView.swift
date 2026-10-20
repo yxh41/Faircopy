@@ -93,6 +93,10 @@ struct AddEndpointView: View {
     @State var isFetchingValues: Bool = false
     @State var lastError: Error? = nil
 
+    /// Set in edit mode; saving then updates this endpoint in place instead of
+    /// creating a new one. `Duplicate` leaves this nil.
+    @State var editingEndpointID: UUID? = nil
+
     @FocusState private var isEndpointURLFocused: Bool
     @FocusState private var isEndpointKeyFocused: Bool
 
@@ -102,12 +106,21 @@ struct AddEndpointView: View {
     /// last-used URL/key, forcing the user to clear it before entering a new
     /// provider.)
     ///
-    /// `Duplicate` in the endpoint context menu opens this view pre-filled with
-    /// an existing endpoint's URL/key (see EndpointButton), so adding another
-    /// model for the same provider only needs a model pick — no re-typing.
-    init(prefillURL: String = "", prefillKey: String = "") {
+    /// `Duplicate` (and `Edit`) in the endpoint context menu open this view
+    /// pre-filled with an existing endpoint's URL/key (see EndpointButton).
+    /// `Duplicate` passes `editing: nil` so saving creates a new endpoint;
+    /// `Edit` passes the endpoint so saving updates it in place — no re-typing,
+    /// and switching models for the same provider only needs a model pick.
+    init(prefillURL: String = "", prefillKey: String = "", editing endpoint: Configuration.Endpoint? = nil) {
         _endpointURL = State(initialValue: prefillURL)
         _endpointKey = State(initialValue: prefillKey)
+        if let endpoint {
+            // Keep usableModels empty so the URL/Key stay editable and the
+            // "Fetch Available Models" button stays available; pre-select the
+            // existing model so saving keeps it unless the user re-picks.
+            _selectedModels = State(initialValue: [endpoint.model])
+            _editingEndpointID = State(initialValue: endpoint.id)
+        }
     }
 
     var url: URL? { URL(string: endpointURL) }
@@ -322,11 +335,7 @@ struct AddEndpointView: View {
                 ? NSLocalizedString("Save Endpoint", bundle: Bundle.wrti_support, comment: "")
                 : String(format: NSLocalizedString("Save %d Endpoints", bundle: Bundle.wrti_support, comment: ""), selectedModels.count)
         ) {
-            guard let url else { return }
-            for model in selectedModels.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
-                cvm.add(.init(url: url, token: endpointKey, model: model))
-            }
-            dismiss()
+            save()
         }
         .disabled(selectedModels.isEmpty)
         .tint(Color.accent)
@@ -363,11 +372,7 @@ struct AddEndpointView: View {
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button(NSLocalizedString("Save", bundle: Bundle.wrti_support, comment: "")) {
-                    guard !selectedModels.isEmpty, let url else { return }
-                    for model in selectedModels.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
-                        cvm.add(.init(url: url, token: endpointKey, model: model))
-                    }
-                    dismiss()
+                    save()
                 }
                 .disabled(selectedModels.isEmpty)
             }
@@ -377,6 +382,27 @@ struct AddEndpointView: View {
         .animation(.smooth, value: recommendedModels)
         .animation(.spring, value: isFetchingValues)
         .listStyle(.insetGrouped)
+    }
+
+    /// Persist the picked models. In edit mode the first model overwrites the
+    /// original endpoint (same id, original create date preserved); any extra
+    /// picked models are added as new endpoints. In add/duplicate mode every
+    /// picked model becomes a new endpoint.
+    func save() {
+        guard let url else { return }
+        let models = selectedModels.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending })
+        guard !models.isEmpty else { return }
+        if let editingEndpointID {
+            cvm.update(Configuration.Endpoint(id: editingEndpointID, url: url, token: endpointKey, model: models[0]))
+            for model in models.dropFirst() {
+                cvm.add(.init(url: url, token: endpointKey, model: model))
+            }
+        } else {
+            for model in models {
+                cvm.add(.init(url: url, token: endpointKey, model: model))
+            }
+        }
+        dismiss()
     }
 
     func fetchModels() {

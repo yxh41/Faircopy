@@ -122,6 +122,17 @@ class Configuration: NSObject, ObservableObject {
         reloadViewModel()
     }
 
+    /// Replace an existing endpoint in place. Keeps the original `create` date
+    /// so the list order (sorted by create time) is preserved on edit.
+    func update(_ endpoint: Endpoint) {
+        var endpoint = endpoint
+        if let old = configuredEndpoints[endpoint.id] {
+            endpoint.create = old.create
+        }
+        configuredEndpoints[endpoint.id] = endpoint
+        reloadViewModel()
+    }
+
     func notifyConfigurationChangeToSystem() {
         AIGateClient.executeCommand(.reload)
     }

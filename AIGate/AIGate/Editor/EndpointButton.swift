@@ -13,6 +13,9 @@ struct EndpointButton: View {
     let value: Configuration.Endpoint
 
     @State private var openDuplicate = false
+    @State private var openEdit = false
+    @State private var testMessage: String? = nil
+    @State private var showTestResult = false
 
     init(endpoint: Configuration.Endpoint) {
         value = endpoint
@@ -66,6 +69,16 @@ struct EndpointButton: View {
             } label: {
                 Label(NSLocalizedString("Duplicate", bundle: Bundle.wrti_support, comment: ""), systemImage: "doc.on.doc")
             }
+            Button {
+                openEdit = true
+            } label: {
+                Label(NSLocalizedString("Edit", bundle: Bundle.wrti_support, comment: ""), systemImage: "pencil")
+            }
+            Button {
+                testConnection()
+            } label: {
+                Label(NSLocalizedString("Test Connection", bundle: Bundle.wrti_support, comment: ""), systemImage: "waveform")
+            }
             Section {
                 Button {
                     UIPasteboard.general.string = value.url.absoluteString
@@ -97,6 +110,66 @@ struct EndpointButton: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
             .navigationViewStyle(.stack)
+        }
+        .sheet(isPresented: $openEdit) {
+            NavigationView {
+                AddEndpointView(prefillURL: value.url.absoluteString, prefillKey: value.token, editing: value)
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationViewStyle(.stack)
+        }
+        .alert(NSLocalizedString("Test Connection", bundle: Bundle.wrti_support, comment: ""), isPresented: $showTestResult) {
+            Button(NSLocalizedString("OK", bundle: Bundle.wrti_support, comment: ""), role: .cancel) { }
+        } message: {
+            Text(testMessage ?? "")
+        }
+
+    func testConnection() {
+        let base = value.url
+        let key = value.token
+        DispatchQueue.global(qos: .userInitiated).async {
+            var message = ""
+            let targets = [
+                base.appendingPathComponent("v1").appendingPathComponent("models"),
+                base.appendingPathComponent("models"),
+            ]
+            for target in targets {
+                var req = URLRequest(url: target, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
+                if !key.isEmpty {
+                    req.addValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+                }
+                let sem = DispatchSemaphore(value: 0)
+                var outcome = ""
+                URLSession.shared.dataTask(with: req) { _, resp, err in
+                    defer { sem.signal() }
+                    if let err {
+                        outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), err.localizedDescription)
+                        return
+                    }
+                    if let http = resp as? HTTPURLResponse {
+                        if http.statusCode == 200 {
+                            outcome = NSLocalizedString("Reachable ✓", bundle: Bundle.wrti_support, comment: "")
+                        } else {
+                            outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), "HTTP \(http.statusCode)")
+                        }
+                    } else {
+                        outcome = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
+                    }
+                }.resume()
+                sem.wait()
+                if !outcome.isEmpty {
+                    message = outcome
+                    break
+                }
+            }
+            if message.isEmpty {
+                message = String(format: NSLocalizedString("Connection failed: %@", bundle: Bundle.wrti_support, comment: ""), NSLocalizedString("no HTTP response", bundle: Bundle.wrti_support, comment: ""))
+            }
+            let final = message
+            DispatchQueue.main.async {
+                testMessage = final
+                showTestResult = true
+            }
         }
     }
 }
