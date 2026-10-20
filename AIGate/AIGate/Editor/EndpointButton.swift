@@ -123,6 +123,7 @@ struct EndpointButton: View {
         } message: {
             Text(testMessage ?? "")
         }
+    }
 
     func testConnection() {
         let base = value.url

@@ -10,7 +10,7 @@ import Foundation
 extension Configuration {
     struct Endpoint: Codable, Identifiable, Equatable, Hashable {
         let id: UUID
-        let create: Date
+        var create: Date
 
         var url: URL
         var token: String
