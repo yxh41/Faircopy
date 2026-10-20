@@ -74,12 +74,35 @@ extension WritingToolsView {
 
     /// Runs the ask: the question is baked into a transient custom prompt so the
     /// Again button re-asks the same question; the picked words are the content.
+    ///
+    /// A dedicated Q&A persona is used — NOT the rewriting `sharedRules` — because
+    /// appending the rewriting rules made the model treat the picked words as text
+    /// to rewrite, and a weak model would just echo "question + selection" back
+    /// (e.g. ask "推荐一下" on "电脑" → "推荐一下电脑"). The question and the source
+    /// text are labelled explicitly so the model answers instead of rewriting.
     private func askSegmentSelection(question: String, context text: String) {
         print("[Faircopy] segment action: ask \(question.count) chars over \(text.count) chars")
-        let askRules = "Answer the question below about the provided text. Be concise and faithful, using only the provided text; if it does not contain the answer, say so. Do not invent facts. Respond in the same language as the question."
-        let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: "\(question)\n\n\(askRules)")
+        let prompt =
+            """
+            You are a question-answering assistant. The user has selected a piece of text and asked a question about it.
+
+            QUESTION:
+            \(question)
+
+            SOURCE TEXT:
+            \("{{selection}}")
+
+            Rules:
+            - Answer the QUESTION using ONLY the SOURCE TEXT.
+            - Be concise and faithful. Do not invent facts, prices, models, names, or links.
+            - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
+            - Respond in the same language as the QUESTION.
+            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
+            - Do not add meta commentary or disclaimers.
+            """
+        let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: prompt)
         taskPrompt = .rewrite
-        executeCustomPrompt(entry, selectionOverride: text)
+        executeCustomPrompt(entry, selectionOverride: text, appendSharedRules: false)
     }
 
     /// 塞提示词: run one of the user's custom prompts on the picked words

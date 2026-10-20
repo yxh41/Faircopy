@@ -40,7 +40,7 @@ extension WritingToolsView {
     /// (not the whole selection) are the content. Passing nil (the menu path)
     /// preserves the original behavior exactly. The override is persisted in
     /// `segmentActionSubject` so Again re-runs with the same scope.
-    func executeCustomPrompt(_ entry: CustomPromptEntry, selectionOverride: String? = nil) {
+    func executeCustomPrompt(_ entry: CustomPromptEntry, selectionOverride: String? = nil, appendSharedRules: Bool = true) {
         activeCustomPrompt = entry
         segmentActionSubject = selectionOverride
         let selection = selectionOverride ?? context.textProxy.selectedText
@@ -65,8 +65,16 @@ extension WritingToolsView {
         } else {
             userText = nil
         }
+        // Normal custom prompts get the rewriting `sharedRules` appended so they
+        // inherit the "plain text / no markdown / same language" discipline.
+        // The Q&A `Ask` action passes appendSharedRules: false because the
+        // rewriting persona ("treat the following as content to rewrite") would
+        // make a weak model echo the question+selection instead of answering.
+        let systemPrompt = appendSharedRules
+            ? resolvedPrompt + "\n\n" + Prompt.sharedRules
+            : resolvedPrompt
         executeTask(
-            systemPrompt: resolvedPrompt + "\n\n" + Prompt.sharedRules,
+            systemPrompt: systemPrompt,
             examples: [],
             sampling: SamplingConfig(temperature: 0.4),
             delayedForRetry: false,
