@@ -20,17 +20,15 @@ extension WritingToolsView {
     /// live selection; `executeCustomPrompt` sets or clears it per run.
     func executeCurrentTask(delayedForRetry: Bool = false) {
         activeCustomPrompt = nil
-        // A built-in task is not a 提问 run: drop the question so the output
-        // panel goes back to "Again" (retry) instead of "Ask".
-        segmentAskQuestion = nil
+        // A built-in task is not a 提问 run: forget the ask session so the output
+        // panel goes back to "Again" (retry) and a stale transcript can never be
+        // replayed into this request.
+        resetAskSession()
         if taskPrompt == .segment {
             // Local mode: tokenize on-device, no gateway request.
             runSegmentation()
             return
         }
-        // …and drop any web-search consent left over from a previous 联网提问,
-        // otherwise this proofread/translate would be billed as a web request.
-        FaircopyWebSearchStore.markRequested(false)
         let subject: String? = taskPrompt == .translate ? segmentActionSubject : nil
         executeTask(
             systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
@@ -41,30 +39,41 @@ extension WritingToolsView {
         )
     }
 
+    /// Drops the multi-turn ask session: replay history, system prompt, source
+    /// text, the pending question, and the web-search consent that belonged to
+    /// it.
+    ///
+    /// Called by every task entry point except the ask path itself. Without the
+    /// web revoke, a proofread right after a 联网提问 would be billed as a web
+    /// request; without the history clear, a follow-up from the previous session
+    /// could be replayed into an unrelated question.
+    func resetAskSession() {
+        askTurns = []
+        askSystemPrompt = nil
+        askSourceText = nil
+        segmentAskQuestion = nil
+        FaircopyWebSearchStore.markRequested(false)
+    }
+
     /// Runs a user-defined prompt. `selectionOverride` replaces the text proxy's
     /// selection as the subject — used by segment actions so the picked words
     /// (not the whole selection) are the content. Passing nil (the menu path)
     /// preserves the original behavior exactly. The override is persisted in
     /// `segmentActionSubject` so Again re-runs with the same scope.
     ///
-    /// `askQuestion` is set only by the 提问 action; it defaults to nil so every
-    /// other caller automatically clears the ask state (a stale question would
-    /// otherwise leave "Ask" sitting where "Again" belongs).
-    ///
-    /// `webSearch` works the same way: only 联网提问 passes true, and the default
-    /// false actively revokes a previous grant so a 塞提示词 run right after a
-    /// web ask does not silently inherit it.
+    /// 提问 does NOT come through here any more: a session needs replayed turns
+    /// and a follow-up needs its own prompt, neither of which fits this path.
+    /// `runAskTurn` drives that instead.
     func executeCustomPrompt(
         _ entry: CustomPromptEntry,
         selectionOverride: String? = nil,
-        appendSharedRules: Bool = true,
-        askQuestion: String? = nil,
-        webSearch: Bool = false
+        appendSharedRules: Bool = true
     ) {
         activeCustomPrompt = entry
         segmentActionSubject = selectionOverride
-        segmentAskQuestion = askQuestion
-        FaircopyWebSearchStore.markRequested(webSearch)
+        // This is not an ask run — drop any session (and its web consent) left
+        // behind by a previous 提问.
+        resetAskSession()
         let selection = selectionOverride ?? context.textProxy.selectedText
         let clipboard = UIPasteboard.general.string ?? ""
         let language = Self.detectLanguage(selection)
@@ -89,9 +98,6 @@ extension WritingToolsView {
         }
         // Normal custom prompts get the rewriting `sharedRules` appended so they
         // inherit the "plain text / no markdown / same language" discipline.
-        // The Q&A `Ask` action passes appendSharedRules: false because the
-        // rewriting persona ("treat the following as content to rewrite") would
-        // make a weak model echo the question+selection instead of answering.
         let systemPrompt = appendSharedRules
             ? resolvedPrompt + "\n\n" + Prompt.sharedRules
             : resolvedPrompt
@@ -104,12 +110,24 @@ extension WritingToolsView {
         )
     }
 
-    private func executeTask(
+    /// - Parameters:
+    ///   - history: earlier `user`/`assistant` turns, replayed between the
+    ///     few-shot examples and the new question. Empty for every single-shot
+    ///     task; the 提问 session fills it so follow-ups see what was said.
+    ///   - userHeaderPrefix: set false for chat-style turns. The
+    ///     `[User Content As Follow]` header marks text to be processed, which
+    ///     would tell the model a question is content to operate on.
+    ///   - onFinished: called on the main thread with the final answer, after
+    ///     `output` is updated. Used to record the turn for the next follow-up.
+    func executeTask(
         systemPrompt: String,
         examples: [ChatQuery.ChatCompletionMessageParam],
         sampling: SamplingConfig,
         delayedForRetry: Bool,
-        userText: String? = nil
+        userText: String? = nil,
+        userHeaderPrefix: Bool = true,
+        history: [ChatQuery.ChatCompletionMessageParam] = [],
+        onFinished: ((String) -> Void)? = nil
     ) {
         let shouldDelayForAnimation = !output.isEmpty
 
@@ -124,15 +142,14 @@ extension WritingToolsView {
         context.streamCancelled = false
 
         let resolvedUserText = userText ?? context.textProxy.selectedText
-        var messages: [ChatQuery.ChatCompletionMessageParam] = [.system(.init(content: systemPrompt))] + examples
+        // Few-shot examples first, then the replayed conversation, then the new
+        // question — the same order a real transcript would have.
+        var messages: [ChatQuery.ChatCompletionMessageParam] = [.system(.init(content: systemPrompt))] + examples + history
         if !resolvedUserText.isEmpty {
-            messages.append(.user(.init(content: .init(string:
-                """
-                \(Prompt.userContentHeader)
-
-                \(resolvedUserText)
-                """
-            ))))
+            let body = userHeaderPrefix
+                ? "\(Prompt.userContentHeader)\n\n\(resolvedUserText)"
+                : resolvedUserText
+            messages.append(.user(.init(content: .init(string: body))))
         }
         let query = ChatQuery(
             messages: messages,
@@ -184,6 +201,10 @@ extension WritingToolsView {
                     output = finalValue
                     self.liveChars = receivedChars
                     self.liveSpeed = 0
+                    // Recorded on the main thread so the turn list is updated in
+                    // the same pass as `output` — a follow-up fired right after
+                    // the stream ends must already see this turn.
+                    onFinished?(finalValue)
                 }
 
                 DispatchQueue.global(qos: .userInteractive).asyncAfter(deadline: .now() + 0.1) {
@@ -329,6 +350,9 @@ extension WritingToolsView {
         segmentTokens = []
         selectedSegmentIndexes = []
         segmentSelectionOrder = []
+        // Discarding the answer ends the 提问 session too: nothing is left on
+        // screen to follow up on.
+        resetAskSession()
     }
 
     func accept() {

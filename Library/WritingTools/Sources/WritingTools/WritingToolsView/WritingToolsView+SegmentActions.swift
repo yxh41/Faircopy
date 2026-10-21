@@ -12,8 +12,14 @@
 //
 
 import Foundation
+import OpenAI
 import SwiftUI
 import UIKit
+
+/// How many earlier Q&A rounds a follow-up replays. Each round carries a whole
+/// previous answer, so this bounds the request size (and cost) of a long
+/// session; the most recent turns are the ones a follow-up refers to.
+let kAskHistoryTurns = 8
 
 extension WritingToolsView {
     /// The subject for segment actions: the picked words rejoined the way a
@@ -42,31 +48,41 @@ extension WritingToolsView {
     /// 提问: ask the model a question about the picked words. Prompts for the
     /// question, then runs it with the picked words as the source text.
     func askAboutSegmentSelection() {
-        presentSegmentAsk()
+        presentSegmentAsk(followUp: false)
     }
 
-    /// Presents the 提问 prompt. `prefill` carries the previous question when
-    /// re-asking from the output panel, so reacting to a bad answer is an edit
-    /// instead of a full retype — and confirming it unchanged reproduces the
-    /// old "Again" behaviour exactly.
+    /// Presents the 提问 prompt.
+    ///
+    /// `followUp` decides what the two submit buttons do: a follow-up appends a
+    /// turn to the running conversation (so "那和 X 比呢" resolves against the
+    /// previous answer), while a plain ask starts a new session and drops the
+    /// replayed history.
+    ///
+    /// `prefill` is only useful when re-asking: reacting to a bad answer usually
+    /// means tweaking the previous question, whereas a follow-up starts empty —
+    /// pre-filling the old one would just have to be deleted.
     ///
     /// Two submit buttons instead of a toggle: the source-text-only answer is
-    /// the right default (fast, cheap, faithful), and "go online" is a per-question
-    /// decision — the user wants it "有时候", so making it sticky would bill and
-    /// slow down every later proofread/translate in the same panel.
-    func presentSegmentAsk(prefill: String? = nil) {
+    /// the right default (fast, cheap, faithful), and "go online" is a
+    /// per-question decision — the user wants it "有时候", so making it sticky
+    /// would bill and slow down every later proofread/translate in the panel.
+    func presentSegmentAsk(prefill: String? = nil, followUp: Bool = false) {
         // On the output panel the picked words live in `segmentActionSubject`
-        // (the chip selection may already be gone). The chip-backed text stays
-        // the fallback for the first ask.
-        let text = segmentActionSubject ?? segmentActionText
+        // (the chip selection may already be gone); a follow-up reads the source
+        // from the session instead, which survives even that.
+        let text = followUp ? (askSourceText ?? "") : (segmentActionSubject ?? segmentActionText)
         guard !text.isEmpty else { return }
+        // A follow-up without a system prompt would send a question with no
+        // source text and no rules — worse than doing nothing.
+        guard !followUp || askSystemPrompt != nil else { return }
         // Logged so a re-ask that failed to carry the old question (or a first
         // ask that lost its subject) is diagnosable from the device console.
-        print("[Faircopy] segment ask: prefilled \(prefill?.count ?? 0) chars over \(text.count) chars")
+        print("[Faircopy] segment ask: prefilled \(prefill?.count ?? 0) chars over \(text.count) chars, followUp=\(followUp)")
         SegmentHaptics.light.impactOccurred()
 
+        let title = (followUp ? "Follow Up" : "Ask").localized
         let alert = UIAlertController(
-            title: "Ask".localized,
+            title: title,
             message: text,
             preferredStyle: .alert
         )
@@ -79,10 +95,15 @@ extension WritingToolsView {
             let question = alert?.textFields?.first?.text?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !question.isEmpty else { return }
-            self.askSegmentSelection(question: question, context: text, webSearch: webSearch)
+            if followUp {
+                self.runAskTurn(question: question, webSearch: webSearch)
+            } else {
+                self.askSegmentSelection(question: question, context: text, webSearch: webSearch)
+            }
         }
-        alert.addAction(UIAlertAction(title: "Ask".localized, style: .default) { _ in submit(false) })
-        alert.addAction(UIAlertAction(title: "Ask with Web".localized, style: .default) { _ in submit(true) })
+        let webTitle = (followUp ? "Follow Up with Web" : "Ask with Web").localized
+        alert.addAction(UIAlertAction(title: title, style: .default) { _ in submit(false) })
+        alert.addAction(UIAlertAction(title: webTitle, style: .default) { _ in submit(true) })
         alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         // Present from the top-most controller (the panel is a popover on top of
@@ -94,14 +115,17 @@ extension WritingToolsView {
         presenter.present(alert, animated: true)
     }
 
-    /// Runs the ask: the question is baked into a transient custom prompt so the
-    /// Again button re-asks the same question; the picked words are the content.
+    /// Starts a new 提问 session on `text` and sends its first round.
+    ///
+    /// The question is deliberately NOT part of the system prompt any more: it
+    /// travels as a `user` message so later turns can be appended as a real
+    /// conversation. The system prompt keeps only the persona, the rules and the
+    /// source text, and every follow-up reuses it verbatim.
     ///
     /// A dedicated Q&A persona is used — NOT the rewriting `sharedRules` — because
     /// appending the rewriting rules made the model treat the picked words as text
     /// to rewrite, and a weak model would just echo "question + selection" back
-    /// (e.g. ask "推荐一下" on "电脑" → "推荐一下电脑"). The question and the source
-    /// text are labelled explicitly so the model answers instead of rewriting.
+    /// (e.g. ask "推荐一下" on "电脑" → "推荐一下电脑").
     /// `webSearch` widens the persona: the default policy ("ONLY the SOURCE
     /// TEXT") is what makes an off-topic question come back as "源文本没有相关
     /// 信息" — correct but useless when the user is deliberately asking something
@@ -117,45 +141,75 @@ extension WritingToolsView {
             Rules:
             - Start from the SOURCE TEXT, but you MAY go beyond it: use your own knowledge, and live web information when the model has web access.
             - Never contradict what the SOURCE TEXT actually states; prefer it for anything it covers.
-            - When part of the answer is not covered by the SOURCE TEXT, mark that part briefly and inline (in the QUESTION's language) so the user can tell sourced facts from added context.
+            - When part of the answer is not covered by the SOURCE TEXT, mark that part briefly and inline (in the question's language) so the user can tell sourced facts from added context.
+            - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
             - Be concise and faithful. Do not invent facts, prices, models, names, or links. If you are unsure, say you are unsure.
-            - Respond in the same language as the QUESTION.
+            - Respond in the same language as the question.
             - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
             - Do not add meta commentary or disclaimers.
             """
             : """
             Rules:
-            - Answer the QUESTION using ONLY the SOURCE TEXT.
+            - Answer each question using ONLY the SOURCE TEXT.
+            - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
             - Be concise and faithful. Do not invent facts, prices, models, names, or links.
             - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
-            - Respond in the same language as the QUESTION.
+            - Respond in the same language as the question.
             - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
             - Do not add meta commentary or disclaimers.
             """
-        let prompt =
-            """
-            You are a question-answering assistant. The user has selected a piece of text and asked a question about it.
+        let system = """
+        You are a question-answering assistant. The user has selected a piece of text and will ask questions about it, possibly over several turns.
 
-            QUESTION:
-            \(question)
+        SOURCE TEXT:
+        \(text)
 
-            SOURCE TEXT:
-            \("{{selection}}")
+        \(rules)
+        """
+        askSystemPrompt = system
+        askSourceText = text
+        segmentActionSubject = text
+        askTurns = []
+        runAskTurn(question: question, webSearch: webSearch)
+    }
 
-            \(rules)
-            """
-        let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: prompt)
+    /// Sends one round of the ask conversation.
+    ///
+    /// Replays `askTurns` as `user`/`assistant` pairs — that is what lets the
+    /// model resolve "它" / "那和 X 比呢" against the previous answer — and
+    /// records the new turn once the stream finishes.
+    private func runAskTurn(question: String, webSearch: Bool) {
+        guard let system = askSystemPrompt else { return }
+        // Cap the replayed window: every turn carries a full previous answer, so
+        // an unbounded session would grow the request (and the bill) linearly.
+        // Recent turns are the ones a follow-up actually refers to.
+        let history: [ChatQuery.ChatCompletionMessageParam] = askTurns.suffix(kAskHistoryTurns)
+            .flatMap { turn -> [ChatQuery.ChatCompletionMessageParam] in
+                [
+                    .user(.init(content: .init(string: turn.question))),
+                    .assistant(.init(content: turn.answer)),
+                ]
+            }
+        // A round is an ask-context task like the first one: keep the output
+        // panel's Ask/Follow-Up menu, and carry this round's web consent.
+        activeCustomPrompt = nil
+        segmentAskQuestion = question
         taskPrompt = .rewrite
-        // `askQuestion` keeps the question around so the output panel can offer
-        // "Ask" (pre-filled) instead of a useless "Again" that would re-run the
-        // same prompt and most likely return the same unsatisfactory answer.
-        executeCustomPrompt(
-            entry,
-            selectionOverride: text,
-            appendSharedRules: false,
-            askQuestion: question,
-            webSearch: webSearch
-        )
+        FaircopyWebSearchStore.markRequested(webSearch)
+        print("[Faircopy] ask turn \(askTurns.count + 1): replaying \(history.count) message(s), web=\(webSearch)")
+        executeTask(
+            systemPrompt: system,
+            examples: [],
+            sampling: SamplingConfig(temperature: 0.4),
+            delayedForRetry: false,
+            userText: question,
+            userHeaderPrefix: false,
+            history: history
+        ) { answer in
+            guard !answer.isEmpty else { return }
+            askTurns.append(AskTurn(question: question, answer: answer))
+            print("[Faircopy] ask session: \(askTurns.count) turn(s) kept")
+        }
     }
 
     /// 塞提示词: run one of the user's custom prompts on the picked words

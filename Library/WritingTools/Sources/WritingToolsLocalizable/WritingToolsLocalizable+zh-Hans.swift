@@ -61,6 +61,12 @@ extension WritingToolsLocalizable {
             /* 3.0.50: 提问弹窗的第二个提交按钮——允许超出源文本 / 联网作答 */
             "Ask with Web": "联网提问",
 
+            /* 3.0.51: 多轮追问（回答页按钮改成菜单 + 轮次提示） */
+            "Follow Up": "追问",
+            "Follow Up with Web": "联网追问",
+            "Ask Again": "重新提问",
+            "Turn %d": "第 %d 轮",
+
             "Insert into Prompt": "塞进提示词",
 
             "Back": "返回",

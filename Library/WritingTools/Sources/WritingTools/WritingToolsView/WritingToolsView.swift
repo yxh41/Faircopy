@@ -7,6 +7,13 @@
 
 import SwiftUI
 
+/// One completed Q&A round of a 提问 session, replayed as a `user`/`assistant`
+/// pair on every follow-up.
+struct AskTurn: Equatable {
+    let question: String
+    let answer: String
+}
+
 struct WritingToolsView: View {
     @StateObject var cfg = Configurator.shared
     @StateObject var context: Presenter.Context
@@ -66,6 +73,22 @@ struct WritingToolsView: View {
     /// alert, so a wrong answer can be re-asked with a tweaked question instead
     /// of discarding the panel and re-picking every word.
     @State var segmentAskQuestion: String? = nil
+
+    /// Completed rounds of the current 提问 session. A follow-up like "那和 X
+    /// 比呢" is meaningless to a model that never saw the previous answer, so
+    /// these turns are replayed as real `user`/`assistant` messages instead of
+    /// being folded back into the prompt.
+    @State var askTurns: [AskTurn] = []
+
+    /// System prompt of the current ask session — persona + rules + source
+    /// text. Kept verbatim across turns so every follow-up answers against the
+    /// same source under the same rules (including the 联网 variant).
+    @State var askSystemPrompt: String? = nil
+
+    /// Source text of the current ask session. Kept separately from
+    /// `segmentActionSubject` so "重新提问" can rebuild the session after the
+    /// chip selection is gone.
+    @State var askSourceText: String? = nil
 
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false

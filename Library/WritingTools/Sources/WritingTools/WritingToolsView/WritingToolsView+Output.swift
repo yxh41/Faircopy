@@ -46,7 +46,7 @@ extension WritingToolsView {
                     // prompt — the 分词 mode as a general text-action entry.
                     segmentActionRow
                 }
-            } else if usage != nil || (isRunning && liveSpeed > 0) {
+            } else if usage != nil || (isRunning && liveSpeed > 0) || segmentAskQuestion != nil {
                 HStack(spacing: 8) {
                     if isRunning, liveSpeed > 0 {
                         Image(systemName: "bolt.fill")
@@ -55,6 +55,13 @@ extension WritingToolsView {
                     if let usage {
                         Image(systemName: "chart.bar.fill")
                         Text("\(usage.totalTokens) tokens · \(usage.requestCount) req")
+                    }
+                    // Session depth. The answer area deliberately shows only the
+                    // latest round — without this a multi-turn exchange looks
+                    // exactly like a single one.
+                    if let askTurnLabel {
+                        Image(systemName: "bubble.left.and.bubble.right")
+                        Text(askTurnLabel)
                     }
                     Spacer()
                 }
@@ -96,13 +103,26 @@ extension WritingToolsView {
                     BeautifulButton(title: "Share".localized) { shareOutput() }
                     BeautifulButton(title: "Discard".localized) { discard() }
                     if let askQuestion = segmentAskQuestion {
-                        // 提问 task: this slot re-opens the ask prompt pre-filled
-                        // with the previous question, so a wrong answer is fixed
-                        // by rewording it. A plain "Again" here is dead weight —
-                        // it would re-send the identical prompt and hand back the
-                        // same unsatisfactory answer.
-                        BeautifulButton(title: "Ask".localized) {
-                            presentSegmentAsk(prefill: askQuestion)
+                        // 提问 session: a tap continues the conversation (the
+                        // previous answer is replayed into the request), while
+                        // the menu can start over. A plain "Again" here was dead
+                        // weight — it re-sent the same prompt and got the same
+                        // unsatisfactory answer back.
+                        Menu {
+                            Button {
+                                presentSegmentAsk(followUp: true)
+                            } label: {
+                                Label("Follow Up".localized, systemImage: "arrow.turn.down.right")
+                            }
+                            Button {
+                                presentSegmentAsk(prefill: askQuestion, followUp: false)
+                            } label: {
+                                Label("Ask Again".localized, systemImage: "questionmark.bubble")
+                            }
+                        } label: {
+                            BeautifulMenuLabel(title: "Follow Up".localized)
+                        } primaryAction: {
+                            presentSegmentAsk(followUp: true)
                         }
                     } else {
                         BeautifulButton(title: "Again".localized) {
@@ -124,6 +144,16 @@ extension WritingToolsView {
             .animation(.easeOut(duration: 0.15), value: selectedSegmentIndexes.isEmpty)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.85)))
+    }
+
+    /// "第 N 轮" indicator for a 提问 session; nil for every other task.
+    ///
+    /// `askTurns` only holds *finished* rounds, and the in-flight one is not in
+    /// it yet, so the running round is counted separately.
+    private var askTurnLabel: String? {
+        guard segmentAskQuestion != nil else { return nil }
+        let turn = max(1, askTurns.count + (isRunning ? 1 : 0))
+        return String(format: "Turn %d".localized, turn)
     }
 
     /// The trailing slot of the segment button row. While nothing is selected
