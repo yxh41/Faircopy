@@ -23,10 +23,17 @@ extension WritingToolsView {
             } else {
                 StickToBottomScrollView {
                     VStack(spacing: 8) {
-                        Text(output)
+                        // While streaming, skip link detection: the text changes
+                        // ~20 times a second and re-scanning it every frame costs
+                        // more than an inert URL is worth. The finished answer is
+                        // re-rendered with links.
+                        Text(isRunning ? AttributedString(output) : AnswerLinkParser.linkified(output))
                             .multilineTextAlignment(.leading)
                             .font(.system(.footnote))
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        if !isRunning, !outputCitations.isEmpty {
+                            answerReferences
+                        }
                         Divider().hidden()
                     }
                 }
@@ -144,6 +151,35 @@ extension WritingToolsView {
             .animation(.easeOut(duration: 0.15), value: selectedSegmentIndexes.isEmpty)
         }
         .transition(.opacity.combined(with: .scale(scale: 0.85)))
+    }
+
+    /// Links the provider attached to this answer.
+    ///
+    /// Rendered under the text because the model frequently writes only a label
+    /// ("官网：") and leaves the URL to the citation — the body alone is a dead
+    /// end even though the link exists.
+    private var answerReferences: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("References".localized)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.55))
+            ForEach(outputCitations) { citation in
+                Link(destination: citation.url) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "link")
+                        Text(citation.displayTitle)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: 0)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.95))
+                    .underline()
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 2)
     }
 
     /// "第 N 轮" indicator for a 提问 session; nil for every other task.

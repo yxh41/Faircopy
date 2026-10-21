@@ -19,6 +19,43 @@ public struct ChatStreamResult: Codable, Equatable {
             /// The role of the author of this message.
             public let role: Self.Role?
             public let toolCalls: [Self.ChoiceDeltaToolCall]?
+            /// Sources attached by providers that search the web for the request
+            /// (OpenRouter's `web` plugin, OpenAI search models).
+            ///
+            /// These carry the actual URL: the model's `content` only says
+            /// "官网：" and leaves the link to the annotation, so dropping this
+            /// field produced answers with an empty label and no way to reach the
+            /// page.
+            public let annotations: [Self.Annotation]?
+
+            public struct Annotation: Codable, Equatable {
+                /// e.g. "url_citation"
+                public let type: String?
+                public let urlCitation: Self.URLCitation?
+
+                public struct URLCitation: Codable, Equatable {
+                    public let url: String?
+                    public let title: String?
+                    /// Character span of the passage the citation supports. Not
+                    /// used for rendering — the cited URL is appended as a
+                    /// reference entry instead, because the span is relative to
+                    /// the *complete* content and is not stable while streaming.
+                    public let startIndex: Int?
+                    public let endIndex: Int?
+
+                    public enum CodingKeys: String, CodingKey {
+                        case url
+                        case title
+                        case startIndex = "start_index"
+                        case endIndex = "end_index"
+                    }
+                }
+
+                public enum CodingKeys: String, CodingKey {
+                    case type
+                    case urlCitation = "url_citation"
+                }
+            }
 
             public struct ChoiceDeltaToolCall: Codable, Equatable {
                 public let index: Int
@@ -60,6 +97,7 @@ public struct ChatStreamResult: Codable, Equatable {
                 case content
                 case role
                 case toolCalls = "tool_calls"
+                case annotations
             }
         }
 

@@ -133,6 +133,7 @@ extension WritingToolsView {
 
         isRunning = true
         output = ""
+        outputCitations = []
         segmentActive = false
         segmentTokens = []
         selectedSegmentIndexes = []
@@ -171,12 +172,26 @@ extension WritingToolsView {
 
         let streamStart = Date()
         var receivedChars = 0
+        // Citations arrive on the delta, not in the text, and only for providers
+        // that searched the web for this request. Collected here and published
+        // when the stream ends.
+        var collectedCitations: [AnswerCitation] = []
+        var seenCitationURLs: Set<String> = []
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + (shouldDelayForAnimation ? 0.25 : 0) + (delayedForRetry ? 2 : 0)) {
             guard !context.streamCancelled else { return }
             cfg.openAI.chatsStream(query: query) { partialResult in
                 guard !context.streamCancelled else { return }
                 switch partialResult {
                 case let .success(result):
+                    for annotation in result.choices.flatMap({ $0.delta.annotations ?? [] }) {
+                        guard let citation = annotation.urlCitation,
+                              let raw = citation.url,
+                              let url = URL(string: raw),
+                              url.scheme?.hasPrefix("http") == true
+                        else { continue }
+                        guard seenCitationURLs.insert(raw).inserted else { continue }
+                        collectedCitations.append(AnswerCitation(url: url, title: citation.title))
+                    }
                     let newToken = result.choices.compactMap(\.delta.content).joined()
                     receivedChars += newToken.count
                     let elapsed = Date().timeIntervalSince(streamStart)
@@ -197,10 +212,18 @@ extension WritingToolsView {
                 cancellable = nil
 
                 let finalValue = outputSender.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                // A URL the model already wrote into the body is already
+                // tappable there; listing it again under the answer is noise.
+                let bodyURLs = Set(AnswerLinkParser.urls(in: finalValue).map(\.absoluteString))
+                let references = collectedCitations.filter { !bodyURLs.contains($0.url.absoluteString) }
                 DispatchQueue.main.async {
                     output = finalValue
                     self.liveChars = receivedChars
                     self.liveSpeed = 0
+                    outputCitations = references
+                    if !references.isEmpty {
+                        print("[Faircopy] answer citations: \(references.count) link(s) attached")
+                    }
                     // Recorded on the main thread so the turn list is updated in
                     // the same pass as `output` — a follow-up fired right after
                     // the stream ends must already see this turn.
@@ -346,6 +369,7 @@ extension WritingToolsView {
     func discard() {
         cancelActiveStream()
         output = ""
+        outputCitations = []
         segmentActive = false
         segmentTokens = []
         selectedSegmentIndexes = []

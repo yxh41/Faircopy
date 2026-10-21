@@ -67,6 +67,9 @@ extension WritingToolsLocalizable {
             "Ask Again": "重新提问",
             "Turn %d": "第 %d 轮",
 
+            /* 3.0.52: 回答里的链接区块（联网检索返回的引用，或正文里的 URL） */
+            "References": "参考链接",
+
             "Insert into Prompt": "塞进提示词",
 
             "Back": "返回",

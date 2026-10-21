@@ -14,6 +14,23 @@ struct AskTurn: Equatable {
     let answer: String
 }
 
+/// A link that belongs to an answer: either a web-search citation returned by
+/// the provider, or a URL the model wrote into the body.
+struct AnswerCitation: Identifiable, Equatable {
+    let url: URL
+    /// Provider-supplied title, when it has one. Falls back to the host name.
+    let title: String?
+
+    var id: String { url.absoluteString }
+
+    /// Short human label: "github.com" reads better in a tight panel than a full
+    /// URL, and the full URL is what the tap opens anyway.
+    var displayTitle: String {
+        if let title, !title.isEmpty { return title }
+        return url.host ?? url.absoluteString
+    }
+}
+
 struct WritingToolsView: View {
     @StateObject var cfg = Configurator.shared
     @StateObject var context: Presenter.Context
@@ -89,6 +106,11 @@ struct WritingToolsView: View {
     /// `segmentActionSubject` so "重新提问" can rebuild the session after the
     /// chip selection is gone.
     @State var askSourceText: String? = nil
+
+    /// Links the provider attached to the answer (web search citations), plus
+    /// any URL the model wrote into the body. Rendered as a tappable block under
+    /// the answer so "官网：" is never a dead end.
+    @State var outputCitations: [AnswerCitation] = []
 
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false

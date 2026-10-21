@@ -143,19 +143,21 @@ extension WritingToolsView {
             - Never contradict what the SOURCE TEXT actually states; prefer it for anything it covers.
             - When part of the answer is not covered by the SOURCE TEXT, mark that part briefly and inline (in the question's language) so the user can tell sourced facts from added context.
             - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
-            - Be concise and faithful. Do not invent facts, prices, models, names, or links. If you are unsure, say you are unsure.
+            - When you mention a site, document, download page or repository and you know its real address, write the complete URL inline (for example after a label like "官网："). A bare URL is plain text and is allowed. Never invent or guess a URL — if you are not sure of the exact address, describe the site instead of guessing.
+            - Be concise and faithful. Do not invent facts, prices, models, or names. If you are unsure, say you are unsure.
             - Respond in the same language as the question.
-            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
+            - Output plain text only. No Markdown links, headings, lists, or quotes unless they already exist in the source.
             - Do not add meta commentary or disclaimers.
             """
             : """
             Rules:
             - Answer each question using ONLY the SOURCE TEXT.
             - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
+            - If the SOURCE TEXT contains a URL, reproduce it exactly as written.
             - Be concise and faithful. Do not invent facts, prices, models, names, or links.
             - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
             - Respond in the same language as the question.
-            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
+            - Output plain text only. No Markdown links, headings, lists, or quotes unless they already exist in the source.
             - Do not add meta commentary or disclaimers.
             """
         let system = """
