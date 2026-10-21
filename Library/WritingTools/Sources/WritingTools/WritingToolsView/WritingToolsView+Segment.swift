@@ -629,7 +629,7 @@ extension WritingToolsView {
             selectedSegmentIndexes = Set(segmentTokens.map(\.id))
             segmentSelectionOrder = segmentTokens.map(\.id)
         }
-        print("[Faircopy] segment: select-all \(isAllSegmentsSelected)")
+        print("[Faircopy] segment: select-all " + (isAllSegmentsSelected ? "on" : "off"))
         SegmentHaptics.light.impactOccurred()
     }
 

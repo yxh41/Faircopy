@@ -55,6 +55,9 @@ extension WritingToolsView {
         // the fallback for the first ask.
         let text = segmentActionSubject ?? segmentActionText
         guard !text.isEmpty else { return }
+        // Logged so a re-ask that failed to carry the old question (or a first
+        // ask that lost its subject) is diagnosable from the device console.
+        print("[Faircopy] segment ask: prefilled \(prefill?.count ?? 0) chars over \(text.count) chars")
         SegmentHaptics.light.impactOccurred()
 
         let alert = UIAlertController(
