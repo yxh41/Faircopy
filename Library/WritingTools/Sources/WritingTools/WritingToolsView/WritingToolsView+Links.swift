@@ -15,6 +15,18 @@ import SwiftUI
 /// model produces real links (and the provider attaches citations the body never
 /// mentions), so every URL is promoted to a link attribute here.
 enum AnswerLinkParser {
+    /// Link colour inside the answer body.
+    ///
+    /// The system link tint is the host app's accent colour — in the Faircopy
+    /// panel that came out as a saturated blue on a warm pink surface, which
+    /// looked pasted on. Mint reads as a link while staying in the same family
+    /// as the panel's white-on-gradient text.
+    static let tint = Color(red: 0.64, green: 0.95, blue: 0.90)
+
+    /// Marker-style highlight behind a URL, so an address is findable in a wall
+    /// of text even before the colour registers.
+    static let highlight = Color.white.opacity(0.16)
+
     /// `NSDataDetector` is documented as thread-safe and expensive to build, so
     /// it is created once.
     private static let detector: NSDataDetector? = {
@@ -60,10 +72,11 @@ enum AnswerLinkParser {
             }
             var piece = AttributedString(String(text[matchRange]))
             piece.link = url
-            // The SwiftUI underline attribute is typed `Text.LineStyle`, which is
-            // iOS 16+. On iOS 15 the link still shows in the tint colour and is
-            // tappable, so the guard only costs the underline on old systems.
+            // Tint is applied by the view (`.tint(...)`), not as a run
+            // attribute: it is the one link colour hook that exists on iOS 15
+            // too, and the marker styling below is typed with iOS 16 API.
             if #available(iOS 16.0, *) {
+                piece.backgroundColor = Self.highlight
                 piece.underlineStyle = .single
             }
             result += piece

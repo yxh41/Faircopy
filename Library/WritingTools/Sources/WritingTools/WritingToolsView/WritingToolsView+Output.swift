@@ -31,6 +31,10 @@ extension WritingToolsView {
                         Text(isRunning ? AttributedString(output) : AnswerLinkParser.linkified(output))
                             .multilineTextAlignment(.leading)
                             .font(.system(.footnote))
+                            // Link colour comes from tint, not the run
+                            // attributes: the host app's accent is a saturated
+                            // blue that clashes with this panel.
+                            .tint(AnswerLinkParser.tint)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         if !isRunning, !outputCitations.isEmpty {
                             answerReferences
@@ -189,7 +193,13 @@ extension WritingToolsView {
                         Spacer(minLength: 0)
                     }
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.95))
+                    .foregroundStyle(AnswerLinkParser.tint)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .foregroundStyle(AnswerLinkParser.highlight)
+                    )
                 }
             }
         }

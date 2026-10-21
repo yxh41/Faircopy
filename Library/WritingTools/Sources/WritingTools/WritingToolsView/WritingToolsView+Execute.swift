@@ -237,7 +237,11 @@ extension WritingToolsView {
                 // and this one line tells them apart.
                 let summary = "\(finalValue.count) chars, \(bodyURLs.count) body url(s), \(collectedCitations.count) citation(s)"
                 print("[Faircopy] answer ready: \(summary)")
-                FaircopyDiag.log("answer ready: \(summary)")
+                // Only the empty case reaches the file: a healthy answer needs no
+                // trace, while "no address anywhere" is the report we get.
+                if bodyURLs.isEmpty, collectedCitations.isEmpty {
+                    FaircopyDiag.log("no link in answer: \(summary)")
+                }
                 let upstreamLive = webRequested ? FaircopyDiag.lastGateLiveSearch() : nil
                 DispatchQueue.main.async {
                     output = finalValue
