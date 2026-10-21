@@ -5,6 +5,7 @@
 //  Created by 秋星桥 on 2024/8/15.
 //
 
+import Dispatch
 import Foundation
 
 struct AIGateUpstream {
@@ -116,9 +117,66 @@ enum FaircopyWebSearch {
         guard isRequested() else { return nil }
         guard supportsLiveSearch(host: host) else {
             print("[AIGate] web search: upstream \(host) has no live-search switch, prompt-only")
+            FaircopyDiag.log("gate: prompt-only, host=\(host)")
             return nil
         }
         print("[AIGate] web search: injecting web plugin for \(host)")
+        FaircopyDiag.log("gate: web plugin injected, host=\(host)")
         return [["id": "web"]]
+    }
+}
+
+/// Append-only diagnostics shared with the panel.
+///
+/// KEEP IN SYNC with `FaircopyDiag` in the WritingTools dylib — same path, same
+/// line format. The panel can only see the answer; the gateway is the only place
+/// that knows which upstream served it and whether the web switch was actually
+/// accepted, and a "no address" report cannot be diagnosed without both halves.
+enum FaircopyDiag {
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_diag.log"
+
+    private static let maxBytes = 131_072
+    private static let keepBytes = 32_768
+
+    private static let stamp: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM-dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+
+    static func log(_ message: String) {
+        NSLog("[AIGate] %@", message)
+        // No extra prefix: the messages already start with "gate:", and the
+        // panel greps for that marker.
+        let line = "\(stamp.string(from: Date())) \(message)\n"
+        DispatchQueue.global(qos: .utility).async {
+            append(line)
+        }
+    }
+
+    private static func append(_ line: String) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        guard let data = line.data(using: .utf8) else { return }
+        if let handle = FileHandle(forWritingAtPath: path) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            handle.closeFile()
+        } else {
+            FileManager.default.createFile(atPath: path, contents: data)
+        }
+        trim(url)
+    }
+
+    private static func trim(_ url: URL) {
+        guard let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
+              size > maxBytes,
+              let data = try? Data(contentsOf: url)
+        else { return }
+        try? Data(data.suffix(keepBytes)).write(to: url)
     }
 }

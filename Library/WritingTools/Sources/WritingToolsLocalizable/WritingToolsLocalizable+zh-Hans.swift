@@ -76,6 +76,7 @@ extension WritingToolsLocalizable {
             "Without Web": "不联网",
             "No link found — search the web": "没有给出链接 · 联网重问",
             "Search in Browser": "浏览器搜索",
+            "This endpoint has no web search": "当前上游没有联网检索",
 
             "Insert into Prompt": "塞进提示词",
 

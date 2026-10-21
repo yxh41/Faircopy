@@ -53,6 +53,7 @@ extension WritingToolsView {
         askSourceText = nil
         segmentAskQuestion = nil
         askWebSearch = false
+        askUpstreamLive = nil
         FaircopyWebSearchStore.markRequested(false)
     }
 
@@ -131,6 +132,10 @@ extension WritingToolsView {
         onFinished: ((String) -> Void)? = nil
     ) {
         let shouldDelayForAnimation = !output.isEmpty
+        // Captured on the caller's (main) thread: the gateway's verdict about
+        // the upstream is only meaningful for a round that actually asked for
+        // web access, and the completion below runs off-main.
+        let webRequested = askWebSearch
 
         isRunning = true
         output = ""
@@ -209,12 +214,12 @@ extension WritingToolsView {
                     // middle of an answer (a cut-off "https" with no address
                     // after it is exactly what that looks like), and nothing
                     // else in the pipeline can tell us it happened.
-                    print("[Faircopy] stream chunk failed: \(error.localizedDescription)")
+                    FaircopyDiag.log("stream chunk failed: \(error.localizedDescription)")
                 }
             } completion: { streamError in
                 guard !context.streamCancelled else { return }
                 if let streamError {
-                    print("[Faircopy] stream finished with error: \(streamError.localizedDescription)")
+                    FaircopyDiag.log("stream finished with error: \(streamError.localizedDescription)")
                 }
                 completed = true
                 outputSender.send(outputSender.value)
@@ -229,13 +234,17 @@ extension WritingToolsView {
                 // Printed for both outcomes: "the answer has no address" is
                 // either the model's choice (0 citations, 0 body URLs, no web
                 // access) or a parsing miss (citations arrive but get dropped),
-                // and this one line tells them apart from the device console.
-                print("[Faircopy] answer ready: \(finalValue.count) chars, \(bodyURLs.count) body url(s), \(collectedCitations.count) citation(s)")
+                // and this one line tells them apart.
+                let summary = "\(finalValue.count) chars, \(bodyURLs.count) body url(s), \(collectedCitations.count) citation(s)"
+                print("[Faircopy] answer ready: \(summary)")
+                FaircopyDiag.log("answer ready: \(summary)")
+                let upstreamLive = webRequested ? FaircopyDiag.lastGateLiveSearch() : nil
                 DispatchQueue.main.async {
                     output = finalValue
                     self.liveChars = receivedChars
                     self.liveSpeed = 0
                     outputCitations = references
+                    self.askUpstreamLive = upstreamLive
                     if !references.isEmpty {
                         print("[Faircopy] answer citations: \(references.count) link(s) attached")
                     }

@@ -218,7 +218,9 @@ extension WritingToolsView {
         taskPrompt = .rewrite
         askWebSearch = webSearch
         FaircopyWebSearchStore.markRequested(webSearch)
-        print("[Faircopy] ask turn \(askTurns.count + 1): replaying \(history.count) message(s), web=\(webSearch)")
+        let turnSummary = "ask turn \(askTurns.count + 1): replaying \(history.count) message(s), web=\(webSearch)"
+        print("[Faircopy] \(turnSummary)")
+        FaircopyDiag.log(turnSummary)
         executeTask(
             systemPrompt: system,
             examples: [],

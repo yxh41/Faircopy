@@ -218,19 +218,26 @@ extension WritingToolsView {
     /// One-tap re-run of the same question with web access enabled, plus the
     /// guaranteed escape hatch: hand the question to a real search engine.
     ///
-    /// The second link exists because re-running can still come back empty when
-    /// the current upstream has no live-search switch at all (relays, vLLM);
-    /// a browser search always works.
+    /// When the gateway already told us this upstream has no live-search switch,
+    /// re-running online would just burn a request and change nothing — so the
+    /// row states the reason and keeps only the browser link.
     private var askWebHint: some View {
-        HStack(spacing: 12) {
-            Button {
-                guard let question = segmentAskQuestion else { return }
-                runAskTurn(question: question, webSearch: true)
-            } label: {
+        VStack(alignment: .leading, spacing: 6) {
+            if askUpstreamLive == false {
                 HStack(spacing: 5) {
-                    Image(systemName: "globe")
-                    // `Text.underline()` — the View-level underline is iOS 16+.
-                    Text("No link found — search the web".localized).underline()
+                    Image(systemName: "exclamationmark.triangle")
+                    Text("This endpoint has no web search".localized)
+                }
+            } else {
+                Button {
+                    guard let question = segmentAskQuestion else { return }
+                    runAskTurn(question: question, webSearch: true)
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "globe")
+                        // `Text.underline()` — the View-level underline is iOS 16+.
+                        Text("No link found — search the web".localized).underline()
+                    }
                 }
             }
             Button {

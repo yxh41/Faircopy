@@ -117,6 +117,12 @@ struct WritingToolsView: View {
     /// the user explicitly flips it from the alert's second button.
     @State var askWebSearch: Bool = false
 
+    /// The gateway's verdict on the upstream of the last round: `true` when the
+    /// request really carried a web-search switch, `false` when the endpoint has
+    /// none (prompt-only), `nil` when unknown. Drives the "why is there no
+    /// address" line under the answer instead of making the user retry blindly.
+    @State var askUpstreamLive: Bool? = nil
+
     /// Links the provider attached to the answer (web search citations), plus
     /// any URL the model wrote into the body. Rendered as a tappable block under
     /// the answer so "官网：" is never a dead end.
