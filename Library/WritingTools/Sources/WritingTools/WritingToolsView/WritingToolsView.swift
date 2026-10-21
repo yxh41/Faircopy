@@ -107,6 +107,16 @@ struct WritingToolsView: View {
     /// chip selection is gone.
     @State var askSourceText: String? = nil
 
+    /// Whether the current 提问 session has web access consented.
+    ///
+    /// Per-turn consent (3.0.51) turned out to be a trap: the first round is
+    /// asked with 联网, then every plain 追问 silently drops the flag, the model
+    /// loses the search results it was relying on, and — bound by "don't invent
+    /// links" — answers with bare labels like "官网：" and no address at all.
+    /// The consent now belongs to the session: a follow-up inherits it unless
+    /// the user explicitly flips it from the alert's second button.
+    @State var askWebSearch: Bool = false
+
     /// Links the provider attached to the answer (web search citations), plus
     /// any URL the model wrote into the body. Rendered as a tappable block under
     /// the answer so "官网：" is never a dead end.

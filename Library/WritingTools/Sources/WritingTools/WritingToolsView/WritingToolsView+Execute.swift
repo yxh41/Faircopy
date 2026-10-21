@@ -52,6 +52,7 @@ extension WritingToolsView {
         askSystemPrompt = nil
         askSourceText = nil
         segmentAskQuestion = nil
+        askWebSearch = false
         FaircopyWebSearchStore.markRequested(false)
     }
 
@@ -202,10 +203,19 @@ extension WritingToolsView {
                     }
                     let value = outputSender.value + newToken
                     outputSender.send(value)
-                default: break
+                case let .failure(error):
+                    // Not fatal: the stream may still finish. Logged because a
+                    // dropped chunk is the only way text can vanish from the
+                    // middle of an answer (a cut-off "https" with no address
+                    // after it is exactly what that looks like), and nothing
+                    // else in the pipeline can tell us it happened.
+                    print("[Faircopy] stream chunk failed: \(error.localizedDescription)")
                 }
-            } completion: { _ in
+            } completion: { streamError in
                 guard !context.streamCancelled else { return }
+                if let streamError {
+                    print("[Faircopy] stream finished with error: \(streamError.localizedDescription)")
+                }
                 completed = true
                 outputSender.send(outputSender.value)
                 cancellable?.cancel()
@@ -216,6 +226,11 @@ extension WritingToolsView {
                 // tappable there; listing it again under the answer is noise.
                 let bodyURLs = Set(AnswerLinkParser.urls(in: finalValue).map(\.absoluteString))
                 let references = collectedCitations.filter { !bodyURLs.contains($0.url.absoluteString) }
+                // Printed for both outcomes: "the answer has no address" is
+                // either the model's choice (0 citations, 0 body URLs, no web
+                // access) or a parsing miss (citations arrive but get dropped),
+                // and this one line tells them apart from the device console.
+                print("[Faircopy] answer ready: \(finalValue.count) chars, \(bodyURLs.count) body url(s), \(collectedCitations.count) citation(s)")
                 DispatchQueue.main.async {
                     output = finalValue
                     self.liveChars = receivedChars

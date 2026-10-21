@@ -62,10 +62,14 @@ extension WritingToolsView {
     /// means tweaking the previous question, whereas a follow-up starts empty —
     /// pre-filling the old one would just have to be deleted.
     ///
-    /// Two submit buttons instead of a toggle: the source-text-only answer is
-    /// the right default (fast, cheap, faithful), and "go online" is a
-    /// per-question decision — the user wants it "有时候", so making it sticky
-    /// would bill and slow down every later proofread/translate in the panel.
+    /// Two submit buttons instead of a toggle: offline is the cheaper default,
+    /// and "go online" is a decision about *this session*, not a global switch
+    /// (it must never leak into the next proofread/translate run).
+    ///
+    /// The consent is remembered for the whole session (`askWebSearch`) and the
+    /// primary button repeats it — asking a follow-up used to reset it to
+    /// offline, which quietly removed the search results the model was writing
+    /// its addresses from.
     func presentSegmentAsk(prefill: String? = nil, followUp: Bool = false) {
         // On the output panel the picked words live in `segmentActionSubject`
         // (the chip selection may already be gone); a follow-up reads the source
@@ -80,7 +84,10 @@ extension WritingToolsView {
         print("[Faircopy] segment ask: prefilled \(prefill?.count ?? 0) chars over \(text.count) chars, followUp=\(followUp)")
         SegmentHaptics.light.impactOccurred()
 
-        let title = (followUp ? "Follow Up" : "Ask").localized
+        let heading = (followUp ? "Follow Up" : "Ask").localized
+        // The session's consent is shown in the title so "why did it stop giving
+        // me addresses" is answerable before sending, not after.
+        let title = askWebSearch ? heading + " · " + "Web".localized : heading
         let alert = UIAlertController(
             title: title,
             message: text,
@@ -101,9 +108,14 @@ extension WritingToolsView {
                 self.askSegmentSelection(question: question, context: text, webSearch: webSearch)
             }
         }
-        let webTitle = (followUp ? "Follow Up with Web" : "Ask with Web").localized
-        alert.addAction(UIAlertAction(title: title, style: .default) { _ in submit(false) })
-        alert.addAction(UIAlertAction(title: webTitle, style: .default) { _ in submit(true) })
+        // Primary = repeat the session's current setting, so a plain 追问 can
+        // never silently downgrade a 联网 conversation to an offline one (that
+        // downgrade is exactly why the model started answering "官网：" with no
+        // address). The second button is the explicit flip.
+        let keepWeb = askWebSearch
+        let flipTitle = (keepWeb ? "Without Web" : "With Web").localized
+        alert.addAction(UIAlertAction(title: heading, style: .default) { _ in submit(keepWeb) })
+        alert.addAction(UIAlertAction(title: flipTitle, style: .default) { _ in submit(!keepWeb) })
         alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         // Present from the top-most controller (the panel is a popover on top of
@@ -143,7 +155,9 @@ extension WritingToolsView {
             - Never contradict what the SOURCE TEXT actually states; prefer it for anything it covers.
             - When part of the answer is not covered by the SOURCE TEXT, mark that part briefly and inline (in the question's language) so the user can tell sourced facts from added context.
             - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
-            - When you mention a site, document, download page or repository and you know its real address, write the complete URL inline (for example after a label like "官网："). A bare URL is plain text and is allowed. Never invent or guess a URL — if you are not sure of the exact address, describe the site instead of guessing.
+            - When the answer names a site, repository, download page, document or app, put its full address on its own line right after that item, as plain text starting with https:// — no Markdown link syntax and no escaped numbering like "1\\.".
+            - Use an address that came from the SOURCE TEXT or from the search results you were given; a well-known official domain you are genuinely sure about is also fine.
+            - Never leave a label with nothing after it, never output a truncated fragment such as a bare "https", and never invent a deep link you are unsure of: if you have no reliable address, say so in the same line and name what to search for instead.
             - Be concise and faithful. Do not invent facts, prices, models, or names. If you are unsure, say you are unsure.
             - Respond in the same language as the question.
             - Output plain text only. No Markdown links, headings, lists, or quotes unless they already exist in the source.
@@ -153,7 +167,8 @@ extension WritingToolsView {
             Rules:
             - Answer each question using ONLY the SOURCE TEXT.
             - Follow-up questions may refer back to your previous answers; keep the whole exchange in view.
-            - If the SOURCE TEXT contains a URL, reproduce it exactly as written.
+            - If the SOURCE TEXT contains a URL, reproduce it exactly as written, on its own line.
+            - Never leave a label with nothing after it and never output a truncated fragment such as a bare "https": if the exact address is not in the SOURCE TEXT, say so plainly on that line instead of guessing.
             - Be concise and faithful. Do not invent facts, prices, models, names, or links.
             - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
             - Respond in the same language as the question.
@@ -172,6 +187,7 @@ extension WritingToolsView {
         askSourceText = text
         segmentActionSubject = text
         askTurns = []
+        askWebSearch = webSearch
         runAskTurn(question: question, webSearch: webSearch)
     }
 
@@ -180,7 +196,10 @@ extension WritingToolsView {
     /// Replays `askTurns` as `user`/`assistant` pairs — that is what lets the
     /// model resolve "它" / "那和 X 比呢" against the previous answer — and
     /// records the new turn once the stream finishes.
-    private func runAskTurn(question: String, webSearch: Bool) {
+    ///
+    /// Internal rather than private: the output panel's "no link came back" hint
+    /// re-runs a round with web access from another file.
+    func runAskTurn(question: String, webSearch: Bool) {
         guard let system = askSystemPrompt else { return }
         // Cap the replayed window: every turn carries a full previous answer, so
         // an unbounded session would grow the request (and the bill) linearly.
@@ -197,6 +216,7 @@ extension WritingToolsView {
         activeCustomPrompt = nil
         segmentAskQuestion = question
         taskPrompt = .rewrite
+        askWebSearch = webSearch
         FaircopyWebSearchStore.markRequested(webSearch)
         print("[Faircopy] ask turn \(askTurns.count + 1): replaying \(history.count) message(s), web=\(webSearch)")
         executeTask(

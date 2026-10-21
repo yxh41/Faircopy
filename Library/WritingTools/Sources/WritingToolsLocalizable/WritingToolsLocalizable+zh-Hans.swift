@@ -70,6 +70,13 @@ extension WritingToolsLocalizable {
             /* 3.0.52: 回答里的链接区块（联网检索返回的引用，或正文里的 URL） */
             "References": "参考链接",
 
+            /* 3.0.53: 联网授权改为会话级——弹窗标题显示当前状态，次按钮显式切换 */
+            "Web": "联网",
+            "With Web": "联网",
+            "Without Web": "不联网",
+            "No link found — search the web": "没有给出链接 · 联网重问",
+            "Search in Browser": "浏览器搜索",
+
             "Insert into Prompt": "塞进提示词",
 
             "Back": "返回",

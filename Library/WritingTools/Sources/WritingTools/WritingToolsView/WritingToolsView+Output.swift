@@ -8,6 +8,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import UIKit
 
 extension WritingToolsView {
     var outputPanel: some View {
@@ -33,6 +34,9 @@ extension WritingToolsView {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         if !isRunning, !outputCitations.isEmpty {
                             answerReferences
+                        }
+                        if !isRunning, showsAskWebHint {
+                            askWebHint
                         }
                         Divider().hidden()
                     }
@@ -69,6 +73,13 @@ extension WritingToolsView {
                     if let askTurnLabel {
                         Image(systemName: "bubble.left.and.bubble.right")
                         Text(askTurnLabel)
+                    }
+                    // The web consent belongs to the session, and the user has
+                    // no other way to see which mode produced this answer — an
+                    // offline round is exactly why "官网：" ends up empty.
+                    if segmentAskQuestion != nil, askWebSearch {
+                        Image(systemName: "globe")
+                        Text("Web".localized)
                     }
                     Spacer()
                 }
@@ -184,6 +195,73 @@ extension WritingToolsView {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 2)
+    }
+
+    /// True when a 提问 round came back with no address at all.
+    ///
+    /// Offline is the common cause: without search results the model must not
+    /// invent a domain, so it lists "官网：" and stops — the exact dead end this
+    /// hint exists for. It also fires while online when the question was asking
+    /// for an address (the upstream may simply have no live-search switch), so
+    /// the browser escape hatch exists in both worlds without nagging on every
+    /// ordinary answer.
+    private var showsAskWebHint: Bool {
+        guard segmentAskQuestion != nil else { return false }
+        guard outputCitations.isEmpty else { return false }
+        guard AnswerLinkParser.urls(in: output).isEmpty else { return false }
+        if !askWebSearch { return true }
+        let haystack = ((segmentAskQuestion ?? "") + "\n" + output).lowercased()
+        let needles = ["链接", "地址", "官网", "网址", "下载", "link", "url", "download", "github"]
+        return needles.contains { haystack.contains($0) }
+    }
+
+    /// One-tap re-run of the same question with web access enabled, plus the
+    /// guaranteed escape hatch: hand the question to a real search engine.
+    ///
+    /// The second link exists because re-running can still come back empty when
+    /// the current upstream has no live-search switch at all (relays, vLLM);
+    /// a browser search always works.
+    private var askWebHint: some View {
+        HStack(spacing: 12) {
+            Button {
+                guard let question = segmentAskQuestion else { return }
+                runAskTurn(question: question, webSearch: true)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "globe")
+                    // `Text.underline()` — the View-level underline is iOS 16+.
+                    Text("No link found — search the web".localized).underline()
+                }
+            }
+            Button {
+                guard let question = segmentAskQuestion else { return }
+                openWebSearch(question)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "safari")
+                    Text("Search in Browser".localized).underline()
+                }
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.white.opacity(0.85))
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Opens the system browser on a search engine result page for `query`.
+    ///
+    /// Bing rather than Google: the Google endpoint is unreachable from the
+    /// mainland network this panel mostly runs on, and a link that fails to load
+    /// is worse than no link.
+    private func openWebSearch(_ query: String) {
+        let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&+=?#"))
+        guard let escaped = query.addingPercentEncoding(withAllowedCharacters: allowed),
+              let url = URL(string: "https://cn.bing.com/search?q=" + escaped)
+        else { return }
+        DispatchQueue.main.async {
+            UIApplication.shared.open(url)
+        }
     }
 
     /// "第 N 轮" indicator for a 提问 session; nil for every other task.
