@@ -55,83 +55,32 @@ enum FaircopyWebSearchStore {
     }
 }
 
-/// Append-only diagnostics shared by the panel and the gateway.
+/// Whether the gateway's last request actually carried a web-search switch.
 ///
-/// `print` from an injected dylib lands in the host app's stdout, which nothing
-/// on the device exposes — so the one line that says *why* an answer carried no
-/// address was unreadable in practice. Both processes append to this file
-/// instead (the same directory the other Faircopy state files live in), and it
-/// can be opened with Filza or `cat`.
-enum FaircopyDiag {
-    /// KEEP IN SYNC with `FaircopyDiag.path` in the AIGate target.
-    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_diag.log"
+/// One record, overwritten every time — deliberately NOT a log. The panel cannot
+/// see the upstream, so without this it can only say "no link came back", while
+/// the real reason may be "this endpoint has no live search at all", in which
+/// case re-running online forever is futile. A 60-byte file that never grows is
+/// a fair price for saying that out loud.
+enum FaircopyWebCapability {
+    /// KEEP IN SYNC with `FaircopyWebCapability.path` in the AIGate target.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_web_capability.json"
 
-    /// Small enough to paste, large enough for a long session.
-    private static let maxBytes = 131_072
-    private static let keepBytes = 32_768
-
-    private static let stamp: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-
-    static func log(_ message: String) {
-        // NSLog as well: whatever already tails syslog on the device keeps
-        // working, and this is the only copy that survives a sandbox denial.
-        NSLog("[Faircopy] %@", message)
-        let line = "\(stamp.string(from: Date())) \(message)\n"
-        DispatchQueue.global(qos: .utility).async {
-            append(line)
-        }
+    struct Record: Codable {
+        let host: String
+        let live: Bool
+        let at: TimeInterval
     }
 
-    private static func append(_ line: String) {
-        let url = URL(fileURLWithPath: path)
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        guard let data = line.data(using: .utf8) else { return }
-        if let handle = FileHandle(forWritingAtPath: path) {
-            handle.seekToEndOfFile()
-            handle.write(data)
-            handle.closeFile()
-        } else {
-            FileManager.default.createFile(atPath: path, contents: data)
-        }
-        trim(url)
-    }
+    /// The decision is only meaningful for the round just run; anything older
+    /// than this belongs to another session (or another endpoint).
+    static let maxAge: TimeInterval = 300
 
-    /// Whether the gateway's last decision was to hand this upstream a real web
-    /// -search switch, or to fall back to prompt-only.
-    ///
-    /// The panel cannot see the upstream, so without this the UI can only say
-    /// "no link came back" — while the actual reason may be "this endpoint has
-    /// no live search at all", in which case re-running online forever is futile.
-    /// Read once per finished answer, never during rendering.
-    static func lastGateLiveSearch() -> Bool? {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else { return nil }
-        let text = String(decoding: data.suffix(keepBytes), as: UTF8.self)
-        var result: Bool?
-        for line in text.split(separator: "\n") {
-            if line.contains("gate: web plugin injected") {
-                result = true
-            } else if line.contains("gate: prompt-only") {
-                result = false
-            }
-        }
-        return result
-    }
-
-    /// Keeps the file paste-sized: when it outgrows `maxBytes` the oldest lines
-    /// are dropped rather than the newest, which are the interesting ones.
-    private static func trim(_ url: URL) {
-        guard let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
-              size > maxBytes,
-              let data = try? Data(contentsOf: url)
-        else { return }
-        try? Data(data.suffix(keepBytes)).write(to: url)
+    static func last() -> Record? {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let record = try? JSONDecoder().decode(Record.self, from: data)
+        else { return nil }
+        guard Date().timeIntervalSince1970 - record.at <= maxAge else { return nil }
+        return record
     }
 }

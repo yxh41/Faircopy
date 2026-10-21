@@ -209,17 +209,15 @@ extension WritingToolsView {
                     let value = outputSender.value + newToken
                     outputSender.send(value)
                 case let .failure(error):
-                    // Not fatal: the stream may still finish. Logged because a
-                    // dropped chunk is the only way text can vanish from the
-                    // middle of an answer (a cut-off "https" with no address
-                    // after it is exactly what that looks like), and nothing
-                    // else in the pipeline can tell us it happened.
-                    FaircopyDiag.log("stream chunk failed: \(error.localizedDescription)")
+                    // Not fatal: the stream may still finish. Console only — the
+                    // upstream reports its own billing / capacity errors through
+                    // this path, which is why it is worth keeping visible.
+                    print("[Faircopy] stream chunk failed: \(error.localizedDescription)")
                 }
             } completion: { streamError in
                 guard !context.streamCancelled else { return }
                 if let streamError {
-                    FaircopyDiag.log("stream finished with error: \(streamError.localizedDescription)")
+                    print("[Faircopy] stream finished with error: \(streamError.localizedDescription)")
                 }
                 completed = true
                 outputSender.send(outputSender.value)
@@ -237,12 +235,7 @@ extension WritingToolsView {
                 // and this one line tells them apart.
                 let summary = "\(finalValue.count) chars, \(bodyURLs.count) body url(s), \(collectedCitations.count) citation(s)"
                 print("[Faircopy] answer ready: \(summary)")
-                // Only the empty case reaches the file: a healthy answer needs no
-                // trace, while "no address anywhere" is the report we get.
-                if bodyURLs.isEmpty, collectedCitations.isEmpty {
-                    FaircopyDiag.log("no link in answer: \(summary)")
-                }
-                let upstreamLive = webRequested ? FaircopyDiag.lastGateLiveSearch() : nil
+                let upstreamLive = webRequested ? FaircopyWebCapability.last()?.live : nil
                 DispatchQueue.main.async {
                     output = finalValue
                     self.liveChars = receivedChars

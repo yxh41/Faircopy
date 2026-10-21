@@ -5,7 +5,6 @@
 //  Created by 秋星桥 on 2024/8/15.
 //
 
-import Dispatch
 import Foundation
 
 struct AIGateUpstream {
@@ -117,66 +116,44 @@ enum FaircopyWebSearch {
         guard isRequested() else { return nil }
         guard supportsLiveSearch(host: host) else {
             print("[AIGate] web search: upstream \(host) has no live-search switch, prompt-only")
-            FaircopyDiag.log("gate: prompt-only, host=\(host)")
+            FaircopyWebCapability.record(host: host, live: false)
             return nil
         }
         print("[AIGate] web search: injecting web plugin for \(host)")
-        FaircopyDiag.log("gate: web plugin injected, host=\(host)")
+        FaircopyWebCapability.record(host: host, live: true)
         return [["id": "web"]]
     }
 }
 
-/// Append-only diagnostics shared with the panel.
+/// One-record note telling the panel whether this upstream really got a
+/// web-search switch.
 ///
-/// KEEP IN SYNC with `FaircopyDiag` in the WritingTools dylib — same path, same
-/// line format. The panel can only see the answer; the gateway is the only place
-/// that knows which upstream served it and whether the web switch was actually
-/// accepted, and a "no address" report cannot be diagnosed without both halves.
-enum FaircopyDiag {
-    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_diag.log"
+/// KEEP IN SYNC with `FaircopyWebCapability` in the WritingTools dylib — same
+/// path, same keys. Overwritten on every request: no history, nothing to grow,
+/// nothing to clean up. The panel needs it to stop offering "search again
+/// online" on an endpoint that has no online mode to begin with.
+enum FaircopyWebCapability {
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_web_capability.json"
 
-    private static let maxBytes = 131_072
-    private static let keepBytes = 32_768
+    /// 3.0.54/3.0.55 left an append-only log here. The build with the record also
+    /// sweeps it away: `removeItem` on a missing file is a cheap no-op, so this
+    /// runs unconditionally instead of needing a "have I cleaned up yet" flag
+    /// (a static var would be a concurrency violation to boot).
+    private static let legacyLogPath = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_diag.log"
 
-    private static let stamp: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM-dd HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
-
-    static func log(_ message: String) {
-        NSLog("[AIGate] %@", message)
-        // No extra prefix: the messages already start with "gate:", and the
-        // panel greps for that marker.
-        let line = "\(stamp.string(from: Date())) \(message)\n"
-        DispatchQueue.global(qos: .utility).async {
-            append(line)
-        }
-    }
-
-    private static func append(_ line: String) {
+    static func record(host: String, live: Bool) {
+        let payload: [String: Any] = [
+            "host": host,
+            "live": live,
+            "at": Date().timeIntervalSince1970,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         let url = URL(fileURLWithPath: path)
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
-        guard let data = line.data(using: .utf8) else { return }
-        if let handle = FileHandle(forWritingAtPath: path) {
-            handle.seekToEndOfFile()
-            handle.write(data)
-            handle.closeFile()
-        } else {
-            FileManager.default.createFile(atPath: path, contents: data)
-        }
-        trim(url)
-    }
-
-    private static func trim(_ url: URL) {
-        guard let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize,
-              size > maxBytes,
-              let data = try? Data(contentsOf: url)
-        else { return }
-        try? Data(data.suffix(keepBytes)).write(to: url)
+        try? data.write(to: url, options: .atomic)
+        try? FileManager.default.removeItem(atPath: legacyLogPath)
     }
 }
