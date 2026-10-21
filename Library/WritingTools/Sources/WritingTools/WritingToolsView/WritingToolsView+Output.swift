@@ -167,14 +167,18 @@ extension WritingToolsView {
                 Link(destination: citation.url) {
                     HStack(spacing: 5) {
                         Image(systemName: "link")
+                        // NOTE: `View.underline(_:pattern:color:)` is iOS 16+,
+                        // our deployment target is iOS 15 — the underline has to
+                        // live on Text (iOS 13+) and be applied before the
+                        // View-returning modifiers.
                         Text(citation.displayTitle)
+                            .underline()
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Spacer(minLength: 0)
                     }
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.95))
-                    .underline()
                 }
             }
         }

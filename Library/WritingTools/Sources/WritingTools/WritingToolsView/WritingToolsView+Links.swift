@@ -60,7 +60,12 @@ enum AnswerLinkParser {
             }
             var piece = AttributedString(String(text[matchRange]))
             piece.link = url
-            piece.underlineStyle = .single
+            // The SwiftUI underline attribute is typed `Text.LineStyle`, which is
+            // iOS 16+. On iOS 15 the link still shows in the tint colour and is
+            // tappable, so the guard only costs the underline on old systems.
+            if #available(iOS 16.0, *) {
+                piece.underlineStyle = .single
+            }
             result += piece
             cursor = matchRange.upperBound
         }
