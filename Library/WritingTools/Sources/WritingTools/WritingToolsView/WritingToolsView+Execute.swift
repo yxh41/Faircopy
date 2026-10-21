@@ -28,6 +28,9 @@ extension WritingToolsView {
             runSegmentation()
             return
         }
+        // …and drop any web-search consent left over from a previous 联网提问,
+        // otherwise this proofread/translate would be billed as a web request.
+        FaircopyWebSearchStore.markRequested(false)
         let subject: String? = taskPrompt == .translate ? segmentActionSubject : nil
         executeTask(
             systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
@@ -47,15 +50,21 @@ extension WritingToolsView {
     /// `askQuestion` is set only by the 提问 action; it defaults to nil so every
     /// other caller automatically clears the ask state (a stale question would
     /// otherwise leave "Ask" sitting where "Again" belongs).
+    ///
+    /// `webSearch` works the same way: only 联网提问 passes true, and the default
+    /// false actively revokes a previous grant so a 塞提示词 run right after a
+    /// web ask does not silently inherit it.
     func executeCustomPrompt(
         _ entry: CustomPromptEntry,
         selectionOverride: String? = nil,
         appendSharedRules: Bool = true,
-        askQuestion: String? = nil
+        askQuestion: String? = nil,
+        webSearch: Bool = false
     ) {
         activeCustomPrompt = entry
         segmentActionSubject = selectionOverride
         segmentAskQuestion = askQuestion
+        FaircopyWebSearchStore.markRequested(webSearch)
         let selection = selectionOverride ?? context.textProxy.selectedText
         let clipboard = UIPasteboard.general.string ?? ""
         let language = Self.detectLanguage(selection)

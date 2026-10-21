@@ -57,6 +57,10 @@ extension WritingToolsLocalizable {
 
             "Ask": "提问",
             "Type your question": "输入你的问题",
+
+            /* 3.0.50: 提问弹窗的第二个提交按钮——允许超出源文本 / 联网作答 */
+            "Ask with Web": "联网提问",
+
             "Insert into Prompt": "塞进提示词",
 
             "Back": "返回",

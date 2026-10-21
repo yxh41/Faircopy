@@ -49,6 +49,11 @@ extension WritingToolsView {
     /// re-asking from the output panel, so reacting to a bad answer is an edit
     /// instead of a full retype — and confirming it unchanged reproduces the
     /// old "Again" behaviour exactly.
+    ///
+    /// Two submit buttons instead of a toggle: the source-text-only answer is
+    /// the right default (fast, cheap, faithful), and "go online" is a per-question
+    /// decision — the user wants it "有时候", so making it sticky would bill and
+    /// slow down every later proofread/translate in the same panel.
     func presentSegmentAsk(prefill: String? = nil) {
         // On the output panel the picked words live in `segmentActionSubject`
         // (the chip selection may already be gone). The chip-backed text stays
@@ -70,13 +75,14 @@ extension WritingToolsView {
             field.text = prefill
             field.clearButtonMode = .whileEditing
         }
-        let submit = UIAlertAction(title: "Ask".localized, style: .default) { [weak alert] _ in
+        let submit: (Bool) -> Void = { [weak alert] webSearch in
             let question = alert?.textFields?.first?.text?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !question.isEmpty else { return }
-            self.askSegmentSelection(question: question, context: text)
+            self.askSegmentSelection(question: question, context: text, webSearch: webSearch)
         }
-        alert.addAction(submit)
+        alert.addAction(UIAlertAction(title: "Ask".localized, style: .default) { _ in submit(false) })
+        alert.addAction(UIAlertAction(title: "Ask with Web".localized, style: .default) { _ in submit(true) })
         alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
         // Present from the top-most controller (the panel is a popover on top of
@@ -96,8 +102,36 @@ extension WritingToolsView {
     /// to rewrite, and a weak model would just echo "question + selection" back
     /// (e.g. ask "推荐一下" on "电脑" → "推荐一下电脑"). The question and the source
     /// text are labelled explicitly so the model answers instead of rewriting.
-    private func askSegmentSelection(question: String, context text: String) {
-        print("[Faircopy] segment action: ask \(question.count) chars over \(text.count) chars")
+    /// `webSearch` widens the persona: the default policy ("ONLY the SOURCE
+    /// TEXT") is what makes an off-topic question come back as "源文本没有相关
+    /// 信息" — correct but useless when the user is deliberately asking something
+    /// extra. The gate then tells the gateway to ask the upstream for live
+    /// results where the provider supports it.
+    private func askSegmentSelection(question: String, context text: String, webSearch: Bool) {
+        print("[Faircopy] segment action: ask \(question.count) chars over \(text.count) chars, web=\(webSearch)")
+        // Two rule sets rather than one prompt with a flag sentence: a weak model
+        // reads "using ONLY the SOURCE TEXT" as an absolute and ignores any
+        // later softening, so the strict wording has to actually be absent.
+        let rules = webSearch
+            ? """
+            Rules:
+            - Start from the SOURCE TEXT, but you MAY go beyond it: use your own knowledge, and live web information when the model has web access.
+            - Never contradict what the SOURCE TEXT actually states; prefer it for anything it covers.
+            - When part of the answer is not covered by the SOURCE TEXT, mark that part briefly and inline (in the QUESTION's language) so the user can tell sourced facts from added context.
+            - Be concise and faithful. Do not invent facts, prices, models, names, or links. If you are unsure, say you are unsure.
+            - Respond in the same language as the QUESTION.
+            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
+            - Do not add meta commentary or disclaimers.
+            """
+            : """
+            Rules:
+            - Answer the QUESTION using ONLY the SOURCE TEXT.
+            - Be concise and faithful. Do not invent facts, prices, models, names, or links.
+            - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
+            - Respond in the same language as the QUESTION.
+            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
+            - Do not add meta commentary or disclaimers.
+            """
         let prompt =
             """
             You are a question-answering assistant. The user has selected a piece of text and asked a question about it.
@@ -108,20 +142,20 @@ extension WritingToolsView {
             SOURCE TEXT:
             \("{{selection}}")
 
-            Rules:
-            - Answer the QUESTION using ONLY the SOURCE TEXT.
-            - Be concise and faithful. Do not invent facts, prices, models, names, or links.
-            - If the SOURCE TEXT does not contain the information needed to answer, say so plainly.
-            - Respond in the same language as the QUESTION.
-            - Output plain text only. Do not use Markdown, headings, lists, or quotes unless they already exist in the source.
-            - Do not add meta commentary or disclaimers.
+            \(rules)
             """
         let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: prompt)
         taskPrompt = .rewrite
         // `askQuestion` keeps the question around so the output panel can offer
         // "Ask" (pre-filled) instead of a useless "Again" that would re-run the
         // same prompt and most likely return the same unsatisfactory answer.
-        executeCustomPrompt(entry, selectionOverride: text, appendSharedRules: false, askQuestion: question)
+        executeCustomPrompt(
+            entry,
+            selectionOverride: text,
+            appendSharedRules: false,
+            askQuestion: question,
+            webSearch: webSearch
+        )
     }
 
     /// 塞提示词: run one of the user's custom prompts on the picked words

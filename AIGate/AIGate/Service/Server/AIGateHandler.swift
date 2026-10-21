@@ -146,7 +146,7 @@ class AIGateHandler: ChannelDuplexHandler {
             guard bodyBuffer.count >= contentLength else { return }
 
             // now we replace the model id inside the body if found
-            replaceModelInformationFromRequestBody()
+            replaceModelInformationFromRequestBody(upstreamHost: upstream.host)
 
             // before sending to upstream, fix the header!
             patchHeaderValues(upstream: upstream, replacingContentLength: bodyBuffer.count)
@@ -263,7 +263,7 @@ class AIGateHandler: ChannelDuplexHandler {
         headerBuffer = Data(text.utf8)
     }
 
-    func replaceModelInformationFromRequestBody() {
+    func replaceModelInformationFromRequestBody(upstreamHost: String) {
         guard var object = try? JSONSerialization.jsonObject(with: bodyBuffer, options: []) as? [String: Any] else { return }
         defer {
             if let new = try? JSONSerialization.data(withJSONObject: object, options: []) {
@@ -274,6 +274,13 @@ class AIGateHandler: ChannelDuplexHandler {
         if object["model"] is String,
            let our = Configuration.shared.activatedEndpoint?.model
         { object["model"] = our }
+
+        // 联网提问: the panel wrote a short-lived consent flag microseconds ago.
+        // Providers that can act on it get the web plugin attached; the rest are
+        // left alone on purpose (see FaircopyWebSearch).
+        if object["model"] is String,
+           let plugins = FaircopyWebSearch.pluginPayload(host: upstreamHost)
+        { object["plugins"] = plugins }
 
         // Ask streaming providers to report token usage in their final SSE chunk.
         // Providers that ignore unknown fields simply never emit usage.
