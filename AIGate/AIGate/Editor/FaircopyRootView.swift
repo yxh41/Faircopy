@@ -151,7 +151,11 @@ struct FaircopyRootView: View {
             }, set: { newValue in
                 configuration.isEnabled = newValue
             })) {
-                Text(NSLocalizedString("Enable Service", bundle: Bundle.wrti_support, comment: ""))
+                Label {
+                    Text(NSLocalizedString("Enable Service", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "power")
+                }
             }
         } header: {
             Text(NSLocalizedString("Service", bundle: Bundle.wrti_support, comment: ""))
@@ -180,7 +184,11 @@ struct FaircopyRootView: View {
             Button {
                 openAddSheet = true
             } label: {
-                Text(NSLocalizedString("Add Endpoint", bundle: Bundle.wrti_support, comment: ""))
+                Label {
+                    Text(NSLocalizedString("Add Endpoint", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "plus.circle")
+                }
             }
             .foregroundStyle(Color.accent)
             .sheet(isPresented: $openAddSheet) {
@@ -222,7 +230,11 @@ struct FaircopyRootView: View {
                 CustomPromptsView()
             } label: {
                 HStack {
-                    Text(NSLocalizedString("Custom Prompts", bundle: Bundle.wrti_support, comment: ""))
+                    Label {
+                        Text(NSLocalizedString("Custom Prompts", bundle: Bundle.wrti_support, comment: ""))
+                    } icon: {
+                        Image(systemName: "text.badge.plus")
+                    }
                     Spacer()
                     Text("\(configurationViewModel.uiCustomPrompts.count)")
                         .foregroundStyle(.secondary)
@@ -244,7 +256,11 @@ struct FaircopyRootView: View {
             NavigationLink {
                 PanelModesSettingsView()
             } label: {
-                Text(NSLocalizedString("Panel Modes", bundle: Bundle.wrti_support, comment: ""))
+                Label {
+                    Text(NSLocalizedString("Panel Modes", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "square.grid.2x2")
+                }
             }
         } footer: {
             Text(NSLocalizedString(
@@ -258,6 +274,7 @@ struct FaircopyRootView: View {
     var externalInvocationSection: some View {
         Section {
             invocationCopyRow(
+                icon: "link",
                 id: "url",
                 title: NSLocalizedString("URL Scheme", bundle: Bundle.wrti_support, comment: ""),
                 value: kFCExternalPanelURLScheme,
@@ -270,6 +287,7 @@ struct FaircopyRootView: View {
                 ]
             )
             invocationCopyRow(
+                icon: "bell",
                 id: "notification",
                 title: NSLocalizedString("Darwin Notification", bundle: Bundle.wrti_support, comment: ""),
                 value: kFCExternalPresentNotificationName,
@@ -301,6 +319,7 @@ struct FaircopyRootView: View {
     }
 
     private func invocationCopyRow(
+        icon: String,
         id: String,
         title: String,
         value: String,
@@ -311,6 +330,8 @@ struct FaircopyRootView: View {
             flashCopied(id)
         } label: {
             HStack {
+                Image(systemName: icon)
+                    .foregroundStyle(Color.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                     Text(value)
@@ -337,12 +358,18 @@ struct FaircopyRootView: View {
     var usageSection: some View {
         Section {
             if let usageStats {
-                labeledUsageRow(title: NSLocalizedString("Prompt Tokens", bundle: Bundle.wrti_support, comment: ""), value: usageStats.promptTokens)
-                labeledUsageRow(title: NSLocalizedString("Completion Tokens", bundle: Bundle.wrti_support, comment: ""), value: usageStats.completionTokens)
-                labeledUsageRow(title: NSLocalizedString("Requests", bundle: Bundle.wrti_support, comment: ""), value: usageStats.requestCount)
-                Button(NSLocalizedString("Reset Statistics", bundle: Bundle.wrti_support, comment: "")) {
+                labeledUsageRow(icon: "arrow.up.circle", title: NSLocalizedString("Prompt Tokens", bundle: Bundle.wrti_support, comment: ""), value: usageStats.promptTokens)
+                labeledUsageRow(icon: "arrow.down.circle", title: NSLocalizedString("Completion Tokens", bundle: Bundle.wrti_support, comment: ""), value: usageStats.completionTokens)
+                labeledUsageRow(icon: "number.circle", title: NSLocalizedString("Requests", bundle: Bundle.wrti_support, comment: ""), value: usageStats.requestCount)
+                Button {
                     AIGateClient.executeCommand(.usageReset) { _, _ in
                         DispatchQueue.main.async { self.usageStats = UsageStats.empty }
+                    }
+                } label: {
+                    Label {
+                        Text(NSLocalizedString("Reset Statistics", bundle: Bundle.wrti_support, comment: ""))
+                    } icon: {
+                        Image(systemName: "arrow.counterclockwise")
                     }
                 }
                 .foregroundStyle(.red)
@@ -361,9 +388,13 @@ struct FaircopyRootView: View {
         }
     }
 
-    private func labeledUsageRow(title: String, value: Int) -> some View {
+    private func labeledUsageRow(icon: String, title: String, value: Int) -> some View {
         HStack {
-            Text(title)
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: icon)
+            }
             Spacer()
             Text("\(value)")
                 .foregroundStyle(.secondary)
@@ -387,8 +418,14 @@ struct FaircopyRootView: View {
                         subject: Text(NSLocalizedString("Export Support Tweak", bundle: Bundle.wrti_support, comment: ""))
                     )
                 } else {
-                    Button(NSLocalizedString("Export Support Tweak", bundle: Bundle.wrti_support, comment: "")) {
+                    Button {
                         quickLookExport = tweakURL
+                    } label: {
+                        Label {
+                            Text(NSLocalizedString("Export Support Tweak", bundle: Bundle.wrti_support, comment: ""))
+                        } icon: {
+                            Image(systemName: "heart")
+                        }
                     }
                 }
             } else {
@@ -404,11 +441,21 @@ struct FaircopyRootView: View {
     var footerSection: some View {
         Section {
             NavigationLink(destination: TestTextView()) {
-                Text(NSLocalizedString("Test Text Editor", bundle: Bundle.wrti_support, comment: ""))
+                Label {
+                    Text(NSLocalizedString("Test Text Editor", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "square.and.pencil")
+                }
             }
             if MFMailComposeViewController.canSendMail(), !appViewModel.isLiteEdition {
-                Button(NSLocalizedString("Test Mail Composer", bundle: Bundle.wrti_support, comment: "")) {
+                Button {
                     isShowingMailView.toggle()
+                } label: {
+                    Label {
+                        Text(NSLocalizedString("Test Mail Composer", bundle: Bundle.wrti_support, comment: ""))
+                    } icon: {
+                        Image(systemName: "envelope")
+                    }
                 }
             }
         } footer: {
@@ -571,14 +618,17 @@ enum FaircopyPanelModesStore {
         }
     }
 
+    /// KEEP IN SYNC with `FaircopyPanelMode.icon` in WritingToolsView+PanelModes.
+    /// Only symbols that exist from iOS 13/14 on: an unknown name renders as an
+    /// empty image, leaving the row without any icon.
     static func iconName(_ id: String) -> String {
         switch id {
-        case "proofread": return "doc.text.magnifyingglass"
+        case "proofread": return "text.badge.checkmark"
         case "rewrite": return "arrow.counterclockwise"
         case "translate": return "character.book.closed"
         case "friendly": return "bubble.left.and.bubble.right"
         case "professional": return "books.vertical"
-        case "concise": return "textformat.abc.dottedunderline"
+        case "concise": return "arrow.down.right.and.arrow.up.left"
         case "expand": return "arrow.up.left.and.arrow.down.right"
         case "summarize": return "list.bullet.below.rectangle"
         case "segment": return "scissors"
@@ -628,7 +678,11 @@ struct PanelModesSettingsView: View {
                 Button {
                     showResetConfirm = true
                 } label: {
-                    Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                    Label {
+                        Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                    } icon: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
                 }
             }
         }
@@ -752,7 +806,11 @@ struct AppSearchSettingsView: View {
                 Button {
                     showResetConfirm = true
                 } label: {
-                    Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                    Label {
+                        Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                    } icon: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
                 }
                 Button {
                     showClearHistoryConfirm = true

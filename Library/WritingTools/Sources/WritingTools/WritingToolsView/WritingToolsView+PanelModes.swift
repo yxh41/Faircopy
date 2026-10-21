@@ -57,14 +57,18 @@ enum FaircopyPanelMode {
         }
     }
 
+    /// KEEP IN SYNC with `FaircopyPanelModesStore.iconName` in FaircopyRootView.
+    /// Sticks to symbols that exist from iOS 13/14 on: `Image(systemName:)` for a
+    /// name the system does not know renders nothing, and the button then shows
+    /// its title with no icon at all (proofread and concise used to hit this).
     static func icon(_ id: String) -> String {
         switch id {
-        case "proofread": return "doc.text.magnifyingglass"
+        case "proofread": return "text.badge.checkmark"
         case "rewrite": return "arrow.counterclockwise"
         case "translate": return "character.book.closed"
         case "friendly": return "bubble.left.and.bubble.right"
         case "professional": return "books.vertical"
-        case "concise": return "textformat.abc.dottedunderline"
+        case "concise": return "arrow.down.right.and.arrow.up.left"
         case "expand": return "arrow.up.left.and.arrow.down.right"
         case "summarize": return "list.bullet.below.rectangle"
         case "segment": return "scissors"
