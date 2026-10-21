@@ -29,6 +29,12 @@ extension WritingToolsLocalizable {
             "Segment": "分词",
             "%d words": "%d 词",
             "%d selected": "已选 %d",
+
+            /* 3.0.49: 分词全选（状态行的胶囊按钮 + 全选时的计数替代文案） */
+            "Select All": "全选",
+            "Deselect All": "取消全选",
+            "All": "全部",
+
             "First %d chars": "仅前 %d 字",
             "Custom": "自定义",
             "Manage Custom Prompts": "管理自定义提示词",

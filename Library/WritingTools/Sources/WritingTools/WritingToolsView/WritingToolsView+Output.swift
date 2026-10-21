@@ -95,15 +95,26 @@ extension WritingToolsView {
                     BeautifulButton(title: "Copy".localized) { copyOutput() }
                     BeautifulButton(title: "Share".localized) { shareOutput() }
                     BeautifulButton(title: "Discard".localized) { discard() }
-                    BeautifulButton(title: "Again".localized) {
-                        if let activeCustomPrompt {
-                            // Re-run with the stored subject so a segment
-                            // action (塞提示词/提问) keeps its picked-words
-                            // scope; normal custom prompts stored nil and
-                            // fall back to the live selection.
-                            executeCustomPrompt(activeCustomPrompt, selectionOverride: segmentActionSubject)
-                        } else {
-                            executeCurrentTask()
+                    if let askQuestion = segmentAskQuestion {
+                        // 提问 task: this slot re-opens the ask prompt pre-filled
+                        // with the previous question, so a wrong answer is fixed
+                        // by rewording it. A plain "Again" here is dead weight —
+                        // it would re-send the identical prompt and hand back the
+                        // same unsatisfactory answer.
+                        BeautifulButton(title: "Ask".localized) {
+                            presentSegmentAsk(prefill: askQuestion)
+                        }
+                    } else {
+                        BeautifulButton(title: "Again".localized) {
+                            if let activeCustomPrompt {
+                                // Re-run with the stored subject so a segment
+                                // action (塞提示词/提问) keeps its picked-words
+                                // scope; normal custom prompts stored nil and
+                                // fall back to the live selection.
+                                executeCustomPrompt(activeCustomPrompt, selectionOverride: segmentActionSubject)
+                            } else {
+                                executeCurrentTask()
+                            }
                         }
                     }
                     BeautifulButton(title: "Accept".localized) { accept() }

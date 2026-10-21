@@ -61,6 +61,12 @@ struct WritingToolsView: View {
     // selection instead of falling back to the full selected text.
     @State var segmentActionSubject: String? = nil
 
+    /// The question of the in-flight 提问 task (nil for every other task). It
+    /// turns the output panel's "Again" button into "Ask" and pre-fills the
+    /// alert, so a wrong answer can be re-asked with a tweaked question instead
+    /// of discarding the panel and re-picking every word.
+    @State var segmentAskQuestion: String? = nil
+
     @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
 

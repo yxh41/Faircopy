@@ -20,6 +20,9 @@ extension WritingToolsView {
     /// live selection; `executeCustomPrompt` sets or clears it per run.
     func executeCurrentTask(delayedForRetry: Bool = false) {
         activeCustomPrompt = nil
+        // A built-in task is not a 提问 run: drop the question so the output
+        // panel goes back to "Again" (retry) instead of "Ask".
+        segmentAskQuestion = nil
         if taskPrompt == .segment {
             // Local mode: tokenize on-device, no gateway request.
             runSegmentation()
@@ -40,9 +43,19 @@ extension WritingToolsView {
     /// (not the whole selection) are the content. Passing nil (the menu path)
     /// preserves the original behavior exactly. The override is persisted in
     /// `segmentActionSubject` so Again re-runs with the same scope.
-    func executeCustomPrompt(_ entry: CustomPromptEntry, selectionOverride: String? = nil, appendSharedRules: Bool = true) {
+    ///
+    /// `askQuestion` is set only by the 提问 action; it defaults to nil so every
+    /// other caller automatically clears the ask state (a stale question would
+    /// otherwise leave "Ask" sitting where "Again" belongs).
+    func executeCustomPrompt(
+        _ entry: CustomPromptEntry,
+        selectionOverride: String? = nil,
+        appendSharedRules: Bool = true,
+        askQuestion: String? = nil
+    ) {
         activeCustomPrompt = entry
         segmentActionSubject = selectionOverride
+        segmentAskQuestion = askQuestion
         let selection = selectionOverride ?? context.textProxy.selectedText
         let clipboard = UIPasteboard.general.string ?? ""
         let language = Self.detectLanguage(selection)

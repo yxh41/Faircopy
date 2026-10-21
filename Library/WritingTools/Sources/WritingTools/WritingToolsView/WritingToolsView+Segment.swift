@@ -33,13 +33,19 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
         !text.isEmpty && text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// Visible stand-in for a whitespace token. A raw space / newline would draw
-    /// an invisible chip that's impossible to tap on purpose.
+    /// Chip label. A plain-space token renders the actual space it came from —
+    /// no `·` stand-in — so what the chip shows is literally what the source
+    /// says (the layout pass gives such chips a minimum width, see
+    /// `packSegmentRows`, which keeps them tappable).
+    ///
+    /// Newlines and tabs keep a visible glyph: drawing a real `\n` inside a
+    /// fixed 34pt-high chip would wrap / clip and break the row geometry that
+    /// the gesture layer hit-tests against.
     public var displayText: String {
         guard isWhitespaceOnly else { return text }
         if text.contains("\n") || text.contains("\r") { return "↵" }
         if text.contains("\t") { return "⇥" }
-        return "·"
+        return text
     }
 
     // Manual conformances: NSRange's own Hashable synthesis is not something
@@ -517,7 +523,11 @@ extension WritingToolsView {
             // `ceil` keeps every chip width integral: fractional widths would be
             // snapped independently at render time and cost up to 0.5pt per chip.
             let textWidth = ceil((token.displayText as NSString).size(withAttributes: [.font: font]).width)
-            let chipWidth = min(textWidth + chipPadding, innerWidth)
+            // A space chip now draws a real space, so its natural width is ~4pt.
+            // Hold a minimum so it stays a realistic tap target — the chip reads
+            // as an empty pill, which is exactly what a space is.
+            let minChipWidth: CGFloat = token.isWhitespaceOnly ? 30 : 0
+            let chipWidth = min(max(textWidth + chipPadding, minChipWidth), innerWidth)
             let candidate = current.isEmpty ? chipWidth : currentWidth + spacing + chipWidth
             let newRow = !current.isEmpty && candidate > innerWidth
             if newRow {
@@ -561,8 +571,19 @@ extension WritingToolsView {
             if segmentTruncated {
                 Text("· " + String(format: "First %d chars".localized, kSegmentMaxLength))
             }
-            Text("· " + String(format: "%d selected".localized, selectedSegmentIndexes.count))
+            if isAllSegmentsSelected {
+                // The raw count would read "12 words · 21 selected" (whitespace
+                // and punctuation are tokens too), which looks like a bug. Say
+                // "All" instead of a number that can't be reconciled on screen.
+                Text("· " + "All".localized)
+            } else {
+                Text("· " + String(format: "%d selected".localized, selectedSegmentIndexes.count))
+            }
             Spacer()
+            // Select-all lives here because this is the row that already owns
+            // selection state, and it costs one tap instead of dragging across
+            // every chip. Tapping again clears.
+            selectAllSegmentButton
             // Copy-order indicator: shows which ordering the Copy button will use
             // next. Right-aligned so it reads as state, not another counter.
             Text(segmentOrderLabel)
@@ -570,6 +591,46 @@ extension WritingToolsView {
         }
         .font(.caption2)
         .foregroundStyle(.white.opacity(0.55))
+    }
+
+    /// Pill-shaped toggle in the stats line: 全选 / 取消全选.
+    private var selectAllSegmentButton: some View {
+        Button {
+            toggleSelectAllSegments()
+        } label: {
+            Text(isAllSegmentsSelected ? "Deselect All".localized : "Select All".localized)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.white.opacity(0.14)))
+        }
+        .buttonStyle(.plain)
+        .disabled(segmentTokens.isEmpty)
+        .opacity(segmentTokens.isEmpty ? 0.4 : 1)
+    }
+
+    /// True when every token (whitespace and punctuation included) is picked.
+    /// Compared against the token count, not the word count, so select-all is
+    /// idempotent: tapping it twice returns to an empty selection.
+    var isAllSegmentsSelected: Bool {
+        !segmentTokens.isEmpty && selectedSegmentIndexes.count == segmentTokens.count
+    }
+
+    /// Selects every token in source order, or clears when already all picked.
+    /// Source order matters: otherwise `segmentSelectionOrder` would look like
+    /// the user tapped hundreds of chips in a row and "Copy in Selection Order"
+    /// would emit something arbitrary.
+    func toggleSelectAllSegments() {
+        if isAllSegmentsSelected {
+            selectedSegmentIndexes.removeAll()
+            segmentSelectionOrder.removeAll()
+        } else {
+            selectedSegmentIndexes = Set(segmentTokens.map(\.id))
+            segmentSelectionOrder = segmentTokens.map(\.id)
+        }
+        print("[Faircopy] segment: select-all \(isAllSegmentsSelected)")
+        SegmentHaptics.light.impactOccurred()
     }
 
     /// Current Copy ordering, e.g. "顺序：原文" / "顺序：选择".

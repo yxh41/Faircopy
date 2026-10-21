@@ -42,7 +42,18 @@ extension WritingToolsView {
     /// 提问: ask the model a question about the picked words. Prompts for the
     /// question, then runs it with the picked words as the source text.
     func askAboutSegmentSelection() {
-        let text = segmentActionText
+        presentSegmentAsk()
+    }
+
+    /// Presents the 提问 prompt. `prefill` carries the previous question when
+    /// re-asking from the output panel, so reacting to a bad answer is an edit
+    /// instead of a full retype — and confirming it unchanged reproduces the
+    /// old "Again" behaviour exactly.
+    func presentSegmentAsk(prefill: String? = nil) {
+        // On the output panel the picked words live in `segmentActionSubject`
+        // (the chip selection may already be gone). The chip-backed text stays
+        // the fallback for the first ask.
+        let text = segmentActionSubject ?? segmentActionText
         guard !text.isEmpty else { return }
         SegmentHaptics.light.impactOccurred()
 
@@ -53,6 +64,8 @@ extension WritingToolsView {
         )
         alert.addTextField { field in
             field.placeholder = "Type your question".localized
+            field.text = prefill
+            field.clearButtonMode = .whileEditing
         }
         let submit = UIAlertAction(title: "Ask".localized, style: .default) { [weak alert] _ in
             let question = alert?.textFields?.first?.text?
@@ -102,7 +115,10 @@ extension WritingToolsView {
             """
         let entry = CustomPromptEntry(id: UUID(), title: "Ask".localized, prompt: prompt)
         taskPrompt = .rewrite
-        executeCustomPrompt(entry, selectionOverride: text, appendSharedRules: false)
+        // `askQuestion` keeps the question around so the output panel can offer
+        // "Ask" (pre-filled) instead of a useless "Again" that would re-run the
+        // same prompt and most likely return the same unsatisfactory answer.
+        executeCustomPrompt(entry, selectionOverride: text, appendSharedRules: false, askQuestion: question)
     }
 
     /// 塞提示词: run one of the user's custom prompts on the picked words
