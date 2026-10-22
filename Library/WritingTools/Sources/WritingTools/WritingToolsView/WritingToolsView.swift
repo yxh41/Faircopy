@@ -170,13 +170,13 @@ struct WritingToolsView: View {
             }
         }
         // The task-takeover swap (button grid -> output panel) must be a smooth
-        // gradual fade (渐隐) — not abrupt, not a 1-2s linger. A bare spring was
-        // too slow; 0.25s easeOut dropped opacity too fast at the start (easeOut
-        // is fast-then-slow, wrong for a fade-out) and read as 生硬. 0.4s
-        // easeInOut fades the button grid out and the output panel in evenly.
-        // `output` / `error` swaps keep the spring — only `isRunning` changes.
-        // (Faircopy 3.0.68)
-        .animation(.easeInOut(duration: 0.4), value: isRunning)
+        // gradual fade (渐隐): not abrupt, not a 1-2s linger. A bare spring was
+        // too slow; 0.25s easeOut and 0.4s easeInOut both still read as abrupt
+        // (the grid appeared to pop). 0.6s easeInOut is slow enough to read as a
+        // fade yet far quicker than the old spring. `output` / `error` swaps keep
+        // the spring — only the `isRunning` hand-off changes here.
+        // (Faircopy 3.0.69)
+        .animation(.easeInOut(duration: 0.6), value: isRunning)
         .animation(.spring, value: output)
         .animation(.spring, value: error?.localizedDescription)
         .padding(16)

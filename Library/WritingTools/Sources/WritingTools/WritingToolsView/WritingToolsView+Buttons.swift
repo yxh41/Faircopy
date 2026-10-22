@@ -72,18 +72,15 @@ extension WritingToolsView {
             }
             .frame(height: 60)
         }
-        // A running task hands the panel over the moment `isRunning` flips: the
-        // body swaps `selectiveButtonPanels` out for `outputPanel`. 3.0.66's
-        // `.identity` removal did not take (the outer animation still drove the
-        // swap) and 3.0.67's 0.25s easeOut faded too abruptly (easeOut is
-        // fast-then-slow — wrong for a fade-out). The removal is now a plain
-        // `.opacity` fade driven by the outer 0.4s easeInOut (see WritingToolsView),
-        // a smooth 渐隐. Insertion keeps the scale+fade for panel-open / discard.
-        // (Faircopy 3.0.68)
-        .transition(.asymmetric(
-            insertion: .opacity.combined(with: .scale(scale: 0.85)),
-            removal: .opacity
-        ))
+        // The task takeover: the body swaps `selectiveButtonPanels` out for
+        // `outputPanel` the moment `isRunning` flips. 3.0.66's `.identity`
+        // removal did not take (the outer animation drives the swap); 3.0.67's
+        // 0.25s easeOut and 3.0.68's 0.4s easeInOut both still read as abrupt —
+        // the grid seemed to pop. Back to the transition that visibly fades
+        // (opacity + 0.85 scale), now paired with a longer 0.6s easeInOut on the
+        // container, so the grid goes gradually instead of snapping. Insertion
+        // uses the same shape. (Faircopy 3.0.69)
+        .transition(.opacity.combined(with: .scale(scale: 0.85)))
         .scaleEffect(initialAnimation * 0.25 + 0.75)
         .opacity(initialAnimation)
         .animation(.spring, value: initialAnimation)
