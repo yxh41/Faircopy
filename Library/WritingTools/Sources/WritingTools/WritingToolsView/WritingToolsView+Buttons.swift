@@ -95,16 +95,15 @@ extension WritingToolsView {
         .transition(.opacity)
     }
 
-    /// Runs the chosen variant. Ask-presets (提问) defer presentation by a beat
-    /// so the overlay is gone before the ask alert appears.
+    /// Runs the chosen variant. Ask-presets (提问) present immediately: the
+    /// 0.25s defer that used to live here only existed to wait for the custom
+    /// dark overlay to go away, and the native menu dismisses on its own.
     func applyVariant(modeID: String, variant: FaircopyPanelVariant) {
         guard let prompt = FaircopyPanelMode.prompt(modeID) else { return }
         if let prefill = variant.askPrefill {
             if variant.askWeb { askWebSearch = true }
             activeVariant = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                self.presentSegmentAsk(prefill: prefill, followUp: false)
-            }
+            presentSegmentAsk(prefill: prefill, followUp: false)
         } else {
             taskPrompt = prompt
             segmentActionSubject = nil

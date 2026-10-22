@@ -85,15 +85,35 @@ struct PanelModeButton: View {
         if variants.isEmpty {
             base
         } else {
-            base.contextMenu {
-                ForEach(variants) { variant in
-                    Button {
-                        SegmentHaptics.light.impactOccurred()
-                        onSelect(variant)
-                    } label: {
-                        Label(variant.title, systemImage: variant.icon)
-                    }
-                }
+            menuButton
+        }
+    }
+
+    /// `preview: { EmptyView() }` is not cosmetic — without it the system builds
+    /// a scaled-up snapshot of the source view and lifts it as the menu appears,
+    /// which reads as a far heavier animation than the plain press dimming.
+    /// This is exactly what the panel did before the custom dark overlay
+    /// (3.0.59); 3.0.62 dropped it and the long-press looked wrong again.
+    @ViewBuilder
+    private var menuButton: some View {
+        if #available(iOS 16.0, *) {
+            base
+                .contextMenu { menuContent }
+                preview: { EmptyView() }
+        } else {
+            base.contextMenu { menuContent }
+        }
+    }
+
+    @ViewBuilder
+    private var menuContent: some View {
+        ForEach(variants) { variant in
+            Button {
+                SegmentHaptics.light.impactOccurred()
+                print("[Faircopy] panel variant selected: \(variant.title) (native contextMenu)")
+                onSelect(variant)
+            } label: {
+                Label(variant.title, systemImage: variant.icon)
             }
         }
     }
