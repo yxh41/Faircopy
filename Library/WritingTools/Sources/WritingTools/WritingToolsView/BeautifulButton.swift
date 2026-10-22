@@ -126,8 +126,16 @@ struct PanelModeButton: View {
     private var menuContent: some View {
         ForEach(variants) { variant in
             Button {
+                // The long-press that opened this menu handed the touch to the
+                // UIKit context-menu interaction, so the `_onButtonGesture`
+                // touch-up (pressed = false) is frequently never delivered —
+                // `isPressed` stays true and the button keeps its pressed look
+                // (scale 0.96 + dimmed) for ~1s after the selection. Reset it
+                // explicitly here so the button springs back the instant a
+                // variant is chosen. (Faircopy 3.0.65)
+                isPressed = false
                 SegmentHaptics.light.impactOccurred()
-                print("[Faircopy] panel variant selected: \(variant.title) (native contextMenu)")
+                print("[Faircopy] panel variant selected: \(variant.title) (isPressed reset on select)")
                 onSelect(variant)
             } label: {
                 Label(variant.title, systemImage: variant.icon)
@@ -144,6 +152,9 @@ struct PanelModeButton: View {
                 isPressed = pressed
                 if pressed { SegmentHaptics.light.impactOccurred() }
             } perform: {
+                // Defensive: ensure a plain tap never leaves the button stuck
+                // in the pressed visual state. (Faircopy 3.0.65)
+                isPressed = false
                 onTap()
             }
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isPressed)
