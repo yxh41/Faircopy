@@ -59,12 +59,6 @@ struct WritingToolsView: View {
     /// refinement; cleared on any normal (non-variant) mode tap.
     @State var activeVariant: FaircopyPanelVariant? = nil
 
-    /// Mode whose variant menu is currently open (long-press on a panel button),
-    /// or `nil` when no menu is showing. Drives the custom modal overlay — we do
-    /// NOT use `.contextMenu`, because its system source highlight flashes the
-    /// button's rounded rectangle when it lifts the source view.
-    @State var variantMenuModeID: String? = nil
-
     @State var customPrompts: [CustomPromptEntry] = []
     @State var activeCustomPrompt: CustomPromptEntry? = nil
 
@@ -165,29 +159,20 @@ struct WritingToolsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            VStack(spacing: 16) {
-                title
-                if shouldShowError {
-                    errorView
-                } else if shouldShowOutput {
-                    outputPanel
-                } else {
-                    selectiveButtonPanels
-                }
-            }
-            .padding(16)
-            .animation(.spring, value: isRunning)
-            .animation(.spring, value: output)
-            .animation(.spring, value: error?.localizedDescription)
-            // Custom long-press menu overlay (no `.contextMenu`: its system
-            // source highlight is the "rectangle" that flashes the button).
-            if let menuID = variantMenuModeID {
-                variantMenuOverlay(menuID)
-                    .transition(.opacity)
+        VStack(spacing: 16) {
+            title
+            if shouldShowError {
+                errorView
+            } else if shouldShowOutput {
+                outputPanel
+            } else {
+                selectiveButtonPanels
             }
         }
-        .animation(.easeOut(duration: 0.15), value: variantMenuModeID)
+        .animation(.spring, value: isRunning)
+        .animation(.spring, value: output)
+        .animation(.spring, value: error?.localizedDescription)
+        .padding(16)
         .background(background)
         .foregroundStyle(.white)
         .onAppear {

@@ -39,12 +39,11 @@ extension WritingToolsView {
                 HStack(spacing: innerSpacing) {
             ForEach(0 ..< min(3, modeIDs.count - row * 3), id: \.self) { column in
                 let modeID = modeIDs[row * 3 + column]
-                // Tap runs the mode; long-press opens the variant menu. No
-                // `.contextMenu` — its system source highlight is the flashing
-                // rectangle this replaces.
+                // Tap runs the mode; long-press opens the native variant menu.
                 PanelModeButton(
                     title: FaircopyPanelMode.title(modeID),
                     icon: FaircopyPanelMode.icon(modeID),
+                    variants: FaircopyPanelVariant.registry[modeID] ?? [],
                     onTap: {
                         if let prompt = FaircopyPanelMode.prompt(modeID) {
                             taskPrompt = prompt
@@ -53,8 +52,8 @@ extension WritingToolsView {
                             executeCurrentTask()
                         }
                     },
-                    onLongPress: {
-                        variantMenuModeID = modeID
+                    onSelect: { variant in
+                        applyVariant(modeID: modeID, variant: variant)
                     }
                 )
             }
@@ -114,66 +113,6 @@ extension WritingToolsView {
             }
             activeVariant = variant
             executeCurrentTask()
-        }
-    }
-
-    /// Custom modal menu shown when a panel mode is long-pressed. Replaces
-    /// `.contextMenu` so no system source highlight / lifted-preview rectangle
-    /// is drawn. A dimmed backdrop dismisses it; the card lists the mode's
-    /// variants plus a cancel row.
-    @ViewBuilder
-    func variantMenuOverlay(_ modeID: String) -> some View {
-        let variants = FaircopyPanelVariant.registry[modeID] ?? []
-        ZStack {
-            Color.black.opacity(0.35)
-                .contentShape(Rectangle())
-                .onTapGesture { variantMenuModeID = nil }
-            VStack(spacing: 0) {
-                Text(FaircopyPanelMode.title(modeID))
-                    .font(.system(.footnote).weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .padding(.top, 12)
-                    .padding(.bottom, 8)
-                ForEach(variants) { variant in
-                    Button {
-                        SegmentHaptics.light.impactOccurred()
-                        variantMenuModeID = nil
-                        applyVariant(modeID: modeID, variant: variant)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: variant.icon)
-                            Text(variant.title)
-                            Spacer(minLength: 0)
-                        }
-                        .font(.system(.subheadline))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .frame(height: 46)
-                        .contentShape(Rectangle())
-                    }
-                }
-                Divider().background(Color.white.opacity(0.12))
-                Button {
-                    variantMenuModeID = nil
-                } label: {
-                    Text("取消")
-                        .font(.system(.subheadline))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .contentShape(Rectangle())
-                }
-            }
-            .padding(.bottom, 4)
-            .frame(maxWidth: 260)
-            .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.black.opacity(0.5))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 0.5)
-            )
         }
     }
 
