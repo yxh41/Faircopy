@@ -169,13 +169,14 @@ struct WritingToolsView: View {
                 selectiveButtonPanels
             }
         }
-        // The task-takeover swap (button grid -> output panel) must be quick:
-        // a spring here is what left the stale mode buttons lingering 1-2s after
-        // a variant was picked. 0.25s easeOut makes the button grid fade out
-        // (渐隐) and the output panel fade in promptly. `output` / `error` swaps
-        // keep the spring — only the `isRunning` hand-off is tightened.
-        // (Faircopy 3.0.67)
-        .animation(.easeOut(duration: 0.25), value: isRunning)
+        // The task-takeover swap (button grid -> output panel) must be a smooth
+        // gradual fade (渐隐) — not abrupt, not a 1-2s linger. A bare spring was
+        // too slow; 0.25s easeOut dropped opacity too fast at the start (easeOut
+        // is fast-then-slow, wrong for a fade-out) and read as 生硬. 0.4s
+        // easeInOut fades the button grid out and the output panel in evenly.
+        // `output` / `error` swaps keep the spring — only `isRunning` changes.
+        // (Faircopy 3.0.68)
+        .animation(.easeInOut(duration: 0.4), value: isRunning)
         .animation(.spring, value: output)
         .animation(.spring, value: error?.localizedDescription)
         .padding(16)
@@ -205,13 +206,12 @@ struct WritingToolsView: View {
         }
         .onChange(of: shouldShowSelectiveButtons) { animated in
             isHeaderDescriptionAnimated = animated
-            // A running task takes over the panel the instant `isRunning` flips;
-            // the button grid is removed without a fade so the stale mode buttons
-            // never linger on top of the streaming answer. Logged when the grid
-            // goes away so field triage can confirm the takeover fired.
-            // (Faircopy 3.0.66)
+            // A running task hands the panel over the moment `isRunning` flips;
+            // the button grid fades out (渐隐) so the stale mode buttons never
+            // linger on top of the streaming answer. Logged when the grid goes
+            // away so field triage can confirm the takeover fired. (Faircopy 3.0.68)
             if !animated {
-                print("[Faircopy] button grid removed: task takeover, fade 0.25s")
+                print("[Faircopy] button grid removed: task takeover, fade-out")
             }
         }
     }

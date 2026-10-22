@@ -72,14 +72,14 @@ extension WritingToolsView {
             }
             .frame(height: 60)
         }
-        // A running task must hand the panel over promptly: the body swaps
-        // `selectiveButtonPanels` out for `outputPanel` as soon as `isRunning`
-        // flips. 3.0.66 tried `.identity` for an instant removal, but the outer
-        // `.animation(.spring, value: isRunning)` still drove the whole swap, so
-        // the buttons kept lingering anyway. The removal is now a short fade
-        // (渐隐) AND the outer animation is a 0.25s easeOut (see WritingToolsView),
-        // so the grid is gone in ~0.25s instead of 1-2s. Insertion keeps the
-        // smooth scale+fade for panel-open / discard-return. (Faircopy 3.0.67)
+        // A running task hands the panel over the moment `isRunning` flips: the
+        // body swaps `selectiveButtonPanels` out for `outputPanel`. 3.0.66's
+        // `.identity` removal did not take (the outer animation still drove the
+        // swap) and 3.0.67's 0.25s easeOut faded too abruptly (easeOut is
+        // fast-then-slow — wrong for a fade-out). The removal is now a plain
+        // `.opacity` fade driven by the outer 0.4s easeInOut (see WritingToolsView),
+        // a smooth 渐隐. Insertion keeps the scale+fade for panel-open / discard.
+        // (Faircopy 3.0.68)
         .transition(.asymmetric(
             insertion: .opacity.combined(with: .scale(scale: 0.85)),
             removal: .opacity
