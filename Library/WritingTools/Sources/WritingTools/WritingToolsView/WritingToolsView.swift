@@ -133,7 +133,6 @@ struct WritingToolsView: View {
     /// the answer so "官网：" is never a dead end.
     @State var outputCitations: [AnswerCitation] = []
 
-    @State var initialAnimation: CGFloat = 0
     @State var isClosePressed: Bool = false
 
     var shouldShowError: Bool {
@@ -185,7 +184,6 @@ struct WritingToolsView: View {
         .background(background)
         .foregroundStyle(.white)
         .onAppear {
-            initialAnimation = 1
             // Warm the shared light-impact generator before the first tap. Every
             // press fires `impactOccurred()` on a cold engine otherwise, and a
             // cold engine delays or drops it — which is why the first button
@@ -213,7 +211,7 @@ struct WritingToolsView: View {
             // linger on top of the streaming answer. Logged when the grid goes
             // away so field triage can confirm the takeover fired. (Faircopy 3.0.68)
             if !animated {
-                print("[Faircopy] button grid removed: task takeover, fade-out")
+                print("[Faircopy] button grid removed: task takeover, fade-out, local spring removed (3.0.71)")
             }
         }
     }
