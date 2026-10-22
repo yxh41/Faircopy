@@ -199,6 +199,14 @@ struct WritingToolsView: View {
         }
         .onChange(of: shouldShowSelectiveButtons) { animated in
             isHeaderDescriptionAnimated = animated
+            // A running task takes over the panel the instant `isRunning` flips;
+            // the button grid is removed without a fade so the stale mode buttons
+            // never linger on top of the streaming answer. Logged when the grid
+            // goes away so field triage can confirm the takeover fired.
+            // (Faircopy 3.0.66)
+            if !animated {
+                print("[Faircopy] button grid removed: task takeover, instant")
+            }
         }
     }
 }
