@@ -39,11 +39,15 @@ extension WritingToolsView {
                 HStack(spacing: innerSpacing) {
             ForEach(0 ..< min(3, modeIDs.count - row * 3), id: \.self) { column in
                 let modeID = modeIDs[row * 3 + column]
-                // Tap runs the mode; long-press opens the native variant menu.
+                // Tap runs the mode; long-press opens the custom variant menu.
+                // No `.contextMenu`: iOS retracts that menu for ~1s before it
+                // delivers the selection, which is the stall this replaces.
                 PanelModeButton(
+                    modeID: modeID,
                     title: FaircopyPanelMode.title(modeID),
                     icon: FaircopyPanelMode.icon(modeID),
-                    variants: FaircopyPanelVariant.registry[modeID] ?? [],
+                    hasVariants: !(FaircopyPanelVariant.registry[modeID] ?? []).isEmpty,
+                    confirmPulse: confirmVariantModeID == modeID,
                     onTap: {
                         if let prompt = FaircopyPanelMode.prompt(modeID) {
                             taskPrompt = prompt
@@ -52,8 +56,10 @@ extension WritingToolsView {
                             executeCurrentTask()
                         }
                     },
-                    onSelect: { variant in
-                        applyVariant(modeID: modeID, variant: variant)
+                    onLongPress: {
+                        withAnimation(.easeOut(duration: 0.12)) {
+                            variantMenuModeID = modeID
+                        }
                     }
                 )
             }
@@ -86,6 +92,12 @@ extension WritingToolsView {
         // No body-level change could ever win against it. All three are gone
         // now; the exit is a plain `.transition` driven solely by the body's
         // single easeInOut. (Faircopy 3.0.71)
+        //
+        // 3.0.72: the ~1s stall turned out NOT to be this exit at all. It only
+        // happened on the long-press-then-pick path, because the native
+        // `.contextMenu` retracts before it delivers the selection — so the exit
+        // animation simply had not started yet. The grid can stay 渐隐 (now a
+        // 0.30s easeInOut); the delay is gone because the menu is hand-rolled.
         .transition(.opacity.combined(with: .scale(scale: 0.86)))
         HStack {
             Text("Made with ♥ by OwnGoal Studio".localized)
@@ -106,15 +118,104 @@ extension WritingToolsView {
         .transition(.opacity)
     }
 
-    /// Runs the chosen variant. Ask-presets (提问) present immediately: the
-    /// 0.25s defer that used to live here only existed to wait for the custom
-    /// dark overlay to go away, and the native menu dismisses on its own.
+    /// Custom modal menu shown when a panel mode is long-pressed.
+    ///
+    /// This replaces `.contextMenu`, and the reason is purely timing: after a row
+    /// is picked, iOS retracts the system menu first and only then calls back —
+    /// about a second in which the panel is frozen and the mode grid is still on
+    /// screen. Nothing that re-timed the grid's exit could fix that, because the
+    /// exit had not begun. A hand-rolled menu runs the variant the moment a row is
+    /// tapped, which is the instant behaviour a short tap always had. (3.0.72)
+    ///
+    /// A dimmed backdrop dismisses it. The card is kept visually close to the
+    /// native one (dark, translucent, rounded, rows with icon + label) so the
+    /// long-press still reads as "a menu", not as a panel takeover.
+    @ViewBuilder
+    func variantMenuOverlay(_ modeID: String) -> some View {
+        let variants = FaircopyPanelVariant.registry[modeID] ?? []
+        ZStack {
+            Color.black.opacity(0.45)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+                }
+            VStack(spacing: 0) {
+                Text(FaircopyPanelMode.title(modeID))
+                    .font(.system(.footnote).weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .padding(.top, 14)
+                    .padding(.bottom, 10)
+                ForEach(variants) { variant in
+                    Button {
+                        pickVariant(modeID: modeID, variant: variant)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: variant.icon)
+                                .frame(width: 20)
+                            Text(variant.title)
+                            Spacer(minLength: 0)
+                        }
+                        .font(.system(.subheadline))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .frame(height: 46)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Divider().background(Color.white.opacity(0.12))
+                Button {
+                    withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+                } label: {
+                    Text("取消")
+                        .font(.system(.subheadline))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(maxWidth: 260)
+            .background(
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(Color.black.opacity(0.55))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 22, y: 10)
+        }
+    }
+
+    /// Runs the picked variant immediately — that is the entire point of 3.0.72.
+    /// The menu closes at once, the pressed button plays a confirmation beat
+    /// (0.96 -> 1.04 -> 1.0, ~0.23s) so the grid visibly acknowledges the choice,
+    /// then the task starts and the grid fades out under the spinner. Dead time
+    /// before streaming: ~0.22s, against ~1s with the native menu.
+    func pickVariant(modeID: String, variant: FaircopyPanelVariant) {
+        SegmentHaptics.light.impactOccurred()
+        print("[Faircopy] variant picked: \(variant.title) -> confirm beat then run (3.0.72)")
+        withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+        confirmVariantModeID = modeID
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+            confirmVariantModeID = nil
+            applyVariant(modeID: modeID, variant: variant)
+        }
+    }
+
+    /// Runs the chosen variant. Ask-presets (提问) defer presentation by a beat:
+    /// the overlay is gone by then, and raising the ask alert while a dimmed
+    /// scrim is still fading out looks broken.
     func applyVariant(modeID: String, variant: FaircopyPanelVariant) {
         guard let prompt = FaircopyPanelMode.prompt(modeID) else { return }
         if let prefill = variant.askPrefill {
             if variant.askWeb { askWebSearch = true }
             activeVariant = nil
-            presentSegmentAsk(prefill: prefill, followUp: false)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
+                self.presentSegmentAsk(prefill: prefill, followUp: false)
+            }
         } else {
             taskPrompt = prompt
             segmentActionSubject = nil

@@ -158,10 +158,13 @@ extension WritingToolsView {
         // that spring shadowed the takeover and timed the grid's fade-out with a
         // spring (slow start -> dwell -> fast drop = "lingers then snaps"). 0.5s
         // easeInOut is a clear fade, not a linger, not a snap. (Faircopy 3.0.70)
-        withAnimation(.easeInOut(duration: 0.5)) {
+        // 3.0.72 re-times it to 0.30s: the real 1s stall was the native context
+        // menu retracting before the task began, so the exit no longer has to
+        // cover for it — the pressed button bounces first, then the grid is gone.
+        withAnimation(.easeInOut(duration: 0.30)) {
             isRunning = true
         }
-        print("[Faircopy] task start: grid fade-out via withAnimation easeInOut 0.5 (3.0.70)")
+        print("[Faircopy] task start: grid fade-out via withAnimation easeInOut 0.30 (3.0.72)")
         output = ""
         outputCitations = []
         segmentActive = false

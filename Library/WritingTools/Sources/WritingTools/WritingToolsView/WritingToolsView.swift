@@ -59,6 +59,18 @@ struct WritingToolsView: View {
     /// refinement; cleared on any normal (non-variant) mode tap.
     @State var activeVariant: FaircopyPanelVariant? = nil
 
+    /// Mode whose variant menu is currently open (long-press on a panel button),
+    /// or `nil` when no menu is showing. Drives the custom modal overlay — we do
+    /// NOT use `.contextMenu` any more: besides flashing a source highlight over
+    /// the button, iOS retracts it for ~1s before it delivers the selection,
+    /// which froze the panel with the mode grid still on screen. (Faircopy 3.0.72)
+    @State var variantMenuModeID: String? = nil
+
+    /// Mode whose button should play the "choice accepted" beat right now. Set
+    /// for ~0.22s between the menu row tap and the task actually starting, so the
+    /// grid acknowledges the pick before it fades out. (Faircopy 3.0.72)
+    @State var confirmVariantModeID: String? = nil
+
     @State var customPrompts: [CustomPromptEntry] = []
     @State var activeCustomPrompt: CustomPromptEntry? = nil
 
@@ -179,10 +191,26 @@ struct WritingToolsView: View {
         // Streaming `output` and the error view update without animation — that
         // is correct: streamed text should change per token, not spring.
         // (Faircopy 3.0.70)
-        .animation(.easeInOut(duration: 0.5), value: isRunning)
+        //
+        // 3.0.72: re-timed 0.5 -> 0.30. The long stall was never this fade (it was
+        // the native context menu retracting before the task even started), so the
+        // exit can be the crisp cross-fade the demo showed: the pressed button
+        // bounces, then the grid is gone in 0.3s while the spinner rises.
+        .animation(.easeInOut(duration: 0.30), value: isRunning)
         .padding(16)
         .background(background)
         .foregroundStyle(.white)
+        // Custom long-press menu (3.0.72). Sits above the gradient, laid out to the
+        // panel's own content box so it covers exactly the visible card. Its
+        // appearance is driven by `withAnimation` where the state is set, never by
+        // a container-level `.animation(value:)` — a second animation modifier on
+        // this chain is what shadowed the grid's exit for four releases.
+        .overlay {
+            if let menuID = variantMenuModeID {
+                variantMenuOverlay(menuID)
+                    .transition(.opacity)
+            }
+        }
         .onAppear {
             // Warm the shared light-impact generator before the first tap. Every
             // press fires `impactOccurred()` on a cold engine otherwise, and a
@@ -209,9 +237,11 @@ struct WritingToolsView: View {
             // A running task hands the panel over the moment `isRunning` flips;
             // the button grid fades out (渐隐) so the stale mode buttons never
             // linger on top of the streaming answer. Logged when the grid goes
-            // away so field triage can confirm the takeover fired. (Faircopy 3.0.68)
+            // away so field triage can confirm the takeover fired. (Faircopy 3.0.72)
             if !animated {
-                print("[Faircopy] button grid removed: task takeover, fade-out, local spring removed (3.0.71)")
+                variantMenuModeID = nil
+                confirmVariantModeID = nil
+                print("[Faircopy] button grid removed: task takeover, fade-out, local spring removed (3.0.72)")
             }
         }
     }
