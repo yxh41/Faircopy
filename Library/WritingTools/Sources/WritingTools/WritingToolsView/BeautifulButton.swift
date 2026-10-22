@@ -5,6 +5,7 @@
 //  Created by 秋星桥 on 2024/8/8.
 //
 
+import Foundation
 import SwiftUI
 
 struct BeautifulButton: View {
@@ -78,26 +79,57 @@ struct PanelModeButton: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
-    /// Set when the long press wins, so the release does not also fire onTap
-    /// (SwiftUI may deliver the tap after a recognised long press). Reset to
-    /// false at the start of every press via `pressing`.
-    @State private var suppressTap: Bool = false
+    /// Mirrors `BeautifulButton`'s press state so the press animation is
+    /// identical. Driven by `_onButtonGesture` — the same gesture `BeautifulButton`
+    /// uses — which is what gives the smooth `.easeOut(0.15)` press-down feel.
+    @State private var isPressed: Bool = false
+    /// Set when the long press wins, so the button's `perform` (which fires on
+    /// release regardless of hold length) does not also run the tap action.
+    @State private var longPressFired: Bool = false
+    @State private var longPressWork: DispatchWorkItem? = nil
 
     var body: some View {
-        BeautifulMenuLabel(title: title, icon: icon)
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .onTapGesture {
-                if !suppressTap { onTap() }
+        RoundedRectangle(cornerRadius: 12)
+            .foregroundStyle(.white)
+            .opacity(isPressed ? 0.05 : 0.1)
+            .overlay { label.opacity(isPressed ? 0.5 : 1) }
+            ._onButtonGesture { pressed in
+                isPressed = pressed
+                handlePress(pressed)
+            } perform: {
+                if !longPressFired { onTap() }
             }
-            .onLongPressGesture(
-                minimumDuration: 0.45,
-                pressing: { pressing in
-                    if pressing { suppressTap = false }
-                },
-                perform: {
-                    suppressTap = true
-                    onLongPress()
-                }
-            )
+            .animation(.easeOut(duration: 0.15), value: isPressed)
+    }
+
+    private var label: some View {
+        VStack(spacing: 4) {
+            if !icon.isEmpty { Image(systemName: icon) }
+            Text(title)
+        }
+        .font(.system(.footnote))
+    }
+
+    /// Long press is detected with a cancellable timer rather than a second
+    /// gesture: a `LongPressGesture` added alongside `_onButtonGesture` can fight
+    /// it, while the press callback is already reliable (it drives the animation).
+    /// A light haptic fires on press-down plus another when the menu opens, so the
+    /// button keeps the tactile feel of `BeautifulButton`.
+    private func handlePress(_ pressed: Bool) {
+        if pressed {
+            longPressFired = false
+            SegmentHaptics.light.impactOccurred()
+            longPressWork?.cancel()
+            let work = DispatchWorkItem {
+                longPressFired = true
+                SegmentHaptics.light.impactOccurred()
+                onLongPress()
+            }
+            longPressWork = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+        } else {
+            longPressWork?.cancel()
+            longPressWork = nil
+        }
     }
 }

@@ -136,6 +136,7 @@ extension WritingToolsView {
                     .padding(.bottom, 8)
                 ForEach(variants) { variant in
                     Button {
+                        SegmentHaptics.light.impactOccurred()
                         variantMenuModeID = nil
                         applyVariant(modeID: modeID, variant: variant)
                     } label: {
