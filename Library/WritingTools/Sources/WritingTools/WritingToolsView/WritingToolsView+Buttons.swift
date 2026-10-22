@@ -72,16 +72,17 @@ extension WritingToolsView {
             }
             .frame(height: 60)
         }
-        // A running task must take over the panel the instant it starts: the
-        // body swaps `selectiveButtonPanels` out for `outputPanel` as soon as
-        // `isRunning` flips, and the old spring fade-out here left the stale mode
-        // buttons on screen for ~1-2s while the answer was already streaming.
-        // Removal is therefore `.identity` (instant); insertion keeps the smooth
-        // scale+fade for the idle-panel open and the discard-return, so nothing
-        // else about the animation changes. (Faircopy 3.0.66)
+        // A running task must hand the panel over promptly: the body swaps
+        // `selectiveButtonPanels` out for `outputPanel` as soon as `isRunning`
+        // flips. 3.0.66 tried `.identity` for an instant removal, but the outer
+        // `.animation(.spring, value: isRunning)` still drove the whole swap, so
+        // the buttons kept lingering anyway. The removal is now a short fade
+        // (渐隐) AND the outer animation is a 0.25s easeOut (see WritingToolsView),
+        // so the grid is gone in ~0.25s instead of 1-2s. Insertion keeps the
+        // smooth scale+fade for panel-open / discard-return. (Faircopy 3.0.67)
         .transition(.asymmetric(
             insertion: .opacity.combined(with: .scale(scale: 0.85)),
-            removal: .identity
+            removal: .opacity
         ))
         .scaleEffect(initialAnimation * 0.25 + 0.75)
         .opacity(initialAnimation)

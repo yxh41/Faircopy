@@ -169,7 +169,13 @@ struct WritingToolsView: View {
                 selectiveButtonPanels
             }
         }
-        .animation(.spring, value: isRunning)
+        // The task-takeover swap (button grid -> output panel) must be quick:
+        // a spring here is what left the stale mode buttons lingering 1-2s after
+        // a variant was picked. 0.25s easeOut makes the button grid fade out
+        // (渐隐) and the output panel fade in promptly. `output` / `error` swaps
+        // keep the spring — only the `isRunning` hand-off is tightened.
+        // (Faircopy 3.0.67)
+        .animation(.easeOut(duration: 0.25), value: isRunning)
         .animation(.spring, value: output)
         .animation(.spring, value: error?.localizedDescription)
         .padding(16)
@@ -205,7 +211,7 @@ struct WritingToolsView: View {
             // goes away so field triage can confirm the takeover fired.
             // (Faircopy 3.0.66)
             if !animated {
-                print("[Faircopy] button grid removed: task takeover, instant")
+                print("[Faircopy] button grid removed: task takeover, fade 0.25s")
             }
         }
     }
