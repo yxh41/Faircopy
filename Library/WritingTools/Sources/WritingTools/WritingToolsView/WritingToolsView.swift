@@ -177,6 +177,12 @@ struct WritingToolsView: View {
         .foregroundStyle(.white)
         .onAppear {
             initialAnimation = 1
+            // Warm the shared light-impact generator before the first tap. Every
+            // press fires `impactOccurred()` on a cold engine otherwise, and a
+            // cold engine delays or drops it — which is why the first button
+            // press after opening the panel could feel silent.
+            SegmentHaptics.light.prepare()
+            print("[Faircopy] panel ready: press scale 0.96, spring response 0.25 damping 0.7, haptic prepared")
         }
         .onChange(of: context.scenePhase) { phase in
             switch phase {

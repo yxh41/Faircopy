@@ -21,13 +21,19 @@ struct BeautifulButton: View {
 
     @State var isPressed: Bool = false
 
+    /// Press feedback is three cues stacked: the translucent white backing dims
+    /// 10% -> 5%, the label halves its opacity, and the whole button sinks to
+    /// 96% scale on a spring. The opacity pair alone was too small a delta to
+    /// read as "pressed" — the scale is what makes it feel physical. Shared by
+    /// every button in the panel so the feel stays uniform.
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
             .foregroundStyle(.white)
             .opacity(isPressed ? 0.05 : 0.1)
             .overlay { label.opacity(isPressed ? 0.5 : 1) }
+            .scaleEffect(isPressed ? 0.96 : 1.0)
             ._onButtonGesture { isPressed = $0 } perform: { action() }
-            .animation(.easeOut(duration: 0.15), value: isPressed)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isPressed)
     }
 
     var label: some View {
@@ -94,15 +100,26 @@ struct PanelModeButton: View {
     /// which reads as a far heavier animation than the plain press dimming.
     /// This is exactly what the panel did before the custom dark overlay
     /// (3.0.59); 3.0.62 dropped it and the long-press looked wrong again.
+    ///
+    /// The scale has to sit *inside* a container whose own transform stays
+    /// identity: UIKit anchors the menu to the source view's frame, and a scaled
+    /// host drags that anchor off the button — the same reason scaling the
+    /// long-pressed view backfires. `.scaleEffect` does not change layout, so
+    /// the ZStack still measures exactly like the bare button.
     @ViewBuilder
     private var menuButton: some View {
         if #available(iOS 16.0, *) {
-            base
+            ZStack { scaled }
                 .contextMenu { menuContent }
                 preview: { EmptyView() }
         } else {
-            base.contextMenu { menuContent }
+            ZStack { scaled }
+                .contextMenu { menuContent }
         }
+    }
+
+    private var scaled: some View {
+        base.scaleEffect(isPressed ? 0.96 : 1.0)
     }
 
     @ViewBuilder
@@ -129,7 +146,7 @@ struct PanelModeButton: View {
             } perform: {
                 onTap()
             }
-            .animation(.easeOut(duration: 0.15), value: isPressed)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isPressed)
     }
 
     private var label: some View {
