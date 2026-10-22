@@ -65,3 +65,39 @@ struct BeautifulMenuLabel: View {
         .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 }
+
+/// Panel-mode button: a plain tap runs the mode, a long-press opens the variant
+/// menu. Deliberately does NOT use `.contextMenu` — iOS draws a system source
+/// highlight over the long-pressed view (the "rectangle" that flashes) that
+/// SwiftUI cannot suppress — and does NOT use `_onButtonGesture`, because that
+/// cannot also distinguish a long press. The visual is `BeautifulMenuLabel`, a
+/// gesture-free clone of `BeautifulButton`, so the look is unchanged.
+struct PanelModeButton: View {
+    let title: String
+    let icon: String
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+
+    /// Set when the long press wins, so the release does not also fire onTap
+    /// (SwiftUI may deliver the tap after a recognised long press). Reset to
+    /// false at the start of every press via `pressing`.
+    @State private var suppressTap: Bool = false
+
+    var body: some View {
+        BeautifulMenuLabel(title: title, icon: icon)
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .onTapGesture {
+                if !suppressTap { onTap() }
+            }
+            .onLongPressGesture(
+                minimumDuration: 0.45,
+                pressing: { pressing in
+                    if pressing { suppressTap = false }
+                },
+                perform: {
+                    suppressTap = true
+                    onLongPress()
+                }
+            )
+    }
+}
