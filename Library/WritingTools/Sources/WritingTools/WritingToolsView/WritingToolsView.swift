@@ -169,16 +169,18 @@ struct WritingToolsView: View {
                 selectiveButtonPanels
             }
         }
-        // The task-takeover swap (button grid -> output panel) must be a smooth
-        // gradual fade (渐隐): not abrupt, not a 1-2s linger. A bare spring was
-        // too slow; 0.25s easeOut and 0.4s easeInOut both still read as abrupt
-        // (the grid appeared to pop). 0.6s easeInOut is slow enough to read as a
-        // fade yet far quicker than the old spring. `output` / `error` swaps keep
-        // the spring — only the `isRunning` hand-off changes here.
-        // (Faircopy 3.0.69)
-        .animation(.easeInOut(duration: 0.6), value: isRunning)
-        .animation(.spring, value: output)
-        .animation(.spring, value: error?.localizedDescription)
+        // The task-takeover swap (button grid -> output panel) is the ONLY
+        // animation this VStack owns, and it must NOT share the modifier chain
+        // with any `.spring`. A stacked `.animation(.spring, value: output)` (or
+        // `error`) shadowed the isRunning easeInOut for the `isRunning` flip, so
+        // the grid's exit transition was timed by a spring — which starts slow,
+        // dwells, then drops, reading exactly as "lingers ~1s then snaps".
+        // Keeping ONLY the isRunning easeInOut here (and driving the flip with
+        // `withAnimation` in executeTask) makes the grid fade out smoothly.
+        // Streaming `output` and the error view update without animation — that
+        // is correct: streamed text should change per token, not spring.
+        // (Faircopy 3.0.70)
+        .animation(.easeInOut(duration: 0.5), value: isRunning)
         .padding(16)
         .background(background)
         .foregroundStyle(.white)

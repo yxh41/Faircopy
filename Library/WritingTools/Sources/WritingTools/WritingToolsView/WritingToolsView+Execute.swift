@@ -151,7 +151,16 @@ extension WritingToolsView {
         // web access, and the completion below runs off-main.
         let webRequested = askWebSearch
 
-        isRunning = true
+        // Flip inside an explicit animated transaction so the button-grid exit
+        // transition is guaranteed to play. The old body VStack stacked a
+        // `.animation(.spring, value: output)` alongside the isRunning easeInOut;
+        // that spring shadowed the takeover and timed the grid's fade-out with a
+        // spring (slow start -> dwell -> fast drop = "lingers then snaps"). 0.5s
+        // easeInOut is a clear fade, not a linger, not a snap. (Faircopy 3.0.70)
+        withAnimation(.easeInOut(duration: 0.5)) {
+            isRunning = true
+        }
+        print("[Faircopy] task start: grid fade-out via withAnimation easeInOut 0.5 (3.0.70)")
         output = ""
         outputCitations = []
         segmentActive = false

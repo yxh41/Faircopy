@@ -79,7 +79,7 @@ extension WritingToolsView {
         // the grid seemed to pop. Back to the transition that visibly fades
         // (opacity + 0.85 scale), now paired with a longer 0.6s easeInOut on the
         // container, so the grid goes gradually instead of snapping. Insertion
-        // uses the same shape. (Faircopy 3.0.69)
+        // uses the same shape. (Faircopy 3.0.70)
         .transition(.opacity.combined(with: .scale(scale: 0.85)))
         .scaleEffect(initialAnimation * 0.25 + 0.75)
         .opacity(initialAnimation)
