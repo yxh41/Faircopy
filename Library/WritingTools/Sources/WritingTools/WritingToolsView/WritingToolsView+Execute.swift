@@ -8,6 +8,7 @@
 import Combine
 import Foundation
 import OpenAI
+import SwiftUI
 import UIKit
 import WritingToolsLocalizable
 
