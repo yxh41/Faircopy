@@ -80,3 +80,123 @@ enum FaircopyPanelMode {
         Prompt(rawValue: id)
     }
 }
+
+/// A parameterized sub-action exposed by long-pressing a panel mode.
+///
+/// Variants are pure dylib-side data: each carries a short instruction fragment
+/// that is appended to the mode's base system prompt (and, optionally, a
+/// temperature override or a translate target). Because the dylib assembles the
+/// full system prompt before relaying to AIGate, no gateway or `Prompt` enum
+/// change is required — see `WritingToolsView.executeCurrentTask`.
+///
+/// `segment` (提问) is special: its variants are not model runs but ask-presets.
+/// When `askPrefill` is set, selecting the variant drives `presentSegmentAsk`
+/// instead of `executeCurrentTask`, optionally with web access consented.
+struct FaircopyPanelVariant: Identifiable, Hashable {
+    let id: String
+    /// Localized title shown in the long-press menu.
+    let title: String
+    /// SF Symbol name. Must be one known from iOS 13/14 on — `Image(systemName:)`
+    /// for an unknown name renders nothing (see `FaircopyPanelMode.icon`).
+    let icon: String
+    /// Instruction fragment appended after the mode's base prompt. Empty for
+    /// variants that only change `temperature` / `translateTarget` / `askPrefill`.
+    let modifier: String
+    /// When set, overrides `Prompt.sampling(for:)` temperature for this run.
+    let temperature: Double?
+    /// When set, preselects the translate target before running (translate mode).
+    let translateTarget: String?
+    /// When set, this variant drives the 提问 flow with a pre-filled question
+    /// instead of a plain model run. An empty string opens the ask with an empty
+    /// field (used by the 联网追问 preset, which only sets `askWeb`).
+    let askPrefill: String?
+    /// When `askPrefill` is set, consents to web access for the ask session.
+    let askWeb: Bool
+
+    init(
+        id: String,
+        title: String,
+        icon: String,
+        modifier: String = "",
+        temperature: Double? = nil,
+        translateTarget: String? = nil,
+        askPrefill: String? = nil,
+        askWeb: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.icon = icon
+        self.modifier = modifier
+        self.temperature = temperature
+        self.translateTarget = translateTarget
+        self.askPrefill = askPrefill
+        self.askWeb = askWeb
+    }
+
+    /// Variant sub-menus per mode, keyed by `Prompt.rawValue`. Every id here must
+    /// also exist in `FaircopyPanelModesStore.defaults` or it is unreachable.
+    /// Keep symbols iOS 13/14-safe (see `FaircopyPanelMode.icon` rule).
+    static let registry: [String: [FaircopyPanelVariant]] = [
+        "proofread": [
+            .init(id: "strict", title: "Strict", icon: "checkmark.shield",
+                  modifier: "Apply a stricter pass: also improve word choice, phrasing, and clarity, not just correctness. Keep meaning and tone unchanged."),
+            .init(id: "grammar", title: "Grammar Only", icon: "text.badge.checkmark",
+                  modifier: "Fix only spelling, grammar, and punctuation. Do not change wording, tone, or structure at all."),
+            .init(id: "terminology", title: "Terminology", icon: "abc",
+                  modifier: "Unify terminology: choose one consistent term per concept and use it throughout the text."),
+        ],
+        "rewrite": [
+            .init(id: "casual", title: "Casual", icon: "face.smiling",
+                  modifier: "Rewrite in a relaxed, conversational tone while keeping all meaning."),
+            .init(id: "literary", title: "Literary", icon: "books.vertical",
+                  modifier: "Rewrite with richer vocabulary and a more polished, literary register."),
+            .init(id: "alternative", title: "Rephrase", icon: "arrow.2.squarepath",
+                  modifier: "Express the same meaning with completely different wording and sentence structure."),
+            .init(id: "structure", title: "Keep Structure", icon: "list.bullet",
+                  modifier: "Keep the original sentence structure and order; only refine wording."),
+        ],
+        "translate": [
+            .init(id: "zh", title: "→ 中文", icon: "globe", translateTarget: "Chinese"),
+            .init(id: "en", title: "→ English", icon: "globe", translateTarget: "English"),
+            .init(id: "ja", title: "→ 日本語", icon: "globe", translateTarget: "Japanese"),
+        ],
+        "friendly": [
+            .init(id: "warmer", title: "Warmer", icon: "flame",
+                  modifier: "Sound especially warm and approachable, while staying faithful to the original."),
+            .init(id: "humor", title: "Light Humor", icon: "heart",
+                  modifier: "Add mild, tasteful humor where it fits; keep it concise and faithful."),
+        ],
+        "professional": [
+            .init(id: "email", title: "As Email", icon: "envelope",
+                  modifier: "Format the result as a clear, professional email or message."),
+            .init(id: "academic", title: "Academic", icon: "graduationcap",
+                  modifier: "Use a neutral, academic register appropriate for formal writing."),
+        ],
+        "concise": [
+            .init(id: "ultra", title: "Ultra Short", icon: "minus.circle",
+                  modifier: "Make it as short as possible: keep only the essential information, drop everything else."),
+            .init(id: "bullets", title: "As Bullets", icon: "list.bullet",
+                  modifier: "If the content can be a list, return it as a compact bullet list; otherwise keep it tight."),
+        ],
+        "expand": [
+            .init(id: "examples", title: "Add Examples", icon: "lightbulb",
+                  modifier: "Add a concrete example or two to clarify the point."),
+            .init(id: "structure", title: "Add Structure", icon: "rectangle.grid.2x2",
+                  modifier: "Add clear structure (headings or a short outline) to organize the content."),
+        ],
+        "summarize": [
+            .init(id: "oneliner", title: "One Sentence", icon: "text.alignleft",
+                  modifier: "Summarize in a single, concise sentence."),
+            .init(id: "points", title: "Three Points", icon: "list.number",
+                  modifier: "Summarize as three short key points."),
+            .init(id: "outline", title: "Detailed Outline", icon: "list.bullet.below.rectangle",
+                  modifier: "Summarize as a detailed outline with the main points and sub-points."),
+        ],
+        "segment": [
+            .init(id: "web", title: "Ask with Web", icon: "globe", askPrefill: "", askWeb: true),
+            .init(id: "explain", title: "Explain", icon: "lightbulb", askPrefill: "请解释这段文字的意思"),
+            .init(id: "points", title: "Key Points", icon: "list.number", askPrefill: "请列出这段内容的要点"),
+            .init(id: "translate", title: "Translate It", icon: "character.book.closed", askPrefill: "请把这段翻译成中文"),
+        ],
+    ]
+}

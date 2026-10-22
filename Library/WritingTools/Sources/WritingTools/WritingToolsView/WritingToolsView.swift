@@ -54,6 +54,11 @@ struct WritingToolsView: View {
     @State var taskPrompt: Prompt = .rewrite
     @State var translateTarget: String = "Chinese"
 
+    /// Active panel-mode variant selected from a long-press sub-menu, or `nil` for
+    /// a plain run. Carried across Again/retry so a variant re-runs with the same
+    /// refinement; cleared on any normal (non-variant) mode tap.
+    @State var activeVariant: FaircopyPanelVariant? = nil
+
     @State var customPrompts: [CustomPromptEntry] = []
     @State var activeCustomPrompt: CustomPromptEntry? = nil
 

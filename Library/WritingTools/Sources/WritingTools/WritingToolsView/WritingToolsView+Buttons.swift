@@ -37,17 +37,50 @@ extension WritingToolsView {
             let modeIDs = FaircopyPanelModesStore.load()
             ForEach(0 ..< (modeIDs.count + 2) / 3, id: \.self) { row in
                 HStack(spacing: innerSpacing) {
-                    ForEach(0 ..< min(3, modeIDs.count - row * 3), id: \.self) { column in
-                        let modeID = modeIDs[row * 3 + column]
-                        BeautifulButton(title: FaircopyPanelMode.title(modeID),
-                                        icon: FaircopyPanelMode.icon(modeID)) {
-                            if let prompt = FaircopyPanelMode.prompt(modeID) {
-                                taskPrompt = prompt
-                                segmentActionSubject = nil
-                                executeCurrentTask()
+            ForEach(0 ..< min(3, modeIDs.count - row * 3), id: \.self) { column in
+                let modeID = modeIDs[row * 3 + column]
+                let variants = FaircopyPanelVariant.registry[modeID] ?? []
+                BeautifulButton(title: FaircopyPanelMode.title(modeID),
+                                icon: FaircopyPanelMode.icon(modeID)) {
+                    // Plain tap: run the mode without any variant refinement.
+                    if let prompt = FaircopyPanelMode.prompt(modeID) {
+                        taskPrompt = prompt
+                        segmentActionSubject = nil
+                        activeVariant = nil
+                        executeCurrentTask()
+                    }
+                }
+                .contextMenu {
+                    // Long-press: reveal this mode's variant sub-menu. Tap still
+                    // fires the button's own action, so the two gestures never
+                    // collide. `segment` variants drive the 提问 flow instead.
+                    if !variants.isEmpty {
+                        ForEach(variants) { variant in
+                            Button {
+                                if let prompt = FaircopyPanelMode.prompt(modeID) {
+                                    if let prefill = variant.askPrefill {
+                                        // 提问 preset: open the ask with a
+                                        // pre-filled question (and web consent).
+                                        if variant.askWeb { askWebSearch = true }
+                                        activeVariant = nil
+                                        presentSegmentAsk(prefill: prefill, followUp: false)
+                                    } else {
+                                        taskPrompt = prompt
+                                        segmentActionSubject = nil
+                                        if let target = variant.translateTarget {
+                                            translateTarget = target
+                                        }
+                                        activeVariant = variant
+                                        executeCurrentTask()
+                                    }
+                                }
+                            } label: {
+                                Label(variant.title, systemImage: variant.icon)
                             }
                         }
                     }
+                }
+            }
                 }
                 .frame(height: 60)
             }

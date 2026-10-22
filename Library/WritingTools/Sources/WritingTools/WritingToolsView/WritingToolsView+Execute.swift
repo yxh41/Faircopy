@@ -30,10 +30,24 @@ extension WritingToolsView {
             return
         }
         let subject: String? = taskPrompt == .translate ? segmentActionSubject : nil
+        // A long-press variant appends a refinement to the base prompt and may
+        // override the sampling temperature. `segment` never reaches here (it
+        // tokenizes locally), and ask-presets are handled before this call.
+        let basePrompt = taskPrompt.resolvedPrompt(translateTarget: translateTarget)
+        let systemPrompt: String
+        if let variant = activeVariant, !variant.modifier.isEmpty {
+            systemPrompt = basePrompt + "\n\n" + variant.modifier
+        } else {
+            systemPrompt = basePrompt
+        }
+        var sampling = taskPrompt.sampling(for: subject?.count ?? context.textProxy.selectedText.count)
+        if let temperature = activeVariant?.temperature {
+            sampling = SamplingConfig(temperature: temperature, topP: sampling.topP)
+        }
         executeTask(
-            systemPrompt: taskPrompt.resolvedPrompt(translateTarget: translateTarget),
+            systemPrompt: systemPrompt,
             examples: taskPrompt.chatExamplesAfterSystemMessage,
-            sampling: taskPrompt.sampling(for: subject?.count ?? context.textProxy.selectedText.count),
+            sampling: sampling,
             delayedForRetry: delayedForRetry,
             userText: subject
         )
