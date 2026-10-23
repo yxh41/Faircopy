@@ -107,12 +107,28 @@ struct PanelModeButton: View {
     /// tap action.
     @State private var longPressFired: Bool = false
     @State private var longPressWork: DispatchWorkItem? = nil
+    /// Long-press countdown ring: `0` draws nothing, `1` sweeps the button's
+    /// whole outline. It fills across the long-press window so the wait reads as
+    /// a timer instead of a freeze — for six releases the only feedback during
+    /// those 0.45s was the press dim. (Faircopy 3.0.75)
+    @State private var longPressProgress: CGFloat = 0
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
             .foregroundStyle(.white)
             .opacity(isPressed ? 0.05 : 0.1)
             .overlay { label.opacity(isPressed ? 0.5 : 1) }
+            // Long-press countdown. It traces the button's own outline rather
+            // than a circle so it never sits on top of the icon or the label,
+            // and it is empty (trim 0) unless a press is actually counting down.
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .trim(from: 0, to: longPressProgress)
+                    .stroke(
+                        Color.white.opacity(0.85),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                    )
+            }
             .scaleEffect(isPressed ? 0.96 : 1.0)
             .scaleEffect(pulseScale)
             ._onButtonGesture { pressed in
@@ -137,6 +153,7 @@ struct PanelModeButton: View {
             .onDisappear {
                 longPressWork?.cancel()
                 longPressWork = nil
+                longPressProgress = 0
             }
     }
 
@@ -160,14 +177,27 @@ struct PanelModeButton: View {
                 // left dimmed underneath the scrim.
                 isPressed = false
                 SegmentHaptics.light.impactOccurred()
-                print("[Faircopy] panel long-press menu open: \(modeID) (custom overlay, no contextMenu)")
+                print("[Faircopy] panel long-press menu open: \(modeID) (custom overlay, no contextMenu) ring swept (3.0.75)")
                 onLongPress()
             }
             longPressWork = work
+            // Countdown ring: stay invisible for the first 0.15s so an ordinary
+            // tap shows nothing at all, then sweep the outline across the
+            // remaining 0.30s so it completes on the frame the menu opens.
+            // Guarded by `isCancelled` because a release cancels `work` first.
+            // (Faircopy 3.0.75)
+            longPressProgress = 0
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                guard !work.isCancelled else { return }
+                withAnimation(.linear(duration: 0.30)) { longPressProgress = 1 }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
         } else {
             longPressWork?.cancel()
             longPressWork = nil
+            // Released before the menu opened: retract whatever the ring had
+            // filled, so a cancelled long press visibly rewinds. (3.0.75)
+            withAnimation(.easeOut(duration: 0.12)) { longPressProgress = 0 }
             playBounce()
         }
     }
