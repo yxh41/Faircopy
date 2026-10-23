@@ -57,7 +57,7 @@ extension WritingToolsView {
                         }
                     },
                     onLongPress: {
-                        withAnimation(.easeOut(duration: 0.12)) {
+                        withAnimation(.spring(response: 0.30, dampingFraction: 0.82)) {
                             variantMenuModeID = modeID
                         }
                     }
@@ -134,58 +134,63 @@ extension WritingToolsView {
     func variantMenuOverlay(_ modeID: String) -> some View {
         let variants = FaircopyPanelVariant.registry[modeID] ?? []
         ZStack {
-            Color.black.opacity(0.45)
+            Color.black.opacity(0.32)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+                    withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }
                 }
             VStack(spacing: 0) {
                 Text(FaircopyPanelMode.title(modeID))
-                    .font(.system(.footnote).weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
-                    .padding(.top, 14)
-                    .padding(.bottom, 10)
-                ForEach(variants) { variant in
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.55))
+                    .padding(.top, 18)
+                    .padding(.bottom, 12)
+                ForEach(Array(variants.enumerated()), id: \.element.id) { index, variant in
                     Button {
                         pickVariant(modeID: modeID, variant: variant)
                     } label: {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 12) {
                             Image(systemName: variant.icon)
-                                .frame(width: 20)
+                                .frame(width: 22, alignment: .center)
                             Text(variant.title)
                             Spacer(minLength: 0)
                         }
                         .font(.system(.subheadline))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .frame(height: 46)
+                        .padding(.horizontal, 20)
+                        .frame(height: 50)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    if index < variants.count - 1 {
+                        Divider().background(Color.white.opacity(0.08)).padding(.horizontal, 16)
+                    }
                 }
                 Divider().background(Color.white.opacity(0.12))
                 Button {
-                    withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+                    withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }
                 } label: {
                     Text("取消")
                         .font(.system(.subheadline))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.55))
                         .frame(maxWidth: .infinity)
-                        .frame(height: 46)
+                        .frame(height: 48)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
-            .frame(maxWidth: 260)
+            .frame(maxWidth: 264)
+            .padding(.vertical, 4)
             .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(Color.black.opacity(0.55))
+                RoundedRectangle(cornerRadius: 22)
+                    .fill(.ultraThinMaterial)
+                    .overlay(RoundedRectangle(cornerRadius: 22).fill(Color.black.opacity(0.5)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22)
+                            .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.14), lineWidth: 0.5)
-            )
-            .shadow(color: Color.black.opacity(0.35), radius: 22, y: 10)
+            .shadow(color: Color.black.opacity(0.45), radius: 28, y: 14)
         }
     }
 
@@ -196,8 +201,8 @@ extension WritingToolsView {
     /// before streaming: ~0.22s, against ~1s with the native menu.
     func pickVariant(modeID: String, variant: FaircopyPanelVariant) {
         SegmentHaptics.light.impactOccurred()
-        print("[Faircopy] variant picked: \(variant.title) -> confirm beat then run (3.0.72)")
-        withAnimation(.easeOut(duration: 0.12)) { variantMenuModeID = nil }
+        print("[Faircopy] variant picked: \(variant.title) -> confirm beat then run (3.0.73)")
+        withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }
         confirmVariantModeID = modeID
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
             confirmVariantModeID = nil

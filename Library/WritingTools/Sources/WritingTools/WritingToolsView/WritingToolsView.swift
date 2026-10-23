@@ -208,7 +208,10 @@ struct WritingToolsView: View {
         .overlay {
             if let menuID = variantMenuModeID {
                 variantMenuOverlay(menuID)
-                    .transition(.opacity)
+                    // Scale + fade so the card springs up from the centre. The
+                    // animation itself lives in `withAnimation` at the set site —
+                    // never a container `.animation(value:)` on this chain.
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
             }
         }
         .onAppear {

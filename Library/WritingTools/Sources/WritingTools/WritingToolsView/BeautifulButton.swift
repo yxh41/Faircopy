@@ -122,6 +122,7 @@ struct PanelModeButton: View {
                 // Defensive: a tap must never leave the button stuck in its
                 // pressed visual state. (Faircopy 3.0.65)
                 isPressed = false
+                playBounce()
                 if longPressFired {
                     longPressFired = false
                 } else {
@@ -131,10 +132,7 @@ struct PanelModeButton: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isPressed)
             .onChange(of: confirmPulse) { pulsed in
                 guard pulsed else { return }
-                withAnimation(.easeOut(duration: 0.10)) { pulseScale = 1.04 }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
-                    withAnimation(.easeInOut(duration: 0.13)) { pulseScale = 1.0 }
-                }
+                playBounce()
             }
             .onDisappear {
                 longPressWork?.cancel()
@@ -170,6 +168,18 @@ struct PanelModeButton: View {
         } else {
             longPressWork?.cancel()
             longPressWork = nil
+            playBounce()
+        }
+    }
+
+    /// Bounce-confirm: 0.96 (pressed) -> 1.04 (overshoot) -> 1.0 (settle).
+    /// Plays on release for the tactile "it took" feel, and again when a variant
+    /// on this button is picked so the grid acknowledges the choice. This is the
+    /// B-press animation chosen for 3.0.73 (the previous A-sink only dimmed).
+    private func playBounce() {
+        withAnimation(.easeOut(duration: 0.10)) { pulseScale = 1.04 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.7)) { pulseScale = 1.0 }
         }
     }
 
