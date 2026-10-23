@@ -134,10 +134,10 @@ extension WritingToolsView {
     func variantMenuOverlay(_ modeID: String) -> some View {
         let variants = FaircopyPanelVariant.registry[modeID] ?? []
         ZStack {
-            // Scrim: 22% — light enough that the panel gradient still reads
-            // through (3.0.74), dark enough to keep the frosted card in focus.
-            // Still the tap-to-dismiss target. (Was 32% in 3.0.73, 45% in 3.0.72.)
-            Color.black.opacity(0.22)
+            // Scrim: 15% — even lighter per user request (3.0.74); the panel
+            // gradient now reads through clearly while the frosted card still pops.
+            // Still the tap-to-dismiss target. (Was 22% in 3.0.73, 45% in 3.0.72.)
+            Color.black.opacity(0.15)
                 .contentShape(Rectangle())
                 .onTapGesture {
                     withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }
