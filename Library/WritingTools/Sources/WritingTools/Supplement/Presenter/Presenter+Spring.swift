@@ -184,7 +184,14 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
     }
 
     func animateTransition(using context: UIViewControllerContextTransitioning) {
-        guard let controller = context.presentationController as? FaircopySpringPresentationController else {
+        // `UIViewControllerContextTransitioning` does not expose the presentation
+        // controller; it is reachable through the controllers it carries. `.to`
+        // covers presentation, `.from` covers dismissal.
+        let controller = (
+            context.viewController(forKey: .to)?.presentationController
+                ?? context.viewController(forKey: .from)?.presentationController
+        ) as? FaircopySpringPresentationController
+        guard let controller else {
             completeWithoutAnimation(context)
             return
         }
@@ -213,7 +220,7 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 initialSpringVelocity: 0,
                 options: [.allowUserInteraction, .beginFromCurrentState]
             ) {
-                card.transform = .identity
+                card.transform = CGAffineTransform.identity
             } completion: { _ in
                 context.completeTransition(!context.transitionWasCancelled)
             }
