@@ -639,3 +639,10 @@
 "Clear" = "清除";
 "Reset app search list to built-in defaults?" = "将应用搜索列表恢复为内置默认？";
 "Remove recent keyword history shown in 在应用中搜索?" = "清除「在应用中搜索」中显示的近期关键词历史？";
+
+/* 3.0.76: 面板动画 —— 外部唤起时「中心弹出」的 Q 弹入场开关 */
+"Panel Animation" = "面板动画";
+"Applies to panels opened from another app (Kayoko, the URL scheme, shortcuts)." = "作用于从其他 App 唤起的面板（Kayoko、URL Scheme、快捷指令）。";
+"Spring Entrance" = "Q 弹入场";
+"The panel pops up from the centre with a slight bounce." = "面板从屏幕中心弹出，带一点回弹。";
+"Turn off to use the system popover transition." = "关闭后使用系统原本的弹出过渡。";

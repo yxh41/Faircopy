@@ -68,8 +68,9 @@ public extension Presenter {
     /// External entry point (Darwin notification `wiki.qaq.faircopy.present`
     /// or the `faircopy://panel` URL forwarded by AIGate). Unlike the menu
     /// path there is no selection anchor, so the panel is presented as a
-    /// centered rounded card (popover without arrow) with the standard pop
-    /// animation instead of pointing at the selection.
+    /// centered rounded card with no arrow. The transition is the system
+    /// popover cross-fade, or — when 面板动画 → Q 弹入场 is on — a centred
+    /// spring pop (3.0.76).
     ///
     /// Returns `true` if the panel was presented. Returns `false` — never a
     /// shake — when the target cannot be used, so the caller can fall back to a
@@ -143,24 +144,49 @@ public extension Presenter {
         }
 
         let toolController = WritingToolController(context: context)
-        let contentSize = toolController.view.systemLayoutSizeFitting(.init(
-            width: 400,
-            height: CGFloat.greatestFiniteMagnitude
-        ))
-        toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
-        toolController.modalPresentationStyle = .popover
-        toolController.preferredContentSize = contentSize
-        toolController.popoverPresentationController?.delegate = context
-        toolController.popoverPresentationController?.sourceView = context.parentController.view
-        toolController.popoverPresentationController?.sourceRect = CGRect(
-            x: context.parentController.view.bounds.midX,
-            y: context.parentController.view.bounds.midY,
-            width: 0,
-            height: 0
-        )
-        toolController.popoverPresentationController?.canOverlapSourceViewRect = true
-        toolController.popoverPresentationController?.permittedArrowDirections = []
-        context.parentController.present(toolController, animated: true)
+        if FaircopyPanelAnimationStore.load().springEntrance {
+            // 3.0.76: Q-bounce entrance. A popover's transition is driven inside
+            // UIKit and cannot be swapped for a spring, so this path uses a custom
+            // presentation (card chrome drawn by FaircopySpringPresentationController,
+            // entrance scaled by FaircopySpringAnimator). Width is measured at the
+            // width the card will actually get — the popover path measures at 400
+            // and lets UIKit clamp it, which would clip a narrower centred card.
+            let availableWidth = max(240, context.parentController.view.bounds.width - 40)
+            let measureWidth = min(400, availableWidth)
+            let contentSize = toolController.view.systemLayoutSizeFitting(CGSize(
+                width: measureWidth,
+                height: CGFloat.greatestFiniteMagnitude
+            ))
+            NSLog("[Faircopy] panel transition: spring pop, damping 0.36 (3.0.76)")
+            toolController.usesSpringEntrance = true
+            toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
+            toolController.modalPresentationStyle = .custom
+            toolController.preferredContentSize = CGSize(
+                width: measureWidth,
+                height: contentSize.height
+            )
+            toolController.transitioningDelegate = toolController
+            context.parentController.present(toolController, animated: true)
+        } else {
+            let contentSize = toolController.view.systemLayoutSizeFitting(.init(
+                width: 400,
+                height: CGFloat.greatestFiniteMagnitude
+            ))
+            toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
+            toolController.modalPresentationStyle = .popover
+            toolController.preferredContentSize = contentSize
+            toolController.popoverPresentationController?.delegate = context
+            toolController.popoverPresentationController?.sourceView = context.parentController.view
+            toolController.popoverPresentationController?.sourceRect = CGRect(
+                x: context.parentController.view.bounds.midX,
+                y: context.parentController.view.bounds.midY,
+                width: 0,
+                height: 0
+            )
+            toolController.popoverPresentationController?.canOverlapSourceViewRect = true
+            toolController.popoverPresentationController?.permittedArrowDirections = []
+            context.parentController.present(toolController, animated: true)
+        }
 
         // `present(_:animated:)` is synchronous in setting up the relationship but
         // silently gives up when the host controller is no longer in the window

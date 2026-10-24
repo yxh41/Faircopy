@@ -124,6 +124,7 @@ struct FaircopyRootView: View {
             endpointListSection
             customPromptsSection
             panelModesSection
+            panelAnimationSection
             appSearchSection
             usageSection
 
@@ -265,6 +266,26 @@ struct FaircopyRootView: View {
         } footer: {
             Text(NSLocalizedString(
                 "Choose which writing modes appear in the panel, and drag to reorder them.",
+                bundle: Bundle.wrti_support,
+                comment: ""
+            ))
+        }
+    }
+
+    var panelAnimationSection: some View {
+        Section {
+            NavigationLink {
+                PanelAnimationSettingsView()
+            } label: {
+                Label {
+                    Text(NSLocalizedString("Panel Animation", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "sparkles")
+                }
+            }
+        } footer: {
+            Text(NSLocalizedString(
+                "Applies to panels opened from another app (Kayoko, the URL scheme, shortcuts).",
                 bundle: Bundle.wrti_support,
                 comment: ""
             ))
@@ -735,6 +756,37 @@ struct PanelModesSettingsView: View {
     }
 }
 
+// MARK: - Panel Animation Settings Subpage (3.0.76)
+
+struct PanelAnimationSettingsView: View {
+    @State var springEntrance: Bool = PanelAnimationSettingsStore.load().springEntrance
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(isOn: $springEntrance) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("Spring Entrance", bundle: Bundle.wrti_support, comment: ""))
+                        Text(NSLocalizedString("The panel pops up from the centre with a slight bounce.", bundle: Bundle.wrti_support, comment: ""))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onChange(of: springEntrance) { newValue in
+                    PanelAnimationSettingsStore.save(PanelAnimationSettings(springEntrance: newValue))
+                }
+            } footer: {
+                Text(NSLocalizedString("Turn off to use the system popover transition.", bundle: Bundle.wrti_support, comment: ""))
+            }
+        }
+        .navigationTitle(NSLocalizedString("Panel Animation", bundle: Bundle.wrti_support, comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            springEntrance = PanelAnimationSettingsStore.load().springEntrance
+        }
+    }
+}
+
 // MARK: - App Search Settings Subpage (分词 → 在应用中搜索)
 
 /// Dedicated subpage for the "在应用中搜索" destinations so the main settings
@@ -993,6 +1045,35 @@ struct AppSearchSettingsStore {
     }
 
     static func save(_ settings: AppSearchSettings) {
+        let url = URL(fileURLWithPath: path)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        guard let data = try? JSONEncoder().encode(settings) else { return }
+        try? data.write(to: url, options: .atomic)
+    }
+}
+
+/// Mirrors `FaircopyPanelAnimationSettings` / `FaircopyPanelAnimationStore` in
+/// WritingTools's Presenter+Spring.swift — the two modules cannot share a source
+/// file (AIGate does not link the WritingTools framework). Property names MUST
+/// match so the JSON decodes unchanged on the panel side.
+struct PanelAnimationSettings: Codable {
+    var springEntrance: Bool
+}
+
+struct PanelAnimationSettingsStore {
+    /// KEEP IN SYNC with the same path in Presenter+Spring.swift.
+    static let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel_animation.json"
+
+    static func load() -> PanelAnimationSettings {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let settings = try? JSONDecoder().decode(PanelAnimationSettings.self, from: data)
+        else { return PanelAnimationSettings(springEntrance: false) }
+        return settings
+    }
+
+    static func save(_ settings: PanelAnimationSettings) {
         let url = URL(fileURLWithPath: path)
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)

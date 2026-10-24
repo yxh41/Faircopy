@@ -12,6 +12,11 @@ import WritingToolsInjector
 class WritingToolController: UIHostingController<WritingToolsView> {
     let context: Presenter.Context
 
+    /// 3.0.76: set by the external presentation path when the Q-bounce entrance
+    /// is enabled. Drives the transitioning delegate in Presenter+Spring.swift;
+    /// when false this controller is a plain popover exactly as before.
+    var usesSpringEntrance = false
+
     init(context: Presenter.Context) {
         self.context = context
         super.init(rootView: .init(context: context))
