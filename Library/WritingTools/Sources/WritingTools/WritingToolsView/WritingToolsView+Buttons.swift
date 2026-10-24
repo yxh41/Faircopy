@@ -134,10 +134,14 @@ extension WritingToolsView {
     func variantMenuOverlay(_ modeID: String) -> some View {
         let variants = FaircopyPanelVariant.registry[modeID] ?? []
         ZStack {
-            // Scrim: 15% — even lighter per user request (3.0.74); the panel
-            // gradient now reads through clearly while the frosted card still pops.
-            // Still the tap-to-dismiss target. (Was 22% in 3.0.73, 45% in 3.0.72.)
-            Color.black.opacity(0.15)
+            // Scrim removed in 3.0.77: dimming the whole card behind the menu just
+            // read as 「黑蒙蒙」, and the menu already carries its own frosted
+            // backdrop plus a 0.45 shadow, so it separates from the panel without
+            // any help. The layer itself stays — it is the tap-to-dismiss target
+            // (`variantMenuModeID = nil` on tap) — but it is fully transparent, so
+            // nothing behind the menu changes brightness.
+            // (Opacity history: 45% in 3.0.72, 22% in 3.0.73, 15% in 3.0.74.)
+            Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture {
                     withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }

@@ -174,10 +174,10 @@ struct PanelModeButton: View {
             let work = DispatchWorkItem {
                 longPressFired = true
                 // The menu covers the button; drop the pressed look so it is not
-                // left dimmed underneath the scrim.
+                // left dimmed underneath the menu.
                 isPressed = false
                 SegmentHaptics.light.impactOccurred()
-                print("[Faircopy] panel long-press menu open: \(modeID) (custom overlay, no contextMenu) ring swept (3.0.75)")
+                print("[Faircopy] panel long-press menu open: \(modeID) (custom overlay, no contextMenu) ring swept (3.0.75) no scrim (3.0.77)")
                 onLongPress()
             }
             longPressWork = work
