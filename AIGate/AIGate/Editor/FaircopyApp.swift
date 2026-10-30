@@ -254,19 +254,24 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // activates — the Safari path, with no summon at all.
             let caller = Self.queryValue("caller", in: url)
             let named = FaircopyImageOCR.requestedDisplayTarget()
-            let ocrTarget: String
+            // 3.0.85: two related but different answers.
+            //   panelTarget — where the panel is drawn. Empty means "let the
+            //     injector arbitrate", which is what the plain broadcast road
+            //     has always done: the foreground app claims the ticket at once
+            //     and SpringBoard defers 0.8 s, so no one has to name the
+            //     frontmost app at all.
+            //   landTarget  — where this app goes when it is done. That has to
+            //     be a real bundle id, so an unnamed caller lands on `src`.
+            let panelTarget: String
             if let caller,
                caller.caseInsensitiveCompare("wiki.qaq.AIGate") != .orderedSame,
                caller.caseInsensitiveCompare("com.apple.springboard") != .orderedSame
             {
-                ocrTarget = caller
+                panelTarget = caller
             } else {
-                // 3.0.84: `src` is the home screen for this hand-off even when
-                // the caller's list floats over an app, and the caller itself
-                // runs inside SpringBoard — so the only trustworthy answer is
-                // the one it left in the target file.
-                ocrTarget = named
+                panelTarget = named ?? ""
             }
+            let landTarget = named ?? bounceTarget
             //
             // Vision's accurate text network cannot execute inside SpringBoard:
             // every `.accurate` request there fails with `Error computing NN
@@ -287,7 +292,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // binary (the 3.0.82 proof failed on exactly that). These two are
             // past the threshold, so the caller decision stays provable.
             FaircopyImageOCR.appendLog(
-                "ocr: caller from url = " + (caller ?? "none") + " bounce target = " + ocrTarget)
+                "ocr: caller from url = " + (caller ?? "none") + " bounce target = " + landTarget)
             // A cold launch builds its window after this method returns, so one
             // hide attempt is not enough: the window that appears a frame later
             // would still paint (black, since the settings UI is suppressed).
@@ -304,7 +309,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 if !text.isEmpty {
                     handedOff = PanelPendingStore.save(PanelPending(
                         keyword: text,
-                        target: ocrTarget,
+                        target: panelTarget,
                         at: Date().timeIntervalSince1970,
                         mode: "segment"
                     ))
@@ -316,7 +321,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 fc_notify_post(FaircopyImageOCR.resultNotification)
                 FaircopyAppModel.shared.beginBackgroundTask()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    LSApplicationWorkspace.default().openApplication(withBundleID: ocrTarget)
+                    LSApplicationWorkspace.default().openApplication(withBundleID: landTarget)
                 }
                 // SpringBoard never reports `didBecomeActive` when the user
                 // lands back on the home screen — it stays Active for as long
@@ -331,7 +336,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 // 3.0.82: only reachable when the caller was unknown and the
                 // bounce fell back to the home screen. A named caller (Kayoko)
                 // activates on landing and claims the invocation itself.
-                if handedOff, ocrTarget.lowercased() == "com.apple.springboard" {
+                if handedOff, landTarget.lowercased() == "com.apple.springboard" {
                     FaircopyImageOCR.summonOnHomeScreen()
                 }
                 // 3.0.82: a named caller is only useful if its process really
@@ -339,7 +344,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 // bounce says whether anybody claimed the invocation — it
                 // changes nothing that was handed off, it only makes the next
                 // report readable (a silent caller shows up as `none` here).
-                if handedOff, ocrTarget.lowercased() != "com.apple.springboard" {
+                if handedOff, landTarget.lowercased() != "com.apple.springboard" {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
                         FaircopyImageOCR.appendLog(
                             "ocr: claim after bounce = \(FaircopyImageOCR.panelClaimOwner())")
@@ -624,16 +629,29 @@ enum FaircopyImageOCR {
         appendLog("boot: silent ocr observer installed")
     }
 
-    /// The app the caller named for this picture (3.0.84), or SpringBoard when
-    /// it named nothing — which is also the honest answer when the home screen
-    /// is what the user is looking at.
-    static func requestedDisplayTarget() -> String {
+    /// The app the caller named for this picture, or nil when it named nothing
+    /// usable — nil means "let the injector arbitrate" (see `handleBackgroundRequest`).
+    static func requestedDisplayTarget() -> String? {
         let url = URL(fileURLWithPath: displayTargetPath)
-        guard let raw = try? String(contentsOf: url, encoding: .utf8) else {
-            return "com.apple.springboard"
-        }
+        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { return nil }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.isEmpty ? "com.apple.springboard" : value
+        return isPlausibleBundleIdentifier(value) ? value : nil
+    }
+
+    /// A bundle id worth addressing a panel to: ASCII, dotted, sane length.
+    ///
+    /// 3.0.85: this is the guard that keeps a broken private API on the caller's
+    /// side from costing anything here. Kayoko 4.3.25 asked SpringBoard for the
+    /// frontmost app through `SBFrontmostApplicationDisplayIdentifier`, whose
+    /// signature on 16.4 is not the one assumed — it handed back an invalid
+    /// pointer and `copy` on it crashed SpringBoard (EXC_BAD_ACCESS at
+    /// 0x10000003). Everything unstable is gone now, and anything that still
+    /// slips through fails this check instead of becoming a panel target.
+    static func isPlausibleBundleIdentifier(_ value: String) -> Bool {
+        guard !value.isEmpty, value.count <= 200 else { return false }
+        let allowed = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_")
+        return value.rangeOfCharacter(from: allowed.inverted) == nil
     }
 
     static func handleBackgroundRequest() {
@@ -643,9 +661,15 @@ enum FaircopyImageOCR {
                 return
             }
             backgroundBusy = true
-            let target = requestedDisplayTarget()
+            // 3.0.85: an empty target is not "nowhere" — the injector treats it
+            // as a plain broadcast, and its arbitration ticket plus SpringBoard's
+            // 0.8 s deferral let the app the user is looking at claim the panel
+            // first. That is the same road `wiki.qaq.faircopy.present` has always
+            // taken, so nothing has to name the frontmost app to be correct.
+            let named = requestedDisplayTarget()
+            let target = named ?? ""
             let task = UIApplication.shared.beginBackgroundTask(withName: "faircopy.ocr") {}
-            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(target)")
+            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(named ?? "auto")")
             recognize { outcome in
                 let text = outcome.text
                 var handedOff = false
