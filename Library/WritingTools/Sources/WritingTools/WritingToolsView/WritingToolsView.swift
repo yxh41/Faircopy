@@ -54,6 +54,10 @@ struct WritingToolsView: View {
     @State var taskPrompt: Prompt = .rewrite
     @State var translateTarget: String = "Chinese"
 
+    /// 3.0.78: guards `context.autoSegment` so the tokenize runs exactly once,
+    /// no matter how often SwiftUI re-evaluates body / re-fires onAppear.
+    @State var didApplyAutoSegment: Bool = false
+
     /// Active panel-mode variant selected from a long-press sub-menu, or `nil` for
     /// a plain run. Carried across Again/retry so a variant re-runs with the same
     /// refinement; cleared on any normal (non-variant) mode tap.
@@ -167,6 +171,10 @@ struct WritingToolsView: View {
     init(context: Presenter.Context) {
         _context = .init(wrappedValue: context)
         _textProxy = .init(wrappedValue: context.textProxy)
+        // 3.0.78: choose the mode before the first frame. Doing it only in
+        // onAppear let one frame of the button grid show for a `mode=segment`
+        // panel, which reads as a flicker right as the card lands.
+        _taskPrompt = .init(initialValue: context.autoSegment ? .segment : .rewrite)
     }
 
     public var body: some View {
@@ -220,6 +228,11 @@ struct WritingToolsView: View {
             // cold engine delays or drops it — which is why the first button
             // press after opening the panel could feel silent.
             SegmentHaptics.light.prepare()
+            // 3.0.78: `faircopy://panel?…&mode=segment` — the subject is already
+            // in the anchor and already selected, so tokenizing it here saves the
+            // tap that would otherwise be the only thing between the gesture and
+            // the word chips.
+            applyAutoSegmentIfNeeded()
             print("[Faircopy] panel ready: press scale 0.96, spring response 0.25 damping 0.7, haptic prepared")
         }
         .onChange(of: context.scenePhase) { phase in

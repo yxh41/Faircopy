@@ -89,10 +89,27 @@ public extension Presenter {
     /// when even the standalone anchor could not be presented.
     @objc(presentToolControllerStandalone:)
     func presentToolControllerStandalone(_ responder: UIResponder) -> Bool {
-        presentCenteredCard(fromResponder: responder, standalone: true)
+        presentCenteredCard(fromResponder: responder, standalone: true, autoSegment: false)
     }
 
-    private func presentCenteredCard(fromResponder responder: UIResponder, standalone: Bool) -> Bool {
+    /// 3.0.78: same standalone card, but the panel opens straight into 分词.
+    ///
+    /// The selector the injector calls when the URL carries `mode=segment`
+    /// (`faircopy://panel?keyword=…&mode=segment`), which is what Kayoko's
+    /// left-swipe image action sends after OCR-ing the picture. Kept as a
+    /// separate ObjC selector on purpose: an older injector still finds and
+    /// uses `presentToolControllerStandalone:`, so the two halves can be
+    /// installed in either order without a blank panel.
+    @objc(presentToolControllerStandalone:autoSegment:)
+    func presentToolControllerStandalone(_ responder: UIResponder, autoSegment: Bool) -> Bool {
+        presentCenteredCard(fromResponder: responder, standalone: true, autoSegment: autoSegment)
+    }
+
+    private func presentCenteredCard(
+        fromResponder responder: UIResponder,
+        standalone: Bool,
+        autoSegment: Bool = false
+    ) -> Bool {
         guard let parentController = (responder as? UIView)?.parentViewController else {
             // External / standalone triggers must never signal "unavailable"
             // (the shake animation). Signal failure so the caller can fall back
@@ -125,14 +142,16 @@ public extension Presenter {
         var context = buildContext(
             fromResponder: responder,
             standalone: standalone,
-            decoratesSelection: false
+            decoratesSelection: false,
+            autoSegment: autoSegment
         )
         if context == nil, let view = responder as? UIView, let proxy = TextProxy(delegatingView: view) {
             proxy.selectAll()
             context = buildContext(
                 fromResponder: responder,
                 standalone: standalone,
-                decoratesSelection: false
+                decoratesSelection: false,
+                autoSegment: autoSegment
             )
         }
         guard let context else {

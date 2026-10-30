@@ -29,6 +29,18 @@ extension Presenter {
         /// such a view on dismiss instead of restoring first responder.
         let isStandalone: Bool
 
+        /// 3.0.78: run the local word segmentation the moment the panel appears.
+        ///
+        /// Used by `faircopy://panel?keyword=…&mode=segment`, which Kayoko's
+        /// image action sends after OCR-ing a clipboard picture: the text is
+        /// already the subject, the only thing left is the tokenize step, and
+        /// making the user tap 分词 after a gesture costs an extra tap for no
+        /// information. Segmentation is entirely on-device (`WordSegmenter`,
+        /// no model, no network), so this cannot fail for billing reasons — only
+        /// for "there was nothing to tokenize", which the view handles by
+        /// staying on the normal panel.
+        let autoSegment: Bool
+
         @Published var scenePhase: ScenePhase = .active
 
         /// Set when the active stream must stop (panel dismissed, cancelled).
@@ -43,7 +55,8 @@ extension Presenter {
             anchorRects: [CGRect],
             decorationViews: [UIView],
             textProxy: TextProxy,
-            isStandalone: Bool = false
+            isStandalone: Bool = false,
+            autoSegment: Bool = false
         ) {
             self.parentView = parentView
             self.parentController = parentController
@@ -53,6 +66,7 @@ extension Presenter {
             self.decorationViews = decorationViews
             self.textProxy = textProxy
             self.isStandalone = isStandalone
+            self.autoSegment = autoSegment
 
             super.init()
 
@@ -114,7 +128,8 @@ extension Presenter {
     func buildContext(
         fromResponder responder: UIResponder,
         standalone: Bool = false,
-        decoratesSelection: Bool = true
+        decoratesSelection: Bool = true,
+        autoSegment: Bool = false
     ) -> Context? {
         guard let fatherView = responder as? UIView else { return nil }
         guard let parentView = fatherView.superview else { return nil }
@@ -169,7 +184,8 @@ extension Presenter {
             anchorRects: preparedRects,
             decorationViews: decorationViews,
             textProxy: textProxy,
-            isStandalone: standalone
+            isStandalone: standalone,
+            autoSegment: autoSegment
         )
     }
 

@@ -757,7 +757,7 @@ static void FC_TicketHeartbeatStopAndDrop(void) {
 /// immediately — which is one of the ways a second panel appeared. `deferred`
 /// now travels with the call, so a deferred pass is unambiguous and no global
 /// flag has to be re-armed (and therefore cannot be re-armed at the wrong time).
-static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred) {
+static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, BOOL autoSegment) {
     dispatch_async(dispatch_get_main_queue(), ^{
         if (FC_IsSpringBoard() && !deferred) {
             NSLog(@"[Faircopy] SpringBoard defers the panel by %.0f ms so the caller claims it first",
@@ -766,7 +766,7 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred) {
                 dispatch_time(DISPATCH_TIME_NOW,
                               (int64_t)(kFCSpringBoardPresentationDelay * NSEC_PER_SEC)),
                 dispatch_get_main_queue(), ^{
-                    FC_PresentPanelInPlace(keyword, YES);
+                    FC_PresentPanelInPlace(keyword, YES, autoSegment);
                 });
             return;
         }
@@ -803,7 +803,16 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred) {
         if (keyword.length > 0) {
             // Explicit subject: standalone anchor prefilled with the keyword.
             UIResponder *anchor = FC_MakeStandaloneAnchor(keyword);
-            if (anchor && [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
+            // 3.0.78: `mode=segment` asks the panel to open straight into
+            // 分词. Try the two-argument selector first (autoSegment), then the
+            // original one — so an older Faircopy still presents normally
+            // instead of dropping the trigger.
+            if (anchor && autoSegment &&
+                [presenter respondsToSelector:@selector(presentToolControllerStandalone:autoSegment:)]) {
+                presented = [presenter presentToolControllerStandalone:anchor autoSegment:YES];
+            }
+            if (!presented && anchor &&
+                [presenter respondsToSelector:@selector(presentToolControllerStandalone:)]) {
                 presented = [presenter presentToolControllerStandalone:anchor];
             }
             if (!presented) {
@@ -956,7 +965,7 @@ static NSString *FC_ClaimPendingPanelInvocation(NSDictionary *invocation) {
     return keyword;
 }
 
-static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation);
+static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation, BOOL autoSegment);
 
 static void FC_TrackWakeFromBackground(void) {
     static dispatch_once_t once;
@@ -995,12 +1004,12 @@ static void FC_TrackWakeFromBackground(void) {
             if (([[NSDate date] timeIntervalSince1970] - at) > kFCPendingActivationWindow) { return; }
             NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
             NSLog(@"[Faircopy] panel invocation: presenting on activation (target match)");
-            FC_PresentPanelWhenUsable(0, keyword, YES);
+            FC_PresentPanelWhenUsable(0, keyword, YES, NO);
         }];
     });
 }
 
-static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation) {
+static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL claimedInvocation, BOOL autoSegment) {
     dispatch_async(dispatch_get_main_queue(), ^{
         UIApplicationState state = [UIApplication sharedApplication].applicationState;
         if (state == UIApplicationStateActive) {
@@ -1015,7 +1024,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL
                 NSLog(@"[Faircopy] external trigger dropped: stale re-broadcast right after resume");
                 return;
             }
-            FC_PresentPanelInPlace(keyword, NO);
+            FC_PresentPanelInPlace(keyword, NO, autoSegment);
             return;
         }
         if (state == UIApplicationStateBackground) {
@@ -1030,7 +1039,7 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL
         dispatch_after(
             dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kFCInactiveRetryDelay * NSEC_PER_SEC)),
             dispatch_get_main_queue(), ^{
-                FC_PresentPanelWhenUsable(attempt + 1, keyword, claimedInvocation);
+                FC_PresentPanelWhenUsable(attempt + 1, keyword, claimedInvocation, autoSegment);
             });
     });
 }
@@ -1067,7 +1076,7 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
             return;
         }
         NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
-        FC_PresentPanelWhenUsable(0, keyword, YES);
+        FC_PresentPanelWhenUsable(0, keyword, YES, NO);
         return;
     }
 
@@ -1075,7 +1084,7 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
     // or AIGate's 3.0.33 handoff-failure fallback broadcast. Original
     // broadcast semantics: context-driven path, no keyword.
     NSLog(@"[Faircopy] external trigger: bare broadcast, no pending invocation");
-    FC_PresentPanelWhenUsable(0, nil, NO);
+    FC_PresentPanelWhenUsable(0, nil, NO, NO);
 }
 
 // MARK: - In-place faircopy://panel interception
@@ -1114,6 +1123,24 @@ static NSString *FC_KeywordFromPanelURL(NSURL *url) {
     return nil;
 }
 
+/// 3.0.78: does this panel URL ask the panel to open straight into 分词?
+///
+/// `faircopy://panel?keyword=…&mode=segment` is what Kayoko sends after
+/// OCR-ing a clipboard picture — the keyword is the recognised text and the
+/// only thing left to do is tokenize it. Any other value (or none) keeps the
+/// normal panel, so an older/newer caller pairing degrades to "text is there,
+/// tap 分词 yourself" instead of failing.
+static BOOL FC_AutoSegmentFromPanelURL(NSURL *url) {
+    NSURLComponents *components = [NSURLComponents componentsWithURL:url
+                                             resolvingAgainstBaseURL:NO];
+    if (!components) { return NO; }
+    for (NSURLQueryItem *item in components.queryItems) {
+        if (![item.name isEqualToString:@"mode"]) { continue; }
+        return [(item.value ?: @"") caseInsensitiveCompare:@"segment"] == NSOrderedSame;
+    }
+    return NO;
+}
+
 static BOOL (*old_UIApplication_openURL_)(UIApplication *, SEL, NSURL *);
 static void (*old_UIApplication_openURL_options_completion_)(UIApplication *, SEL, NSURL *, NSDictionary *, void (^)(BOOL));
 
@@ -1121,6 +1148,7 @@ static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
         NSString *keyword = FC_KeywordFromPanelURL(url);
+        BOOL autoSegment = FC_AutoSegmentFromPanelURL(url);
         if (keyword.length > 0) {
             // 3.0.31: keyword invocation — the panel's subject is the keyword,
             // so it never touches the clipboard nor the focused text input.
@@ -1129,7 +1157,7 @@ static BOOL new_UIApplication_openURL_(UIApplication *self, SEL _cmd, NSURL *url
         } else {
             NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
         }
-        FC_PresentPanelWhenUsable(0, keyword, NO);
+        FC_PresentPanelWhenUsable(0, keyword, NO, autoSegment);
         return YES;
     }
     return old_UIApplication_openURL_(self, _cmd, url);
@@ -1141,13 +1169,14 @@ static void new_UIApplication_openURL_options_completion_(UIApplication *self, S
     if (FC_ShouldPresentFaircopyPanelInPlace(url)) {
         // 3.0.14: present the panel in place, no app switch to AIGate.
         NSString *keyword = FC_KeywordFromPanelURL(url);
+        BOOL autoSegment = FC_AutoSegmentFromPanelURL(url);
         if (keyword.length > 0) {
             NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place with keyword (%lu chars)",
                   (unsigned long)keyword.length);
         } else {
             NSLog(@"[Faircopy] faircopy://panel intercepted in-process, presenting in place");
         }
-        FC_PresentPanelWhenUsable(0, keyword, NO);
+        FC_PresentPanelWhenUsable(0, keyword, NO, autoSegment);
         if (completion) {
             dispatch_async(dispatch_get_main_queue(), ^{ completion(YES); });
         }

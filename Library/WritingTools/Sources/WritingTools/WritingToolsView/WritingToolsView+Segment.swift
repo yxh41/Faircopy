@@ -646,6 +646,30 @@ extension WritingToolsView {
 
     // MARK: - State
 
+    /// 3.0.78: opens the panel already in 分词 when the caller asked for it
+    /// (`mode=segment`). Runs once per panel; a no-op for every other path.
+    ///
+    /// Deliberately tolerant: if the subject turns out to be blank (the OCR side
+    /// found no text, or the anchor was never filled) it leaves the panel on its
+    /// normal grid instead of showing an empty chip area — a segmentation of
+    /// nothing reads as "the panel is broken".
+    func applyAutoSegmentIfNeeded() {
+        guard context.autoSegment, !didApplyAutoSegment else { return }
+        didApplyAutoSegment = true
+        let subject = context.textProxy.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !subject.isEmpty else {
+            // The init pre-selected 分词 for this panel, so undo that here:
+            // an empty chip area reads as a broken panel, the normal grid at
+            // least lets the user do something else.
+            taskPrompt = .rewrite
+            print("[Faircopy] auto segment skipped: subject is empty")
+            return
+        }
+        taskPrompt = .segment
+        runSegmentation()
+        print("[Faircopy] auto segment: panel opened straight into 分词 (\(segmentTokens.count) tokens)")
+    }
+
     func runSegmentation() {
         error = nil
         let result = WordSegmenter.segment(context.textProxy.selectedText)
