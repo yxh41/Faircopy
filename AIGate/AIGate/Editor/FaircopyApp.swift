@@ -131,6 +131,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             FaircopyAppModel.shared.suppressSettingsUI = true
             FaircopyImageOCR.appendLog("boot url host=\(host) pid=\(ProcessInfo.processInfo.processIdentifier)")
         }
+        // 3.0.83: silent picture hand-off. Whenever this process is alive at
+        // all — even parked in the background — it can recognise a picture for
+        // Kayoko without being brought to the front. Registered on every
+        // launch, because iOS may resurrect the process in the background and
+        // never show a window.
+        FaircopyImageOCR.installBackgroundRequestObserver()
         return true
     }
 
@@ -487,6 +493,13 @@ enum FaircopyImageOCR {
     static let resultPath = directory + "/faircopy_ocr_result.json"
     static let logPath = directory + "/faircopy_ocr.log"
     static let resultNotification = "wiki.qaq.faircopy.ocr.result"
+    /// 3.0.83: posted by the caller to ask for a silent recognition. Answered
+    /// from whatever state this process is in — no app switch, no window.
+    static let requestNotification = "wiki.qaq.faircopy.ocr.request"
+
+    /// One request at a time: a second picture posted while the first is still
+    /// being read would overwrite the input file mid-recognition.
+    private static var backgroundBusy = false
 
     struct Outcome {
         let text: String
@@ -567,6 +580,70 @@ enum FaircopyImageOCR {
         }
     }
 
+    /// 3.0.83: silent recognition, answered from a background process.
+    ///
+    /// The whole app switch existed for one reason — Vision's accurate network
+    /// refuses to run inside SpringBoard — and this process is the one place it
+    /// does run. Keeping it parked in the background and waking it with a
+    /// Darwin notification therefore removes the switch entirely: the caller
+    /// (a list hosted by SpringBoard) keeps the screen it had, and the panel is
+    /// presented on top of it.
+    ///
+    /// Fails soft. An unreadable picture, or a handoff file that cannot be
+    /// written, answers `retry` instead of silence; the caller then takes the
+    /// visible `faircopy://ocr` road, i.e. exactly 3.0.82. A caller that gets
+    /// no answer at all (this process was jetsammed) does the same.
+    static func installBackgroundRequestObserver() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            fc_ocr_request_callback,
+            requestNotification as CFString,
+            nil,
+            .deliverImmediately
+        )
+        appendLog("boot: silent ocr observer installed")
+    }
+
+    static func handleBackgroundRequest() {
+        DispatchQueue.main.async {
+            guard !backgroundBusy else {
+                appendLog("ocr: background request ignored (one already running)")
+                return
+            }
+            backgroundBusy = true
+            let task = UIApplication.shared.beginBackgroundTask(withName: "faircopy.ocr") {}
+            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue)")
+            recognize { outcome in
+                let text = outcome.text
+                var handedOff = false
+                if !text.isEmpty {
+                    handedOff = PanelPendingStore.save(PanelPending(
+                        keyword: text,
+                        target: "com.apple.springboard",
+                        at: Date().timeIntervalSince1970,
+                        mode: "segment"
+                    ))
+                }
+                writeResult(ok: handedOff, chars: text.count, retry: !handedOff)
+                // Tells Kayoko the pill can come down, whether or not a panel
+                // follows — same contract as the visible road.
+                fc_notify_post(resultNotification)
+                if handedOff {
+                    // SpringBoard is already in front (nothing was switched), so
+                    // the injector presents in place: no summon timing, no
+                    // window of this app in the way.
+                    fc_notify_post("wiki.qaq.faircopy.present")
+                    appendLog("ocr: background panel broadcast")
+                } else {
+                    appendLog("ocr: background request could not hand off")
+                }
+                UIApplication.shared.endBackgroundTask(task)
+                backgroundBusy = false
+            }
+        }
+    }
+
     /// Summons the panel at the one moment the home screen is really in front.
     ///
     /// Broadcasting straight after the bounce is not enough: AIGate is still
@@ -619,12 +696,17 @@ enum FaircopyImageOCR {
 
     /// Written before the bounce so Kayoko can take its pill down (or say that
     /// the picture had no text) at the same moment the panel is summoned.
-    static func writeResult(ok: Bool, chars: Int) {
-        let payload: [String: Any] = [
+    ///
+    /// 3.0.83: `retry` means "this process could not finish it silently" — the
+    /// caller then runs the visible `faircopy://ocr` road instead of showing the
+    /// user an error for a picture that is perfectly readable.
+    static func writeResult(ok: Bool, chars: Int, retry: Bool = false) {
+        var payload: [String: Any] = [
             "ok": ok,
             "chars": chars,
             "at": Date().timeIntervalSince1970,
         ]
+        if retry { payload["retry"] = true }
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         try? data.write(to: URL(fileURLWithPath: resultPath), options: .atomic)
     }
@@ -716,5 +798,23 @@ enum FaircopyImageOCR {
         }
         existing.append(Data(entry.utf8))
         try? existing.write(to: url, options: .atomic)
+    }
+}
+
+/// Darwin callback for the silent OCR request (3.0.83).
+///
+/// A C function pointer cannot capture context, so it only hops to the main
+/// queue — `FaircopyImageOCR` re-enters Swift there, with its own re-entrancy
+/// guard. The notification itself carries no payload: the picture is already
+/// waiting in the shared drop box, exactly like the URL road.
+private func fc_ocr_request_callback(
+    _: CFNotificationCenter?,
+    _: UnsafeMutableRawPointer?,
+    _: CFNotificationName?,
+    _: UnsafeRawPointer?,
+    _: CFDictionary?
+) {
+    DispatchQueue.main.async {
+        FaircopyImageOCR.handleBackgroundRequest()
     }
 }
