@@ -253,11 +253,19 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // and the injector presents the panel in that process the moment it
             // activates — the Safari path, with no summon at all.
             let caller = Self.queryValue("caller", in: url)
+            let named = FaircopyImageOCR.requestedDisplayTarget()
             let ocrTarget: String
-            if let caller, caller.caseInsensitiveCompare("wiki.qaq.AIGate") != .orderedSame {
+            if let caller,
+               caller.caseInsensitiveCompare("wiki.qaq.AIGate") != .orderedSame,
+               caller.caseInsensitiveCompare("com.apple.springboard") != .orderedSame
+            {
                 ocrTarget = caller
             } else {
-                ocrTarget = bounceTarget
+                // 3.0.84: `src` is the home screen for this hand-off even when
+                // the caller's list floats over an app, and the caller itself
+                // runs inside SpringBoard — so the only trustworthy answer is
+                // the one it left in the target file.
+                ocrTarget = named
             }
             //
             // Vision's accurate text network cannot execute inside SpringBoard:
@@ -497,6 +505,17 @@ enum FaircopyImageOCR {
     /// from whatever state this process is in — no app switch, no window.
     static let requestNotification = "wiki.qaq.faircopy.ocr.request"
 
+    /// 3.0.84: the app the panel belongs on, written by the caller.
+    ///
+    /// Kayoko's list is a SpringBoard window drawn over the app the user is
+    /// looking at, so the panel must be presented by THAT app — otherwise it
+    /// lands on SpringBoard's layer beneath that app's window and the user sees
+    /// nothing until they return to the home screen. Only the workspace knows
+    /// the answer, and AIGate is not the workspace, so it travels in a file.
+    ///
+    /// KEEP IN SYNC with kKayokoFaircopyOCRDisplayTargetPath.
+    static let displayTargetPath = directory + "/faircopy_ocr_target.txt"
+
     /// One request at a time: a second picture posted while the first is still
     /// being read would overwrite the input file mid-recognition.
     private static var backgroundBusy = false
@@ -605,6 +624,18 @@ enum FaircopyImageOCR {
         appendLog("boot: silent ocr observer installed")
     }
 
+    /// The app the caller named for this picture (3.0.84), or SpringBoard when
+    /// it named nothing — which is also the honest answer when the home screen
+    /// is what the user is looking at.
+    static func requestedDisplayTarget() -> String {
+        let url = URL(fileURLWithPath: displayTargetPath)
+        guard let raw = try? String(contentsOf: url, encoding: .utf8) else {
+            return "com.apple.springboard"
+        }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "com.apple.springboard" : value
+    }
+
     static func handleBackgroundRequest() {
         DispatchQueue.main.async {
             guard !backgroundBusy else {
@@ -612,15 +643,16 @@ enum FaircopyImageOCR {
                 return
             }
             backgroundBusy = true
+            let target = requestedDisplayTarget()
             let task = UIApplication.shared.beginBackgroundTask(withName: "faircopy.ocr") {}
-            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue)")
+            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(target)")
             recognize { outcome in
                 let text = outcome.text
                 var handedOff = false
                 if !text.isEmpty {
                     handedOff = PanelPendingStore.save(PanelPending(
                         keyword: text,
-                        target: "com.apple.springboard",
+                        target: target,
                         at: Date().timeIntervalSince1970,
                         mode: "segment"
                     ))
