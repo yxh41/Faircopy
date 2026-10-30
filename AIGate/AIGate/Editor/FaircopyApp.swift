@@ -289,19 +289,10 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 // summon that works on the home screen; the injector answers it
                 // only in the processes the invocation is addressed to (and
                 // drops AIGate itself), so nothing else opens a panel.
-                // Two attempts, because the bounce is asynchronous and the
-                // first one can land while AIGate is still frontmost (the panel
-                // would then be presented behind its hidden window). The second
-                // is free: once the invocation is claimed the injector ignores
-                // repeat broadcasts while the file is still fresh (15 s), so it
-                // can only produce the panel, never a second one.
+                // Timed from AIGate's own backgrounding, not from here: see
+                // FaircopyImageOCR.summonOnHomeScreen.
                 if handedOff, bounceTarget.lowercased() == "com.apple.springboard" {
-                    for delay in [0.55, 1.6] {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                            FaircopyImageOCR.appendLog("ocr: broadcast for SpringBoard")
-                            fc_notify_post("wiki.qaq.faircopy.present")
-                        }
-                    }
+                    FaircopyImageOCR.summonOnHomeScreen()
                 }
                 // Never strand the user on a blank, windowless AIGate if the
                 // bounce itself fails. Captured strongly on purpose: the scene
@@ -521,6 +512,56 @@ enum FaircopyImageOCR {
             }
             appendLog("result chars=\(best.count) ms=\(Int(Date().timeIntervalSince(started) * 1000)) from \(bestLabel)")
             DispatchQueue.main.async { completion(Outcome(text: best)) }
+        }
+    }
+
+    /// Summons the panel at the one moment the home screen is really in front.
+    ///
+    /// Broadcasting straight after the bounce is not enough: AIGate is still
+    /// frontmost for a few hundred milliseconds, and a panel presented then
+    /// lands on SpringBoard's layer *behind* AIGate's window — while the claim
+    /// is taken all the same, so the retry broadcast finds "already handled"
+    /// and does nothing. The panel then sits there invisible until something
+    /// forces SpringBoard to re-lay out its windows (switching pages did it).
+    ///
+    /// AIGate's own didEnterBackgroundNotification is the exact edge: at that
+    /// instant the home screen is what the user is looking at. Two broadcasts
+    /// follow it, because the transition takes a moment to settle; repeats are
+    /// ignored once the invocation is claimed, so this can only produce the
+    /// panel, never a second one.
+    static func summonOnHomeScreen() {
+        DispatchQueue.main.async {
+            summonPending = true
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                fireSummonBroadcasts()
+            }
+            // If the bounce never lands the app stays in front, and a panel
+            // behind it is worth nothing: drop the pending summon so a much
+            // later backgrounding cannot pop a stale panel either.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) {
+                summonPending = false
+            }
+        }
+    }
+
+    private static var summonPending = false
+
+    private static func fireSummonBroadcasts() {
+        guard summonPending else { return }
+        summonPending = false
+        appendLog("ocr: home screen is back in front")
+        // The home-screen transition itself takes ~0.35 s; presenting during it
+        // is the same losing race as presenting over AIGate, so the first
+        // broadcast waits for it to finish.
+        for delay in [0.6, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                appendLog("ocr: broadcast for SpringBoard")
+                fc_notify_post("wiki.qaq.faircopy.present")
+            }
         }
     }
 
