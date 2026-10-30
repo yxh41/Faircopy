@@ -266,8 +266,14 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // `mode=segment` invocation waiting for it.
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
+            FaircopyImageOCR.appendLog("ocr: url received src=\(src ?? "nil")")
+            // Deliberately two long literals joined instead of one interpolated
+            // line: Swift inlines any literal of 15 bytes or less, which made
+            // the ` caller=` fragment of the line above unsearchable in the
+            // binary (the 3.0.82 proof failed on exactly that). These two are
+            // past the threshold, so the caller decision stays provable.
             FaircopyImageOCR.appendLog(
-                "ocr: url received src=\(src ?? "nil") caller=\(caller ?? "nil") bounce=\(ocrTarget)")
+                "ocr: caller from url = " + (caller ?? "none") + " bounce target = " + ocrTarget)
             // A cold launch builds its window after this method returns, so one
             // hide attempt is not enough: the window that appears a frame later
             // would still paint (black, since the settings UI is suppressed).
