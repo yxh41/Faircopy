@@ -129,6 +129,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
            kFCInvisibleHosts.contains(host)
         {
             FaircopyAppModel.shared.suppressSettingsUI = true
+            FaircopyImageOCR.appendLog("boot url host=\(host) pid=\(ProcessInfo.processInfo.processIdentifier)")
         }
         return true
     }
@@ -249,9 +250,15 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // `mode=segment` invocation waiting for it.
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
-            setSceneWindowsHidden(true)
-            DispatchQueue.main.async { [weak self] in
-                self?.setSceneWindowsHidden(true)
+            FaircopyImageOCR.appendLog("ocr: url received src=\(src ?? "nil")")
+            // A cold launch builds its window after this method returns, so one
+            // hide attempt is not enough: the window that appears a frame later
+            // would still paint (black, since the settings UI is suppressed).
+            // Repeat across the first 250 ms.
+            for delay in [0.0, 0.02, 0.1, 0.25] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.setSceneWindowsHidden(true)
+                }
             }
             FaircopyAppModel.shared.beginBackgroundTask()
             FaircopyImageOCR.recognize { outcome in
@@ -273,6 +280,28 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 FaircopyAppModel.shared.beginBackgroundTask()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
+                }
+                // SpringBoard never reports `didBecomeActive` when the user
+                // lands back on the home screen — it stays Active for as long
+                // as any app is frontmost — so the pending-invocation
+                // activation fallback in the injector can never fire there and
+                // the panel simply never appeared. The broadcast is the only
+                // summon that works on the home screen; the injector answers it
+                // only in the processes the invocation is addressed to (and
+                // drops AIGate itself), so nothing else opens a panel.
+                // Two attempts, because the bounce is asynchronous and the
+                // first one can land while AIGate is still frontmost (the panel
+                // would then be presented behind its hidden window). The second
+                // is free: once the invocation is claimed the injector ignores
+                // repeat broadcasts while the file is still fresh (15 s), so it
+                // can only produce the panel, never a second one.
+                if handedOff, bounceTarget.lowercased() == "com.apple.springboard" {
+                    for delay in [0.55, 1.6] {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                            FaircopyImageOCR.appendLog("ocr: broadcast for SpringBoard")
+                            fc_notify_post("wiki.qaq.faircopy.present")
+                        }
+                    }
                 }
                 // Never strand the user on a blank, windowless AIGate if the
                 // bounce itself fails. Captured strongly on purpose: the scene
@@ -566,7 +595,7 @@ enum FaircopyImageOCR {
 
     /// Append and self-trim: the log is a diagnostic, not a record, and this
     /// directory is also where the app-search stores live.
-    private static func appendLog(_ line: String) {
+    static func appendLog(_ line: String) {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         let entry = "\(formatter.string(from: Date())) \(line)\n"
