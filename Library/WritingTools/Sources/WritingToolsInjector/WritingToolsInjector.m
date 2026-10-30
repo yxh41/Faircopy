@@ -952,11 +952,26 @@ static NSString *FC_PendingPanelInvocationKeyword(NSDictionary *invocation) {
     return keyword.length > 0 ? keyword : nil;
 }
 
+/// 3.0.79: `mode` rides in the handoff file, so an invocation that came through
+/// AIGate can ask for 分词 exactly like `faircopy://panel?…&mode=segment` does.
+/// Absent means the original "just show this text" behaviour — including the
+/// case of an older AIGate writing a file this process still understands.
+static BOOL FC_PendingPanelInvocationWantsSegment(NSDictionary *invocation) {
+    NSString *mode = [invocation[@"mode"] isKindOfClass:[NSString class]]
+        ? invocation[@"mode"] : @"";
+    return [mode isEqualToString:@"segment"];
+}
+
 /// Marks the invocation as handled by this process and returns its keyword
 /// (nil when the invocation carries none — the caller then runs the original
 /// context-driven path).
 static NSString *FC_ClaimPendingPanelInvocation(NSDictionary *invocation) {
     gFCHandledPendingInvocationAt = [invocation[@"at"] doubleValue];
+    if (FC_PendingPanelInvocationWantsSegment(invocation)) {
+        // 3.0.79: the mode travelled through AIGate's own process this time
+        // (Kayoko's picture hand-off), not through an intercepted URL.
+        NSLog(@"[Faircopy] panel invocation: mode=segment handoff (3.0.79)");
+    }
     NSString *keyword = FC_PendingPanelInvocationKeyword(invocation);
     if (keyword) {
         NSLog(@"[Faircopy] panel invocation: keyword handoff accepted (%lu chars)",
@@ -1004,7 +1019,7 @@ static void FC_TrackWakeFromBackground(void) {
             if (([[NSDate date] timeIntervalSince1970] - at) > kFCPendingActivationWindow) { return; }
             NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
             NSLog(@"[Faircopy] panel invocation: presenting on activation (target match)");
-            FC_PresentPanelWhenUsable(0, keyword, YES, NO);
+            FC_PresentPanelWhenUsable(0, keyword, YES, FC_PendingPanelInvocationWantsSegment(invocation));
         }];
     });
 }
@@ -1076,7 +1091,7 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
             return;
         }
         NSString *keyword = FC_ClaimPendingPanelInvocation(invocation);
-        FC_PresentPanelWhenUsable(0, keyword, YES, NO);
+        FC_PresentPanelWhenUsable(0, keyword, YES, FC_PendingPanelInvocationWantsSegment(invocation));
         return;
     }
 
