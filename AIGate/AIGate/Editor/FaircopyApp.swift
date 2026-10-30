@@ -476,7 +476,9 @@ enum FaircopyImageOCR {
                                        outcome: "req=FAIL err=\(describe(error))", since: started))
                     continue
                 }
-                let observations = request.results ?? []
+                // `VNRequest.results` is `[VNObservation]?`; the request type
+                // refines it at runtime, not in the overlay.
+                let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
                 let text = assemble(observations)
                 let average = quality(observations)
                 appendLog(passLine(index, label, appliedRevision: request.revision,
