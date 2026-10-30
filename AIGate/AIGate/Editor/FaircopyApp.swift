@@ -238,6 +238,22 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
         if url.host == "ocr" {
             // Picture hand-off (Kayoko's image swipe action).
             //
+            // 3.0.82: `src` is `com.apple.springboard` for this openURL even
+            // though Kayoko is the one asking (3.0.80 log: `ocr: url received
+            // src=com.apple.springboard`), so bouncing back to "whoever opened
+            // me" landed the user on the home screen and the panel had to be
+            // summoned there. Kayoko now names itself with `?caller=`; an
+            // explicit caller wins over `src`, so the bounce returns to Kayoko
+            // and the injector presents the panel in that process the moment it
+            // activates — the Safari path, with no summon at all.
+            let caller = Self.queryValue("caller", in: url)
+            let ocrTarget: String
+            if let caller, caller.caseInsensitiveCompare("wiki.qaq.AIGate") != .orderedSame {
+                ocrTarget = caller
+            } else {
+                ocrTarget = bounceTarget
+            }
+            //
             // Vision's accurate text network cannot execute inside SpringBoard:
             // every `.accurate` request there fails with `Error computing NN
             // outputs` while `.fast` on the very same handler and picture
@@ -246,11 +262,12 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // is where that network normally runs, so the recognition happens
             // here, invisibly: the settings UI never paints, the answer is
             // handed to the caller through the same pending-invocation file the
-            // `panel` host uses, and the bounce lands on the home screen with a
+            // `panel` host uses, and the bounce lands back in the caller with a
             // `mode=segment` invocation waiting for it.
             FaircopyAppModel.shared.suppressSettingsUI = true
             panelBounceInFlight = true
-            FaircopyImageOCR.appendLog("ocr: url received src=\(src ?? "nil")")
+            FaircopyImageOCR.appendLog(
+                "ocr: url received src=\(src ?? "nil") caller=\(caller ?? "nil") bounce=\(ocrTarget)")
             // A cold launch builds its window after this method returns, so one
             // hide attempt is not enough: the window that appears a frame later
             // would still paint (black, since the settings UI is suppressed).
@@ -267,7 +284,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 if !text.isEmpty {
                     handedOff = PanelPendingStore.save(PanelPending(
                         keyword: text,
-                        target: bounceTarget,
+                        target: ocrTarget,
                         at: Date().timeIntervalSince1970,
                         mode: "segment"
                     ))
@@ -279,7 +296,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 fc_notify_post(FaircopyImageOCR.resultNotification)
                 FaircopyAppModel.shared.beginBackgroundTask()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    LSApplicationWorkspace.default().openApplication(withBundleID: bounceTarget)
+                    LSApplicationWorkspace.default().openApplication(withBundleID: ocrTarget)
                 }
                 // SpringBoard never reports `didBecomeActive` when the user
                 // lands back on the home screen — it stays Active for as long
@@ -291,8 +308,22 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 // drops AIGate itself), so nothing else opens a panel.
                 // Timed from AIGate's own backgrounding, not from here: see
                 // FaircopyImageOCR.summonOnHomeScreen.
-                if handedOff, bounceTarget.lowercased() == "com.apple.springboard" {
+                // 3.0.82: only reachable when the caller was unknown and the
+                // bounce fell back to the home screen. A named caller (Kayoko)
+                // activates on landing and claims the invocation itself.
+                if handedOff, ocrTarget.lowercased() == "com.apple.springboard" {
                     FaircopyImageOCR.summonOnHomeScreen()
+                }
+                // 3.0.82: a named caller is only useful if its process really
+                // runs the injector. One log line a couple of seconds after the
+                // bounce says whether anybody claimed the invocation — it
+                // changes nothing that was handed off, it only makes the next
+                // report readable (a silent caller shows up as `none` here).
+                if handedOff, ocrTarget.lowercased() != "com.apple.springboard" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        FaircopyImageOCR.appendLog(
+                            "ocr: claim after bounce = \(FaircopyImageOCR.panelClaimOwner())")
+                    }
                 }
                 // Never strand the user on a blank, windowless AIGate if the
                 // bounce itself fails. Captured strongly on purpose: the scene
@@ -365,6 +396,21 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 }
             }
         }
+    }
+
+    /// First non-blank value of `name` in the URL's query, or nil.
+    ///
+    /// 3.0.82: `faircopy://ocr?caller=<bundle id>` — the caller names itself so
+    /// the bounce does not have to trust `sourceApplication`, which reported
+    /// `com.apple.springboard` for Kayoko (see `handleOpenURL`).
+    static func queryValue(_ name: String, in url: URL) -> String? {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        for item in items where item.name == name {
+            let value = (item.value ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !value.isEmpty { return value }
+        }
+        return nil
     }
 
     /// Extracts the percent-decoded `keyword` query item from a
@@ -578,6 +624,23 @@ enum FaircopyImageOCR {
     }
 
     // MARK: - Internals
+
+    /// Who currently owns the panel ticket, for the post-bounce log line.
+    ///
+    /// Read-only. KEEP IN SYNC with `kFC_PanelClaimPath` in
+    /// Library/WritingTools/Sources/WritingToolsInjector/WritingToolsInjector.m.
+    /// `none` means nobody consumed the invocation: either the caller has no
+    /// injector loaded, or it has not activated yet (see 3.0.82's caller bounce).
+    static func panelClaimOwner() -> String {
+        let path = directory + "/faircopy_panel_claim.json"
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let claim = object as? [String: Any]
+        else { return "none" }
+        let bundle = claim["bundle"] as? String ?? "?"
+        let pid = claim["pid"] as? Int ?? -1
+        return "\(bundle)(pid \(pid))"
+    }
 
     /// Vision's origin is bottom-left, so `maxY` descending is top-to-bottom.
     /// Observations that share a baseline (within 1% of the image height) are
