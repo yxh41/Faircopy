@@ -5,6 +5,7 @@
 //  Created by 秋星桥 on 2024/8/15.
 //
 
+import AVFoundation
 import SwiftUI
 import Vision
 
@@ -137,6 +138,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // launch, because iOS may resurrect the process in the background and
         // never show a window.
         FaircopyImageOCR.installBackgroundRequestObserver()
+        // 3.0.86: an observer in a suspended process never runs. Hold the
+        // process in the background from the moment it launches — including a
+        // silent launch, which is exactly the case that has to stay resident.
+        FaircopyBackgroundKeeper.shared.start()
         return true
     }
 
@@ -303,8 +308,25 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 }
             }
             FaircopyAppModel.shared.beginBackgroundTask()
+            // 3.0.86: the silent road may have answered this very picture a
+            // moment ago — the request was posted while this process was
+            // suspended, so it only became a callback once the fallback launch
+            // brought the app forward. Reading the same picture a second time
+            // costs another second and races the panel that is already on its
+            // way. The bounce is still owed, though: this launch is visible.
+            if FaircopyImageOCR.finishedWithin(4.0) {
+                FaircopyImageOCR.appendLog("ocr: url road stands down, silent road already answered")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    LSApplicationWorkspace.default().openApplication(withBundleID: landTarget)
+                }
+                if landTarget.lowercased() == "com.apple.springboard" {
+                    FaircopyImageOCR.summonOnHomeScreen()
+                }
+                return
+            }
             FaircopyImageOCR.recognize { outcome in
                 let text = outcome.text
+                FaircopyImageOCR.markFinished()
                 var handedOff = false
                 if !text.isEmpty {
                     handedOff = PanelPendingStore.save(PanelPending(
@@ -525,6 +547,25 @@ enum FaircopyImageOCR {
     /// being read would overwrite the input file mid-recognition.
     private static var backgroundBusy = false
 
+    /// When the last hand-off finished, whatever road took it (3.0.86).
+    ///
+    /// The two roads can overlap for one specific reason: a request posted
+    /// while this process is suspended is delivered only once it is brought to
+    /// the front, which is *during* the fallback launch. Both roads would then
+    /// read the same picture and both would try to present a panel. The time
+    /// stamp lets the URL road notice that the silent one already answered and
+    /// limit itself to the bounce it still owes the user.
+    private static var lastFinishedAt: Date?
+
+    static func markFinished() {
+        lastFinishedAt = Date()
+    }
+
+    static func finishedWithin(_ seconds: TimeInterval) -> Bool {
+        guard let last = lastFinishedAt else { return false }
+        return Date().timeIntervalSince(last) < seconds
+    }
+
     struct Outcome {
         let text: String
     }
@@ -672,6 +713,7 @@ enum FaircopyImageOCR {
             appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(named ?? "auto")")
             recognize { outcome in
                 let text = outcome.text
+                markFinished()
                 var handedOff = false
                 if !text.isEmpty {
                     handedOff = PanelPendingStore.save(PanelPending(
@@ -872,5 +914,121 @@ private func fc_ocr_request_callback(
 ) {
     DispatchQueue.main.async {
         FaircopyImageOCR.handleBackgroundRequest()
+    }
+}
+
+/// Keeps this process alive in the background so the silent OCR hand-off can
+/// actually answer (3.0.86).
+///
+/// Declaring `UIBackgroundModes: audio` grants nothing by itself: without an
+/// active audio session iOS suspends the app seconds after it leaves the
+/// screen, and a suspended process does not run Darwin callbacks. The
+/// notification Kayoko posts was therefore never delivered — it sat queued in
+/// notifyd until the fallback `faircopy://ocr` brought the app to the front,
+/// at which point it fired *during* the launch (`state=1` in the log), the
+/// picture was recognised twice and both bounce roads ran.
+///
+/// A looping silent track is the one background mode that is both cheap and
+/// unconditional. The session mixes with whatever is already playing, so the
+/// user's music is never interrupted, and the volume is low enough that the
+/// track is inaudible in any case — the content itself is all zeroes.
+final class FaircopyBackgroundKeeper {
+    static let shared = FaircopyBackgroundKeeper()
+
+    private var player: AVAudioPlayer?
+    private var started = false
+
+    /// Safe to call on every launch: the first call builds the player, later
+    /// ones only make sure it is still playing (an interruption or a route
+    /// change can stop it behind our back).
+    func start() {
+        if started {
+            ensurePlaying()
+            return
+        }
+        started = true
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            let player = try AVAudioPlayer(data: Self.silentTrack())
+            player.numberOfLoops = -1
+            player.volume = 0.02
+            player.prepareToPlay()
+            player.play()
+            self.player = player
+        } catch {
+            FaircopyImageOCR.appendLog(
+                "keepalive: audio session unavailable = \(error.localizedDescription)")
+            return
+        }
+
+        let center = NotificationCenter.default
+        center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil, queue: .main
+        ) { note in
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .ended
+            else { return }
+            FaircopyBackgroundKeeper.shared.ensurePlaying()
+        }
+        center.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil, queue: .main
+        ) { _ in
+            FaircopyBackgroundKeeper.shared.ensurePlaying()
+        }
+
+        FaircopyImageOCR.appendLog("keepalive: audio session active, process will stay resident")
+    }
+
+    private func ensurePlaying() {
+        guard let player else {
+            started = false
+            start()
+            return
+        }
+        if !player.isPlaying {
+            try? AVAudioSession.sharedInstance().setActive(true)
+            player.play()
+            FaircopyImageOCR.appendLog("keepalive: resumed after interruption")
+        }
+    }
+
+    /// One second of 16-bit mono PCM at 8 kHz, all zeroes. Built in memory so
+    /// nothing has to ship as a resource (and nothing can go missing from the
+    /// bundle).
+    private static func silentTrack() -> Data {
+        let sampleRate: UInt32 = 8000
+        let frames = Int(sampleRate) // one second
+        let dataSize = UInt32(frames * 2)
+
+        var bytes = Data()
+        func put(_ value: UInt32) {
+            var little = value.littleEndian
+            withUnsafeBytes(of: &little) { bytes.append(contentsOf: $0) }
+        }
+        func putShort(_ value: UInt16) {
+            var little = value.littleEndian
+            withUnsafeBytes(of: &little) { bytes.append(contentsOf: $0) }
+        }
+
+        bytes.append(contentsOf: Array("RIFF".utf8))
+        put(36 + dataSize)
+        bytes.append(contentsOf: Array("WAVE".utf8))
+        bytes.append(contentsOf: Array("fmt ".utf8))
+        put(16) // PCM header size
+        putShort(1) // PCM
+        putShort(1) // mono
+        put(sampleRate)
+        put(sampleRate * 2) // byte rate
+        putShort(2) // block align
+        putShort(16) // bits per sample
+        bytes.append(contentsOf: Array("data".utf8))
+        put(dataSize)
+        bytes.append(Data(count: Int(dataSize)))
+        return bytes
     }
 }
