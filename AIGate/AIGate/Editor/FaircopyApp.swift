@@ -337,6 +337,11 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                     ))
                 }
                 FaircopyImageOCR.writeResult(ok: handedOff, chars: text.count)
+                // 3.0.87: last road to touch the picture — discard it whether
+                // the hand-off worked or not (an unreadable picture has no use
+                // either). The silent road keeps it only when it fails, so that
+                // this launch can still read it.
+                FaircopyImageOCR.discardHandoffFiles()
                 // Tell Kayoko what happened; it owns the pill that is on screen
                 // while this runs. Posted before the bounce so the pill is gone
                 // by the time the panel arrives.
@@ -547,6 +552,22 @@ enum FaircopyImageOCR {
     /// being read would overwrite the input file mid-recognition.
     private static var backgroundBusy = false
 
+    /// 3.0.87: drop the hand-off files once they have done their job.
+    ///
+    /// The caller leaves a full-size screenshot here, and nothing ever removed
+    /// it — it stayed on disk, readable by root and mobile, until the next
+    /// swipe overwrote it. By the time a panel is handed off the words live in
+    /// the invocation, so the picture has no further use. The one exception is
+    /// the retry road: the visible launch still has to read the same file, so
+    /// the silent road only discards on success and the visible road discards
+    /// afterwards whichever way it went.
+    static func discardHandoffFiles() {
+        let manager = FileManager.default
+        try? manager.removeItem(atPath: inputPath)
+        try? manager.removeItem(atPath: displayTargetPath)
+        appendLog("ocr: handoff files discarded")
+    }
+
     /// When the last hand-off finished, whatever road took it (3.0.86).
     ///
     /// The two roads can overlap for one specific reason: a request posted
@@ -728,6 +749,9 @@ enum FaircopyImageOCR {
                 // follows — same contract as the visible road.
                 fc_notify_post(resultNotification)
                 if handedOff {
+                    // 3.0.87: the words are in the invocation now; the picture
+                    // does not need to outlive them.
+                    discardHandoffFiles()
                     // SpringBoard is already in front (nothing was switched), so
                     // the injector presents in place: no summon timing, no
                     // window of this app in the way.
