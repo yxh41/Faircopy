@@ -56,10 +56,20 @@ static NSString *const kFCPluginsDirectory = @"/var/mobile/Library/Snapper3/Plug
 ///
 /// 3.0.91 went looking for it at tap time and, when the scene enumeration came
 /// up empty, walked the object graph instead - which reads weak ivars as if
-/// they were plain pointers and killed SpringBoard.  Hooking the window's own
-/// initialisers is both cheaper and safer: our image loads before
-/// ScreenshotShell's, so the hook is already in place when the window appears.
-static __weak UIWindow *fcCaptureWindow = nil;
+/// they were plain pointers and killed SpringBoard.
+///
+/// 3.0.93 held it weakly and the log answered why that is not enough either:
+/// the window was remembered at 02:27:06 and already gone at 02:27:14 when the
+/// tap arrived. ShellX tears the capture UI down and only then calls the
+/// plugin, so a weak reference is nil exactly when it is needed. Holding it
+/// strongly costs one window (one frozen frame) at a time and keeps the crop
+/// rectangle readable right through the teardown.
+static UIWindow *fcCaptureWindow = nil;
+
+/// The crop, taken while the window is provably still alive - at the button
+/// tap, a quarter of a second before this plugin is called.  The window itself
+/// is retained, so this is belt and braces rather than the only route.
+static UIImage *fcLastSelection = nil;
 
 static void FCInstallShellXHooks(void);
 static void FCScheduleShellXHookRetry(int remaining);
@@ -376,6 +386,22 @@ static UIImage *FCImageFromCaptureWindow(NSString **explanation)
     return FCImageFromCropOwner(FCCaptureWindow(), explanation);
 }
 
+/// Take the crop now, while the window is still up.
+static void FCSnapshotSelection(NSString *why)
+{
+    if (!fcCaptureWindow)
+        return;
+    NSString *explanation = nil;
+    UIImage *image = FCImageFromCaptureWindow(&explanation);
+    if (!image) {
+        FCLog(@"%@: nothing to snapshot", why);
+        return;
+    }
+    fcLastSelection = image;
+    FCLog(@"%@: snapshot %.0fx%.0f (%@)",
+          why, image.size.width, image.size.height, explanation ?: @"window");
+}
+
 /// Written when nothing could be found, so the next version does not have to
 /// guess again: the argument, its delegate, and their object ivars by name.
 static void FCDumpGraph(id root)
@@ -620,7 +646,10 @@ static void FCHandOffImage(UIImage *image, NSString *source)
         image = FCImageFromCaptureWindow(&explanation);
         FCLog(@"menu action: snap gave nothing, window gave %@", explanation ?: @"nothing");
     }
+    if (!image)
+        image = fcLastSelection;
     FCHandOffImage(image, @"menu");
+    fcLastSelection = nil;
 }
 
 /// Picture road — plugins that only implement this are handed the finished
@@ -650,6 +679,10 @@ static void FCHandOffImage(UIImage *image, NSString *source)
         // carry the frame, and looking at it costs nothing.
         image = FCImageFromCropOwner(FCPerform(action, @"messagingDelegate"), &explanation);
     }
+    if (!image && fcLastSelection) {
+        image = fcLastSelection;
+        explanation = @"snapshot taken at the button tap";
+    }
     if (!image) {
         FCDumpGraph(action);
         FCLog(@"action bar action from %@: no picture anywhere, graph dumped",
@@ -658,6 +691,7 @@ static void FCHandOffImage(UIImage *image, NSString *source)
     }
     FCLog(@"action bar action: %@", explanation ?: @"window");
     FCHandOffImage(image, @"action bar");
+    fcLastSelection = nil;
 }
 
 @end
@@ -851,6 +885,9 @@ static void FCAdoptSnapperProtocol(void)
 {
     if (!fcCaptureWindow && [self isKindOfClass:[UIWindow class]])
         fcCaptureWindow = (UIWindow *)self;
+    // The menu only appears once the selection exists, so this is a good
+    // moment for a snapshot; the tap itself is an even better one.
+    FCSnapshotSelection(@"showActions");
     %orig;
     FCLog(@"showActions: window %@", fcCaptureWindow ? @"held" : @"missing");
 }
@@ -889,6 +926,9 @@ static void FCAdoptSnapperProtocol(void)
     if ([sender isKindOfClass:[UIView class]])
         tag = [NSString stringWithFormat:@"%ld", (long)((UIView *)sender).tag];
     FCLog(@"pluginActionBtnTapped: %@ tag=%@", NSStringFromClass([sender class]), tag);
+    // The last moment the capture window is certainly still alive: the 3.0.93
+    // log has it gone 250 ms later, when the plugin itself is called.
+    FCSnapshotSelection(@"plugin button tap");
     %orig;
     FCLog(@"pluginActionBtnTapped: done");
 }
