@@ -61,6 +61,9 @@ static NSString *const kFCPluginsDirectory = @"/var/mobile/Library/Snapper3/Plug
 /// ScreenshotShell's, so the hook is already in place when the window appears.
 static __weak UIWindow *fcCaptureWindow = nil;
 
+static void FCInstallShellXHooks(void);
+static void FCScheduleShellXHookRetry(int remaining);
+
 #pragma mark - log
 
 static void FCLog(NSString *format, ...)
@@ -310,6 +313,13 @@ static UIImage *FCCropImage(UIImage *image, CGRect crop)
 static UIImage *FCImageFromCropOwner(id owner, NSString **explanation)
 {
     UIImage *full = FCReadImageIvar(owner, @"_ssOrigCaptureImage");
+    if (!full) {
+        // The frozen frame is also what the dimming layer draws.
+        Ivar ivar = class_getInstanceVariable(object_getClass(owner), "_freezeBgView");
+        id view = ivar ? object_getIvar(owner, ivar) : nil;
+        if ([view isKindOfClass:[UIImageView class]])
+            full = ((UIImageView *)view).image;
+    }
     if (!full)
         return nil;
 
@@ -732,9 +742,14 @@ static void FCAdoptSnapperProtocol(void)
 @interface SSAreaCaptureWindow : NSObject
 @end
 
+@interface SSAreaCaptureRootViewController : UIViewController
+@end
+
 @interface NSObject (FaircopySnapperWindow)
 - (id)pluginForId:(NSString *)identifier;
 @end
+
+#pragma mark - Snapper3 side
 
 %group FaircopySnapper
 
@@ -745,6 +760,7 @@ static void FCAdoptSnapperProtocol(void)
     id manager = %orig;
     FCAdoptSnapperProtocol();
     FCRegisterIntoManager(manager, @"init");
+    FCInstallShellXHooks();
     return manager;
 }
 
@@ -756,9 +772,19 @@ static void FCAdoptSnapperProtocol(void)
     // built and our `init` hook therefore never saw it. Safe to append here:
     // the manager is already mid-mutation, so nothing is being enumerated.
     FCRegisterIntoManager(self, @"registerPlugin: follow-up");
+    // ScreenshotShell registers its own plugins through exactly this method, so
+    // by the time one of them arrives its classes are loaded and the ShellX
+    // hooks can finally be installed.
+    FCInstallShellXHooks();
 }
 
 %end
+
+%end
+
+#pragma mark - ShellX side
+
+%group FaircopySnapperShellX
 
 %hook SHELLXPluginManager
 
@@ -798,7 +824,7 @@ static void FCAdoptSnapperProtocol(void)
 /// Remember the window the moment it exists.  Both initialisers are hooked
 /// because the class implements both, and `-showActions` refreshes the pointer
 /// in the one case the hooks could have been late for: a window that was
-/// already built before this image finished loading.
+/// already built before these hooks were installed.
 - (id)initWithWindowScene:(UIWindowScene *)scene
 {
     id window = %orig;
@@ -869,7 +895,68 @@ static void FCAdoptSnapperProtocol(void)
 
 %end
 
+%hook SSAreaCaptureRootViewController
+
+- (void)viewDidLoad
+{
+    %orig;
+    UIWindow *window = self.view.window;
+    if (window) {
+        fcCaptureWindow = window;
+        FCLog(@"capture root view controller gave the window: %@",
+              NSStringFromClass([window class]));
+    }
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    %orig;
+    UIWindow *window = self.view.window;
+    if (window) {
+        fcCaptureWindow = window;
+        FCLog(@"capture UI appeared in %@", NSStringFromClass([window class]));
+    }
+}
+
 %end
+
+%end
+
+static BOOL fcShellXHooksInstalled = NO;
+
+/// Logos installs a group's hooks only when it is told to, and it installs
+/// nothing at all for a class that does not exist yet.  ScreenshotShell is not
+/// in the room when this image loads - every log so far starts with
+/// `loaded: snapper=1 shellx=0` - so everything ShellX-side (the capture
+/// window, the menu lookups, the plugin manager) was dead code from 3.0.90 to
+/// 3.0.92.  Installing the group again once the class is up is the fix.
+static void FCInstallShellXHooks(void)
+{
+    if (fcShellXHooksInstalled)
+        return;
+    if (!NSClassFromString(@"SSAreaCaptureWindow"))
+        return;
+
+    fcShellXHooksInstalled = YES;
+    %init(FaircopySnapperShellX);
+    FCLog(@"shellx hooks installed: window=%@ manager=%@",
+          NSClassFromString(@"SSAreaCaptureWindow") ? @"yes" : @"no",
+          NSClassFromString(@"SHELLXPluginManager") ? @"yes" : @"no");
+}
+
+/// ScreenshotShell loads seconds after SpringBoard does, so one attempt at
+/// constructor time is not enough and a single fixed delay would be a guess.
+/// This polls until the class appears, then stops for good.
+static void FCScheduleShellXHookRetry(int remaining)
+{
+    if (fcShellXHooksInstalled || remaining <= 0)
+        return;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        FCInstallShellXHooks();
+        FCScheduleShellXHookRetry(remaining - 1);
+    });
+}
 
 %ctor {
     @autoreleasepool {
@@ -886,5 +973,7 @@ static void FCAdoptSnapperProtocol(void)
                   [manager fileExistsAtPath:kFCRecognizeLogPath]);
         }
         %init(FaircopySnapper);
+        FCInstallShellXHooks();
+        FCScheduleShellXHookRetry(300);
     }
 }
