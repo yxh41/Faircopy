@@ -23,6 +23,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// undeclared-selector warning — the implementation lives in Swift
 /// (`Presenter+Open.swift`, `@objc(presentToolControllerStandalone:autoSegment:)`).
 - (BOOL)presentToolControllerStandalone:(UIResponder *)responder autoSegment:(BOOL)autoSegment;
+/// 3.0.96: the same card, told in words what to run first ("segment", "translate").
+/// The injector passes the caller's mode through untouched, so a third kind of
+/// automatic start needs no new selector. Implemented in `Presenter+Open.swift`
+/// as `@objc(presentToolControllerStandalone:mode:)`.
+- (BOOL)presentToolControllerStandalone:(UIResponder *)responder mode:(NSString *)mode;
 - (void)presentUnavailable:(UIResponder *)responder;
 @end
 

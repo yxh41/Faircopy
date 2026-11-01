@@ -29,17 +29,20 @@ extension Presenter {
         /// such a view on dismiss instead of restoring first responder.
         let isStandalone: Bool
 
-        /// 3.0.78: run the local word segmentation the moment the panel appears.
+        /// 3.0.78 / 3.0.96: what the caller wants the panel to do the moment it
+        /// appears — `"segment"` (tokenize on device), `"translate"` (run the
+        /// translation task at once), or empty for the normal button grid.
         ///
-        /// Used by `faircopy://panel?keyword=…&mode=segment`, which Kayoko's
-        /// image action sends after OCR-ing a clipboard picture: the text is
-        /// already the subject, the only thing left is the tokenize step, and
-        /// making the user tap 分词 after a gesture costs an extra tap for no
-        /// information. Segmentation is entirely on-device (`WordSegmenter`,
-        /// no model, no network), so this cannot fail for billing reasons — only
-        /// for "there was nothing to tokenize", which the view handles by
-        /// staying on the normal panel.
-        let autoSegment: Bool
+        /// A string rather than a boolean because the two callers disagree:
+        /// Kayoko's picture action sends `mode=segment` after OCR-ing a
+        /// clipboard picture (the text is the subject and the only thing left
+        /// is the tokenize step), while the Snapper3 entry is called
+        /// 「Faircopy 翻译」 and must arrive translating, or the button lies.
+        /// Both are decided before the first frame, so neither flashes the grid.
+        let autoMode: String
+
+        var autoSegment: Bool { autoMode == "segment" }
+        var autoTranslate: Bool { autoMode == "translate" }
 
         @Published var scenePhase: ScenePhase = .active
 
@@ -56,7 +59,7 @@ extension Presenter {
             decorationViews: [UIView],
             textProxy: TextProxy,
             isStandalone: Bool = false,
-            autoSegment: Bool = false
+            autoMode: String = ""
         ) {
             self.parentView = parentView
             self.parentController = parentController
@@ -66,7 +69,7 @@ extension Presenter {
             self.decorationViews = decorationViews
             self.textProxy = textProxy
             self.isStandalone = isStandalone
-            self.autoSegment = autoSegment
+            self.autoMode = autoMode
 
             super.init()
 
@@ -129,7 +132,7 @@ extension Presenter {
         fromResponder responder: UIResponder,
         standalone: Bool = false,
         decoratesSelection: Bool = true,
-        autoSegment: Bool = false
+        autoMode: String = ""
     ) -> Context? {
         guard let fatherView = responder as? UIView else { return nil }
         guard let parentView = fatherView.superview else { return nil }
@@ -185,7 +188,7 @@ extension Presenter {
             decorationViews: decorationViews,
             textProxy: textProxy,
             isStandalone: standalone,
-            autoSegment: autoSegment
+            autoMode: autoMode
         )
     }
 

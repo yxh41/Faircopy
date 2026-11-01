@@ -324,6 +324,11 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                 }
                 return
             }
+            // 3.0.96: the caller may say what the panel should do (translate vs
+            // segment). Read before recognition finishes — the discard below
+            // removes the file.
+            let mode = FaircopyImageOCR.requestedMode()
+            FaircopyImageOCR.appendLog("ocr: panel mode = " + mode)
             FaircopyImageOCR.recognize { outcome in
                 let text = outcome.text
                 FaircopyImageOCR.markFinished()
@@ -333,7 +338,7 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
                         keyword: text,
                         target: panelTarget,
                         at: Date().timeIntervalSince1970,
-                        mode: "segment"
+                        mode: mode
                     ))
                 }
                 FaircopyImageOCR.writeResult(ok: handedOff, chars: text.count)
@@ -489,6 +494,8 @@ struct PanelPending: Codable {
     var target: String
     var at: Double
     /// 3.0.79: `"segment"` makes the injector open the panel already tokenized.
+    /// 3.0.96: `"translate"` makes it open already translating — what the
+    /// Snapper3 menu item (「Faircopy 翻译」) asks for.
     /// Absent (nil) keeps the original "just show the text" behaviour, so an
     /// older Faircopy reading a newer file still presents something.
     var mode: String?
@@ -523,8 +530,10 @@ struct PanelPendingStore {
 /// `Error computing NN outputs` while `.fast` on the same handler and the same
 /// picture succeeds (Kayoko 4.3.15-4.3.21); a normal app process is where that
 /// network runs, Live Text included. `faircopy://ocr` is the invisible entry
-/// point: the picture is left in the shared preferences directory, the answer
-/// comes back as a `mode=segment` pending invocation.
+/// point: the picture is left in the shared preferences directory, and the
+/// answer comes back as a pending invocation whose `mode` says what the panel
+/// should do with the words (3.0.96: `segment` for Kayoko's picture action,
+/// `translate` for the Snapper3 menu item).
 enum FaircopyImageOCR {
     /// KEEP IN SYNC with the kKayokoFaircopy… constants in
     /// Kayoko/src/Tweak/Core/Controllers/KayokoHistoryListViewController.m.
@@ -552,6 +561,28 @@ enum FaircopyImageOCR {
     /// being read would overwrite the input file mid-recognition.
     private static var backgroundBusy = false
 
+    /// 3.0.96: what the caller wants the panel to DO with the recognised text.
+    ///
+    /// Kayoko's picture action has always meant "tokenize this", so `segment`
+    /// is the default and an older caller keeps exactly that behaviour. The
+    /// Snapper3 entry writes `translate`: its menu item is called 翻译, and a
+    /// panel that opens tokenized while the button said 翻译 is a promise the
+    /// UI does not keep.
+    ///
+    /// Read before `discardHandoffFiles()` in both roads, so the answer always
+    /// belongs to the picture being recognised.
+    ///
+    /// KEEP IN SYNC with kFCModePath in FaircopySnapperPlugin.xm.
+    static let modePath = directory + "/faircopy_ocr_mode.txt"
+
+    static func requestedMode() -> String {
+        guard let raw = try? String(contentsOfFile: modePath, encoding: .utf8) else {
+            return "segment"
+        }
+        let value = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return value.isEmpty ? "segment" : value
+    }
+
     /// 3.0.87: drop the hand-off files once they have done their job.
     ///
     /// The caller leaves a full-size screenshot here, and nothing ever removed
@@ -565,6 +596,7 @@ enum FaircopyImageOCR {
         let manager = FileManager.default
         try? manager.removeItem(atPath: inputPath)
         try? manager.removeItem(atPath: displayTargetPath)
+        try? manager.removeItem(atPath: modePath)
         appendLog("ocr: handoff files discarded")
     }
 
@@ -730,8 +762,11 @@ enum FaircopyImageOCR {
             // taken, so nothing has to name the frontmost app to be correct.
             let named = requestedDisplayTarget()
             let target = named ?? ""
+            // 3.0.96: read once, before the completion runs — the visible road
+            // may discard the hand-off files while this one is still reading.
+            let mode = requestedMode()
             let task = UIApplication.shared.beginBackgroundTask(withName: "faircopy.ocr") {}
-            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(named ?? "auto")")
+            appendLog("ocr: background request state=\(UIApplication.shared.applicationState.rawValue) target=\(named ?? "auto") mode=\(mode)")
             recognize { outcome in
                 let text = outcome.text
                 markFinished()
@@ -741,7 +776,7 @@ enum FaircopyImageOCR {
                         keyword: text,
                         target: target,
                         at: Date().timeIntervalSince1970,
-                        mode: "segment"
+                        mode: mode
                     ))
                 }
                 writeResult(ok: handedOff, chars: text.count, retry: !handedOff)

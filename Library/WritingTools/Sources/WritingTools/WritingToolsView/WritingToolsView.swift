@@ -58,6 +58,10 @@ struct WritingToolsView: View {
     /// no matter how often SwiftUI re-evaluates body / re-fires onAppear.
     @State var didApplyAutoSegment: Bool = false
 
+    /// 3.0.96: same guard for `context.autoTranslate`. A second automatic run
+    /// would be a second billed request, so it must never happen.
+    @State var didApplyAutoTranslate: Bool = false
+
     /// Active panel-mode variant selected from a long-press sub-menu, or `nil` for
     /// a plain run. Carried across Again/retry so a variant re-runs with the same
     /// refinement; cleared on any normal (non-variant) mode tap.
@@ -174,7 +178,11 @@ struct WritingToolsView: View {
         // 3.0.78: choose the mode before the first frame. Doing it only in
         // onAppear let one frame of the button grid show for a `mode=segment`
         // panel, which reads as a flicker right as the card lands.
-        _taskPrompt = .init(initialValue: context.autoSegment ? .segment : .rewrite)
+        // 3.0.96: `mode=translate` gets the same treatment — the panel opens on
+        // the translating task rather than flashing the grid first.
+        let initial: Prompt = context.autoMode == "segment" ? .segment
+            : (context.autoMode == "translate" ? .translate : .rewrite)
+        _taskPrompt = .init(initialValue: initial)
     }
 
     public var body: some View {
@@ -233,6 +241,9 @@ struct WritingToolsView: View {
             // tap that would otherwise be the only thing between the gesture and
             // the word chips.
             applyAutoSegmentIfNeeded()
+            // 3.0.96: `mode=translate` — start the translation the moment the
+            // card lands, so the button that promised 翻译 delivers it.
+            applyAutoTranslateIfNeeded()
             print("[Faircopy] panel ready: press scale 0.96, spring response 0.25 damping 0.7, haptic prepared")
         }
         .onChange(of: context.scenePhase) { phase in

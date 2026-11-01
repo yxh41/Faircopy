@@ -39,6 +39,13 @@
 static NSString *const kFCSharedDirectory = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate";
 static NSString *const kFCInputPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_input.img";
 static NSString *const kFCDisplayTargetPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_target.txt";
+
+/// 3.0.96: what the panel should do with the recognised words. The menu item is
+/// called 「Faircopy 翻译」, so this entry asks for a translation; every other
+/// caller (Kayoko) leaves the file absent and keeps 分词.
+/// KEEP IN SYNC with FaircopyImageOCR.modePath.
+static NSString *const kFCModePath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_mode.txt";
+static NSString *const kFCModeTranslate = @"translate";
 static NSString *const kFCRecognizeLogPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr.log";
 static NSString *const kFCRequestNotification = @"wiki.qaq.faircopy.ocr.request";
 static NSString *const kFCResultNotification = @"wiki.qaq.faircopy.ocr.result";
@@ -682,19 +689,114 @@ static void FCWatchForResult(void)
 /// If it is not running at all — freshly installed, killed by memory pressure —
 /// nothing ever answers, and the only way left is the visible road: a URL
 /// launch that AIGate immediately hides, recognising the same picture it finds
-/// on disk and bouncing straight back.  Six seconds is far longer than a
-/// recognition and short enough that a dead hand-off is not silent forever.
+/// on disk and bouncing straight back.
+///
+/// 3.0.96: 6 s -> 2 s. The resident road takes well under a second, so six
+/// seconds was dead air in front of a launch the user had already asked for;
+/// two still leaves room for a busy device.
 static void FCArmFallback(void)
 {
     FCWatchForResult();
     uint64_t mine = ++fcInvocationSequence;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{
         if (fcInvocationSequence != mine)
             return;
-        FCLog(@"no answer in 6s, opening %@", kFCFallbackURL);
+        FCLog(@"no answer in 2s, opening %@", kFCFallbackURL);
         FCOpenURL([NSURL URLWithString:kFCFallbackURL]);
     });
+}
+
+#pragma mark - which app is on screen
+
+/// `SBApplication` answers its bundle id under one of these names depending on
+/// the release, so all three are tried.
+static NSString *FCBundleIDOf(id application)
+{
+    if (!application)
+        return nil;
+    for (NSString *key in @[@"bundleIdentifier", @"displayIdentifier", @"applicationIdentifier"]) {
+        id value = FCPerform(application, key);
+        if ([value isKindOfClass:[NSString class]] && [value length] > 0)
+            return value;
+    }
+    return nil;
+}
+
+static BOOL FCPerformBool(id object, NSString *selectorName, BOOL *answered)
+{
+    *answered = NO;
+    SEL selector = NSSelectorFromString(selectorName);
+    if (!object || ![object respondsToSelector:selector])
+        return NO;
+    *answered = YES;
+    return ((BOOL (*)(id, SEL))objc_msgSend)(object, selector);
+}
+
+/// The app the user was looking at when the screenshot was taken.
+///
+/// This is the whole difference between a panel that opens where the user is
+/// and one they only see after going home: AIGate bounces to whatever bundle id
+/// sits in `faircopy_ocr_target.txt`, and with no target it falls back to
+/// "whoever opened me" — SpringBoard, because the launch comes from here.
+/// SpringBoard's own answer to "who is in front" is private and has moved
+/// between releases, so every plausible spelling is tried and the winner is
+/// logged: one build then says which one this iOS honours.
+static NSString *FCFrontmostBundleIdentifier(void)
+{
+    NSString *answer = nil;
+
+    // 1. +[SBApplication frontmostApplication]
+    answer = FCBundleIDOf(FCPerform(NSClassFromString(@"SBApplication"), @"frontmostApplication"));
+    if (answer.length > 0) {
+        FCLog(@"front app via SBApplication = %@", answer);
+        return answer;
+    }
+
+    // 2. -[SBApplicationController sharedInstance].frontmostApplication
+    id controller = FCPerform(NSClassFromString(@"SBApplicationController"), @"sharedInstance");
+    answer = FCBundleIDOf(FCPerform(controller, @"frontmostApplication"));
+    if (answer.length > 0) {
+        FCLog(@"front app via SBApplicationController = %@", answer);
+        return answer;
+    }
+
+    // 3. the workspace knows it too, under either spelling
+    id workspace = FCPerform(NSClassFromString(@"SBWorkspace"), @"mainWorkspace");
+    if (!workspace)
+        workspace = FCPerform(NSClassFromString(@"SBMainWorkspace"), @"sharedInstance");
+    if (!workspace)
+        workspace = FCPerform(NSClassFromString(@"SBMainWorkspace"), @"mainWorkspace");
+    answer = FCBundleIDOf(FCPerform(workspace, @"frontmostApplication"));
+    if (answer.length > 0) {
+        FCLog(@"front app via %@ = %@", NSStringFromClass([workspace class]), answer);
+        return answer;
+    }
+
+    // 4. SpringBoard is an application too; some releases answer there.
+    answer = FCBundleIDOf(FCPerform(UIApplication.sharedApplication, @"frontmostApplication"));
+    if (answer.length > 0) {
+        FCLog(@"front app via UIApplication = %@", answer);
+        return answer;
+    }
+
+    // 5. ask every application whether it is the frontmost one.
+    id applications = FCPerform(controller, @"allApplications");
+    if ([applications isKindOfClass:[NSArray class]]) {
+        for (id candidate in (NSArray *)applications) {
+            BOOL answered = NO;
+            if (FCPerformBool(candidate, @"isFrontmostApplication", &answered) && answered) {
+                answer = FCBundleIDOf(candidate);
+                if (answer.length > 0) {
+                    FCLog(@"front app via isFrontmostApplication = %@", answer);
+                    return answer;
+                }
+            }
+        }
+    }
+
+    FCLog(@"front app: no probe answered, the panel will arbitrate");
+    return nil;
 }
 
 static void FCHandOffImage(UIImage *image, NSString *source)
@@ -704,6 +806,13 @@ static void FCHandOffImage(UIImage *image, NSString *source)
         return;
     }
     FCLog(@"%@: picture %.0fx%.0f", source, image.size.width, image.size.height);
+
+    // Asked here, on the caller's thread: SpringBoard's application tables
+    // belong to the main run loop, and this is where every entry point already
+    // runs. The answer travels into the background block so the write order is
+    // "picture, then target, then notify".
+    NSString *displayTarget = FCFrontmostBundleIdentifier();
+    FCLog(@"%@: display target %@", source, displayTarget ?: @"none");
 
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
         @autoreleasepool {
@@ -728,13 +837,25 @@ static void FCHandOffImage(UIImage *image, NSString *source)
                 FCLog(@"%@: write failed (%@)", source, error.localizedDescription);
                 return;
             }
-            // Deliberately no display-target file: an empty one is what the
-            // injector reads as "let the ticket arbitrate", and a stale target
-            // left behind by an earlier Kayoko swipe would send the panel to an
-            // app that is not on screen any more.
-            [manager removeItemAtPath:kFCDisplayTargetPath error:NULL];
+            // The target is written together with the picture, never left over
+            // from an earlier call: AIGate deletes it after every hand-off, and
+            // a stale one would send the panel to an app that is no longer on
+            // screen. Without a target AIGate bounces to SpringBoard (the
+            // launcher), the panel is summoned on the home screen, and the user
+            // is thrown out of the app they were reading.
+            if (displayTarget.length > 0) {
+                [displayTarget writeToFile:kFCDisplayTargetPath atomically:YES
+                                encoding:NSUTF8StringEncoding error:NULL];
+            } else {
+                [manager removeItemAtPath:kFCDisplayTargetPath error:NULL];
+            }
+            // 「Faircopy 翻译」 means translate: the panel opens already running
+            // the translation task instead of showing word chips.
+            [kFCModeTranslate writeToFile:kFCModePath atomically:YES
+                              encoding:NSUTF8StringEncoding error:NULL];
 
-            FCLog(@"%@: handed off %lu bytes", source, (unsigned long)data.length);
+            FCLog(@"%@: handed off %lu bytes, mode=%@", source, (unsigned long)data.length,
+                  kFCModeTranslate);
             notify_post(kFCRequestNotification.UTF8String);
             dispatch_async(dispatch_get_main_queue(), ^{
                 FCArmFallback();

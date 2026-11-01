@@ -89,7 +89,7 @@ public extension Presenter {
     /// when even the standalone anchor could not be presented.
     @objc(presentToolControllerStandalone:)
     func presentToolControllerStandalone(_ responder: UIResponder) -> Bool {
-        presentCenteredCard(fromResponder: responder, standalone: true, autoSegment: false)
+        presentCenteredCard(fromResponder: responder, standalone: true, autoMode: "")
     }
 
     /// 3.0.78: same standalone card, but the panel opens straight into 分词.
@@ -102,13 +102,26 @@ public extension Presenter {
     /// installed in either order without a blank panel.
     @objc(presentToolControllerStandalone:autoSegment:)
     func presentToolControllerStandalone(_ responder: UIResponder, autoSegment: Bool) -> Bool {
-        presentCenteredCard(fromResponder: responder, standalone: true, autoSegment: autoSegment)
+        presentCenteredCard(fromResponder: responder, standalone: true,
+                            autoMode: autoSegment ? "segment" : "")
+    }
+
+    /// 3.0.96: the same card, told in words what to run first.
+    ///
+    /// The injector now passes the caller's `mode` straight through instead of
+    /// collapsing it to a boolean, so `translate` reaches the panel as
+    /// `translate`. The older boolean selector above is still implemented —
+    /// an older injector keeps working, and this one keeps the fallback for an
+    /// older Faircopy.
+    @objc(presentToolControllerStandalone:mode:)
+    func presentToolControllerStandalone(_ responder: UIResponder, mode: String) -> Bool {
+        presentCenteredCard(fromResponder: responder, standalone: true, autoMode: mode)
     }
 
     private func presentCenteredCard(
         fromResponder responder: UIResponder,
         standalone: Bool,
-        autoSegment: Bool = false
+        autoMode: String = ""
     ) -> Bool {
         guard let parentController = (responder as? UIView)?.parentViewController else {
             // External / standalone triggers must never signal "unavailable"
@@ -143,7 +156,7 @@ public extension Presenter {
             fromResponder: responder,
             standalone: standalone,
             decoratesSelection: false,
-            autoSegment: autoSegment
+            autoMode: autoMode
         )
         if context == nil, let view = responder as? UIView, let proxy = TextProxy(delegatingView: view) {
             proxy.selectAll()
@@ -151,7 +164,7 @@ public extension Presenter {
                 fromResponder: responder,
                 standalone: standalone,
                 decoratesSelection: false,
-                autoSegment: autoSegment
+                autoMode: autoMode
             )
         }
         guard let context else {

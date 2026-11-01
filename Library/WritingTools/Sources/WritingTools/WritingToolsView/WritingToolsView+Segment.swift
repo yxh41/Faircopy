@@ -670,6 +670,29 @@ extension WritingToolsView {
         print("[Faircopy] auto segment: panel opened straight into 分词 (\(segmentTokens.count) tokens)")
     }
 
+    /// 3.0.96: `mode=translate` — the caller's button said 翻译, so the panel
+    /// opens already translating instead of showing the button grid for a beat
+    /// and waiting for a second tap.
+    ///
+    /// Same one-shot guard as the segment path, and for a harder reason: a
+    /// second automatic run is a second billed request against the user's key.
+    /// An empty subject falls back to the grid (a request for nothing would
+    /// just come back as an error panel).
+    func applyAutoTranslateIfNeeded() {
+        guard context.autoTranslate, !didApplyAutoTranslate else { return }
+        didApplyAutoTranslate = true
+        let subject = context.textProxy.selectedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !subject.isEmpty else {
+            taskPrompt = .rewrite
+            print("[Faircopy] auto translate skipped: subject is empty")
+            return
+        }
+        taskPrompt = .translate
+        segmentActionSubject = nil
+        executeCurrentTask()
+        print("[Faircopy] auto translate: panel opened straight into translation")
+    }
+
     func runSegmentation() {
         error = nil
         let result = WordSegmenter.segment(context.textProxy.selectedText)
