@@ -31,6 +31,7 @@
 #import <notify.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <string.h>
 
 @import UIKit;
 
@@ -186,30 +187,305 @@ static FaircopySnapperPlugin *FCSnapperPlugin(void)
     return instance;
 }
 
-/// A white glyph on transparent background, handed back as a template image so
-/// whoever draws the button can tint it.  Drawn instead of installed: a png
-/// under layout/ would have to be placed in a real /var/mobile path, which a
-/// roothide package cannot do.
+/// The menu image.  Drawn instead of installed: a png under layout/ would have
+/// to be placed in a real /var/mobile path, which a roothide package cannot do.
+///
+/// Deliberately *not* a template image.  Snapper3's own plugins ship coloured
+/// artwork and the menu draws it as it comes, so a white-on-clear glyph either
+/// disappears on a light menu or turns into a flat silhouette — 3.0.90 did
+/// exactly that.  This is a small app-icon instead: the teal gradient and the
+/// white ring from the Faircopy UI, with the glyph on top.
 static UIImage *FCMenuIcon(void)
 {
     static UIImage *icon = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        CGFloat side = 120.0;
+        UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+        format.opaque = NO;
         UIGraphicsImageRenderer *renderer =
-            [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(64, 64)];
-        UIImage *drawn = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+            [[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(side, side) format:format];
+
+        icon = [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+            CGContextRef cgContext = context.CGContext;
+            CGRect box = CGRectInset(CGRectMake(0, 0, side, side), 3, 3);
+            UIBezierPath *shape = [UIBezierPath bezierPathWithRoundedRect:box cornerRadius:28];
+            [shape addClip];
+
+            CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+            CGFloat components[8] = {
+                0.043, 0.216, 0.216, 1.0,
+                0.086, 0.376, 0.361, 1.0,
+            };
+            CGFloat locations[2] = {0.0, 1.0};
+            CGGradientRef gradient = CGGradientCreateWithColorComponents(space, components, locations, 2);
+            CGContextDrawLinearGradient(cgContext, gradient,
+                                        CGPointMake(0, 0), CGPointMake(side, side), 0);
+            CGGradientRelease(gradient);
+            CGColorSpaceRelease(space);
+
+            [[UIColor colorWithWhite:1.0 alpha:0.45] setStroke];
+            UIBezierPath *ring =
+                [UIBezierPath bezierPathWithRoundedRect:CGRectInset(box, 7, 7) cornerRadius:22];
+            ring.lineWidth = 2.5;
+            [ring stroke];
+
             NSDictionary *attributes = @{
-                NSFontAttributeName: [UIFont systemFontOfSize:46 weight:UIFontWeightSemibold],
+                NSFontAttributeName: [UIFont systemFontOfSize:58 weight:UIFontWeightHeavy],
                 NSForegroundColorAttributeName: UIColor.whiteColor,
             };
             CGSize size = [@"译" sizeWithAttributes:attributes];
-            [@"译" drawAtPoint:CGPointMake((64 - size.width) / 2.0, (64 - size.height) / 2.0)
+            [@"译" drawAtPoint:CGPointMake((side - size.width) / 2.0, (side - size.height) / 2.0)
                 withAttributes:attributes];
         }];
-        icon = [drawn imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+
+        icon = [icon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
     });
     return icon;
 }
+
+#pragma mark - finding the picture ShellX never hands over
+
+/// A struct ivar, read by address.  `object_getIvar` only works for object
+/// pointers, and the crop rectangle is the whole point of this.
+static BOOL FCReadCGRectIvar(id object, NSString *name, CGRect *out)
+{
+    if (!object || !out)
+        return NO;
+    Ivar ivar = class_getInstanceVariable(object_getClass(object), name.UTF8String);
+    if (!ivar)
+        return NO;
+    const char *type = ivar_getTypeEncoding(ivar);
+    if (!type || strncmp(type, "{CGRect", 7) != 0)
+        return NO;
+    *out = *(CGRect *)((char *)(__bridge void *)object + ivar_getOffset(ivar));
+    return YES;
+}
+
+static UIImage *FCReadImageIvar(id object, NSString *name)
+{
+    if (!object)
+        return nil;
+    Ivar ivar = class_getInstanceVariable(object_getClass(object), name.UTF8String);
+    if (!ivar)
+        return nil;
+    id value = object_getIvar(object, ivar);
+    return [value isKindOfClass:[UIImage class]] ? (UIImage *)value : nil;
+}
+
+static UIImage *FCCropImage(UIImage *image, CGRect crop)
+{
+    if (!image)
+        return nil;
+    CGRect full = CGRectMake(0, 0, image.size.width, image.size.height);
+    crop = CGRectIntegral(CGRectIntersection(crop, full));
+    if (crop.size.width < 8 || crop.size.height < 8)
+        return image;
+
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.scale = image.scale > 0 ? image.scale : 1.0;
+    format.opaque = NO;
+    UIGraphicsImageRenderer *renderer =
+        [[UIGraphicsImageRenderer alloc] initWithSize:crop.size format:format];
+    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        [image drawAtPoint:CGPointMake(-crop.origin.x, -crop.origin.y)];
+    }];
+}
+
+/// ShellX's capture window keeps everything we need and hands our plugin
+/// nothing: `_ssOrigCaptureImage` is the frozen full-screen frame, and
+/// `_selectionRect` / `_ssOrigCaptureBounds` say which part of it the user
+/// picked.  So the picture is taken from the window itself rather than from the
+/// argument, which is only an `SSSnapperCropShim` (its `messagingDelegate`
+/// answers `displayMessage:` and nothing else).
+static UIImage *FCImageFromCropOwner(id owner, NSString **explanation)
+{
+    UIImage *full = FCReadImageIvar(owner, @"_ssOrigCaptureImage");
+    if (!full)
+        return nil;
+
+    CGRect selection = CGRectZero;
+    CGRect bounds = CGRectZero;
+    BOOL hasSelection = FCReadCGRectIvar(owner, @"_selectionRect", &selection);
+    BOOL hasBounds = FCReadCGRectIvar(owner, @"_ssOrigCaptureBounds", &bounds);
+
+    // The frozen frame is in pixels, the selection is in points: the capture
+    // bounds are the bridge between the two.
+    CGRect basis = CGRectZero;
+    if (hasBounds && bounds.size.width >= 1 && bounds.size.height >= 1)
+        basis = bounds;
+    else if ([owner isKindOfClass:[UIView class]])
+        basis = CGRectMake(0, 0, ((UIView *)owner).bounds.size.width, ((UIView *)owner).bounds.size.height);
+
+    CGRect crop = CGRectMake(0, 0, full.size.width, full.size.height);
+    if (hasSelection && selection.size.width >= 4 && selection.size.height >= 4 &&
+        basis.size.width >= 1 && basis.size.height >= 1) {
+        CGFloat scaleX = full.size.width / basis.size.width;
+        CGFloat scaleY = full.size.height / basis.size.height;
+        crop = CGRectMake((selection.origin.x - basis.origin.x) * scaleX,
+                          (selection.origin.y - basis.origin.y) * scaleY,
+                          selection.size.width * scaleX,
+                          selection.size.height * scaleY);
+    }
+    if (explanation) {
+        *explanation = [NSString stringWithFormat:
+            @"%@ frame=%.0fx%.0f selection=%@ bounds=%@ crop=%@",
+            NSStringFromClass([owner class]),
+            full.size.width, full.size.height,
+            NSStringFromCGRect(selection), NSStringFromCGRect(bounds),
+            NSStringFromCGRect(crop)];
+    }
+    return FCCropImage(full, crop);
+}
+
+static UIWindow *FCCaptureWindow(void)
+{
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]])
+            continue;
+        for (UIWindow *window in ((UIWindowScene *)scene).windows)
+            if (FCReadImageIvar(window, @"_ssOrigCaptureImage"))
+                return window;
+    }
+    return nil;
+}
+
+static UIImage *FCImageFromCaptureWindow(NSString **explanation)
+{
+    return FCImageFromCropOwner(FCCaptureWindow(), explanation);
+}
+
+/// Find a capture window that `connectedScenes` does not list.
+///
+/// ShellX builds its capture window from its own window scene, so the scene
+/// enumeration above can come up empty even though the window is right there.
+/// Every window in the process is reachable from the application object itself
+/// (`UIApplication` keeps them in its own array ivar), so this walks the graph
+/// looking for the one object that carries `_ssOrigCaptureImage`.
+///
+/// Only that object counts — a stray UIImage picked out of SpringBoard's view
+/// tree would be somebody's wallpaper, which is worse than nothing.
+static UIImage *FCImageFromGraph(id root, NSString **explanation)
+{
+    NSMutableArray *queue = [NSMutableArray array];
+    if (root)
+        [queue addObject:root];
+    id delegate = FCPerform(root, @"messagingDelegate");
+    if (delegate && delegate != root)
+        [queue addObject:delegate];
+    // Seeded with the application, not its delegate: the windows hang off the
+    // application's own ivar, and BFS reaches them within the first few hops.
+    [queue addObject:UIApplication.sharedApplication];
+    if (UIApplication.sharedApplication.delegate)
+        [queue addObject:UIApplication.sharedApplication.delegate];
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]])
+            continue;
+        for (UIWindow *window in ((UIWindowScene *)scene).windows)
+            [queue addObject:window];
+    }
+
+    NSMutableSet *visited = [NSMutableSet set];
+    NSInteger budget = 3000;
+    while (queue.count > 0 && budget-- > 0) {
+        id object = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        if (!object)
+            continue;
+        NSString *key = [NSString stringWithFormat:@"%p", (__bridge void *)object];
+        if ([visited containsObject:key])
+            continue;
+        [visited addObject:key];
+
+        UIImage *cropped = FCImageFromCropOwner(object, explanation);
+        if (cropped)
+            return cropped;
+
+        if ([object isKindOfClass:[NSString class]] || [object isKindOfClass:[NSNumber class]] ||
+            [object isKindOfClass:[NSData class]] || [object isKindOfClass:[NSDate class]] ||
+            [object isKindOfClass:[UIImage class]])
+            continue;
+        if ([object isKindOfClass:[NSArray class]]) {
+            for (id element in (NSArray *)object)
+                if (queue.count < 4000)
+                    [queue addObject:element];
+            continue;
+        }
+        if ([object isKindOfClass:[NSDictionary class]]) {
+            for (id element in [(NSDictionary *)object allValues])
+                if (queue.count < 4000)
+                    [queue addObject:element];
+            continue;
+        }
+
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList(object_getClass(object), &count);
+        for (unsigned int index = 0; index < count; index++) {
+            const char *type = ivar_getTypeEncoding(ivars[index]);
+            if (!type || type[0] != '@')
+                continue;
+            id value = object_getIvar(object, ivars[index]);
+            if (value && queue.count < 4000)
+                [queue addObject:value];
+        }
+        if (ivars)
+            free(ivars);
+    }
+    return nil;
+}
+
+/// Written when nothing could be found, so the next version does not have to
+/// guess again: the argument, its delegate, and their object ivars by name.
+static void FCDumpGraph(id root)
+{
+    NSMutableString *dump = [NSMutableString string];
+    [dump appendFormat:@"root: %@\n", NSStringFromClass([root class])];
+
+    NSMutableArray *objects = [NSMutableArray array];
+    if (root)
+        [objects addObject:root];
+    id delegate = FCPerform(root, @"messagingDelegate");
+    if (delegate && delegate != root)
+        [objects addObject:delegate];
+
+    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+        if (![scene isKindOfClass:[UIWindowScene class]])
+            continue;
+        for (UIWindow *window in ((UIWindowScene *)scene).windows)
+            [objects addObject:window];
+    }
+
+    for (id object in objects) {
+        [dump appendFormat:@"\n[%@] %p\n", NSStringFromClass([object class]), (__bridge void *)object];
+        Class cls = object_getClass(object);
+        while (cls && cls != [NSObject class]) {
+            unsigned int count = 0;
+            Ivar *ivars = class_copyIvarList(cls, &count);
+            for (unsigned int index = 0; index < count; index++) {
+                const char *name = ivar_getName(ivars[index]);
+                const char *type = ivar_getTypeEncoding(ivars[index]);
+                if (!name || !type)
+                    continue;
+                if (type[0] == '@') {
+                    id value = object_getIvar(object, ivars[index]);
+                    [dump appendFormat:@"  %s : %s\n", name,
+                                      value ? NSStringFromClass([value class]).UTF8String : "nil"];
+                }
+                else {
+                    [dump appendFormat:@"  %s : %s\n", name, type];
+                }
+            }
+            if (ivars)
+                free(ivars);
+            cls = class_getSuperclass(cls);
+        }
+    }
+
+    NSData *data = [dump dataUsingEncoding:NSUTF8StringEncoding];
+    [data writeToFile:@"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_snapper_tree.log"
+              atomically:YES];
+}
+
 
 /// The snap object is a private class, so the picture is fetched by asking for
 /// the usual names and, failing that, by drawing whatever view was handed over.
@@ -353,6 +629,16 @@ static void FCHandOffImage(UIImage *image, NSString *source)
             notify_post(kFCRequestNotification.UTF8String);
             dispatch_async(dispatch_get_main_queue(), ^{
                 FCArmFallback();
+                // Whether the panel can be seen depends on whether the capture
+                // window is still on top of it: one line, a second and a half
+                // later, says which of the two happened.
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)),
+                               dispatch_get_main_queue(), ^{
+                    UIWindow *window = FCCaptureWindow();
+                    FCLog(@"capture window 1.5 s after the tap: %@",
+                          window ? (window.hidden ? @"still there, hidden" : @"still there, visible")
+                                 : @"gone");
+                });
             });
         }
     });
@@ -385,7 +671,13 @@ static void FCHandOffImage(UIImage *image, NSString *source)
 {
     FCLog(@"menu action from %@, snap %@",
           NSStringFromClass([action class]), NSStringFromClass([snap class]));
-    FCHandOffImage(FCImageFromSnap(snap), @"menu");
+    UIImage *image = FCImageFromSnap(snap);
+    if (!image) {
+        NSString *explanation = nil;
+        image = FCImageFromCaptureWindow(&explanation);
+        FCLog(@"menu action: snap gave nothing, window gave %@", explanation ?: @"nothing");
+    }
+    FCHandOffImage(image, @"menu");
 }
 
 /// Picture road — plugins that only implement this are handed the finished
@@ -397,15 +689,30 @@ static void FCHandOffImage(UIImage *image, NSString *source)
     FCHandOffImage(image, @"processImage");
 }
 
-/// Action-bar road.  Implemented only so that a caller reaching for it gets an
-/// answer instead of an unrecognised-selector crash in somebody else's capture
-/// window: the argument here is the *menu entry*, not the snap, so there is no
-/// picture to hand off.  If the log ever shows this line, the tap took this
-/// road and the next version has to fetch the snap from the window instead.
+/// Action-bar road — and this is the one ShellX actually uses (3.0.90 log:
+/// `action bar action from SSSnapperCropShim`, three taps in a row).  The
+/// argument carries no picture, so it comes from the capture window instead.
 - (void)internal_doActionBarAction:(id)action
 {
-    FCLog(@"action bar action from %@ — no snap attached",
-          NSStringFromClass([action class]));
+    NSString *explanation = nil;
+    UIImage *image = FCImageFromCaptureWindow(&explanation);
+    if (image)
+        FCLog(@"action bar action from %@: %@",
+              NSStringFromClass([action class]), explanation ?: @"window");
+    if (!image) {
+        NSString *graphExplanation = nil;
+        image = FCImageFromGraph(action, &graphExplanation);
+        if (image)
+            FCLog(@"action bar action from %@: picture from the argument graph, %@",
+                  NSStringFromClass([action class]), graphExplanation ?: @"unnamed");
+    }
+    if (!image) {
+        FCDumpGraph(action);
+        FCLog(@"action bar action from %@: no picture anywhere, graph dumped",
+              NSStringFromClass([action class]));
+        return;
+    }
+    FCHandOffImage(image, @"action bar");
 }
 
 @end
