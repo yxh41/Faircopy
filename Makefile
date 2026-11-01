@@ -1,4 +1,4 @@
-export PACKAGE_VERSION := 3.0.89
+export PACKAGE_VERSION := 3.0.90
 
 ARCHS := arm64 arm64e
 TARGET := iphone:clang:latest:15.0
@@ -14,6 +14,7 @@ include $(THEOS_MAKE_PATH)/aggregate.mk
 TWEAK_NAME := Faircopy
 
 Faircopy_FILES += Faircopy.xm
+Faircopy_FILES += FaircopySnapperPlugin.xm
 Faircopy_FILES += FaircopyStub.swift
 
 ifeq ($(THEOS_PACKAGE_SCHEME),roothide)
