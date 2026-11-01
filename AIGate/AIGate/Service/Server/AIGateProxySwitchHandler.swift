@@ -115,9 +115,11 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
         guard let objectEnd else { return } // incomplete object; wait for more bytes
 
         let objectText = String(text[braceStart ..< objectEnd])
-        guard let objectData = objectText.data(using: .utf8),
-              let payload = try? JSONDecoder().decode(UsagePayload.self, from: objectData)
-        else {
+        guard let objectData = objectText.data(using: .utf8) else {
+            usageScanBuffer = Data()
+            return
+        }
+        guard let payload = try? JSONDecoder().decode(UsagePayload.self, from: objectData) else {
             // Malformed usage object; drop the buffer so it cannot loop, and
             // leave a trace: this is the case where a provider reports usage
             // under names this build does not know.
