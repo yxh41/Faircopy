@@ -19,20 +19,23 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
     var bodyBuffer = Data()
     var bodyBufferForWrite = Data()
 
-    /// Rolling tail of the upstream body, scanned for a final usage object.
+    /// Rolling tail of the upstream body, split into SSE lines.
     private var usageScanBuffer = Data()
     private var usageRecorded = false
     private let usageScanLimit = 65_536
-    private static let usageMarker = Data("\"usage\"".utf8)
 
-    /// 3.0.88: what the scan actually saw, so a response with no parsable usage
-    /// can be classified after the fact instead of guessed at. `sawUsageMarker`
-    /// separates "the provider never sent one" from "it sent one we could not
-    /// read"; `upstreamEncoding` catches a compressed body the byte scan cannot
-    /// see; `scannedBodyBytes` says whether there was a body at all.
+    /// 3.0.88/3.0.89: what the scan actually saw, so a response with no parsable
+    /// usage can be classified after the fact instead of guessed at.
+    /// `sawUsageMarker` separates "the provider never sent one" from "it sent
+    /// one we could not read"; `lastUsageShape` says what that value was
+    /// (`null` in every chunk means the provider ignores
+    /// `stream_options.include_usage`); `upstreamEncoding` catches a compressed
+    /// body; `chunkCount` and `scannedBodyBytes` say how much arrived at all.
     private var sawUsageMarker = false
+    private var lastUsageShape = "absent"
     private var upstreamEncoding = "-"
     private var scannedBodyBytes = 0
+    private var chunkCount = 0
 
     /// Upstream response code, parsed once from the header. Cached because
     /// `writeToDownstream` drains `headerBuffer` after the first chunk.
@@ -83,100 +86,75 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
         writeToDownstream(context: context)
     }
 
-    /// Extracts the final usage object from an SSE stream and records it once.
-    /// Cheap pre-check on raw bytes avoids String conversion on every chunk.
+    /// Extracts the usage object from an SSE stream and records it once (3.0.89).
+    ///
+    /// The old byte scan looked for the first `"usage"` literal, then for the
+    /// next `{`. That is wrong the moment a provider writes `"usage": null` in
+    /// every chunk - which most do, and only the final chunk carries the real
+    /// numbers - because the brace it found belonged to the *next* chunk. The
+    /// slice decoded into a perfectly valid object with no numbers, the buffer
+    /// was cleared to stop it looping, and the next chunk repeated the same
+    /// mistake. One response logged that fourteen times and never reached the
+    /// numbers. Parsing line by line is what an SSE stream actually is, and it
+    /// turns `"usage": null` into a no-op instead of a trap.
     private func scanUsage(from data: Data) {
         guard !usageRecorded else { return }
         scannedBodyBytes += data.count
+        chunkCount += 1
         usageScanBuffer.append(data)
+        // Consume complete lines; the unterminated tail waits for the next chunk.
+        while let newline = usageScanBuffer.firstIndex(of: 0x0A) {
+            let line = Data(usageScanBuffer[usageScanBuffer.startIndex ..< newline])
+            usageScanBuffer.removeSubrange(usageScanBuffer.startIndex ... newline)
+            if scanUsageLine(line) { return }
+        }
         if usageScanBuffer.count > usageScanLimit {
             usageScanBuffer = usageScanBuffer.suffix(usageScanLimit)
         }
-        guard usageScanBuffer.range(of: Self.usageMarker) != nil else { return }
+    }
+
+    /// One SSE line (`data: {...}`), or a whole non-streaming body.
+    ///
+    /// Returns true once a usage object with numbers has been recorded.
+    private func scanUsageLine(_ line: Data) -> Bool {
+        guard !line.isEmpty, let raw = String(data: line, encoding: .utf8) else { return false }
+        var text = raw
+        if text.hasPrefix("data:") {
+            text = String(text.dropFirst(5))
+        } else if text.hasPrefix(":") || text.hasPrefix("event:") || text.hasPrefix("id:") {
+            return false // comment / heartbeat / metadata
+        }
+        text = text.trimmingCharacters(in: .whitespaces)
+        guard text.hasPrefix("{"),
+              let payloadData = text.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: payloadData),
+              let object = parsed as? [String: Any],
+              let usage = object["usage"]
+        else { return false }
+
         sawUsageMarker = true
-
-        guard let text = String(data: usageScanBuffer, encoding: .utf8),
-              let usageRange = text.range(of: "\"usage\""),
-              let braceStart = text[usageRange.upperBound...].firstIndex(of: "{")
-        else { return }
-
-        var depth = 0
-        var objectEnd: String.Index?
-        for index in text[braceStart...].indices {
-            switch text[index] {
-            case "{": depth += 1
-            case "}":
-                depth -= 1
-                if depth == 0 { objectEnd = text.index(after: index) }
-            default: break
-            }
-            if objectEnd != nil { break }
+        guard let numbers = usage as? [String: Any] else {
+            lastUsageShape = (usage is NSNull) ? "null" : "notobject"
+            return false
         }
-        guard let objectEnd else { return } // incomplete object; wait for more bytes
-
-        let objectText = String(text[braceStart ..< objectEnd])
-        guard let objectData = objectText.data(using: .utf8) else {
-            usageScanBuffer = Data()
-            return
-        }
-        guard let payload = try? JSONDecoder().decode(UsagePayload.self, from: objectData) else {
-            // Malformed usage object; drop the buffer so it cannot loop, and
-            // leave a trace: this is the case where a provider reports usage
-            // under names this build does not know.
-            UsageStatistics.appendDiagnostic(
-                "usage: undecodable \(describeScan()) keys=\(Self.tokenKeyNames(in: objectData))")
-            usageScanBuffer = Data()
-            return
-        }
+        lastUsageShape = "object"
         // 3.0.88: providers built on the newer API surface report
-        // `input_tokens`/`output_tokens` instead of `prompt_tokens`/
-        // `completion_tokens`. Both shapes describe the same two numbers.
-        let prompt = payload.prompt_tokens ?? payload.input_tokens
-        let completion = payload.completion_tokens ?? payload.output_tokens
-        guard prompt != nil || completion != nil else {
-            UsageStatistics.appendDiagnostic(
-                "usage: empty \(describeScan()) keys=\(Self.tokenKeyNames(in: objectData))")
-            usageScanBuffer = Data()
-            return
-        }
+        // `input_tokens`/`output_tokens` for the same two numbers.
+        let prompt = (numbers["prompt_tokens"] as? Int) ?? (numbers["input_tokens"] as? Int)
+        let completion = (numbers["completion_tokens"] as? Int) ?? (numbers["output_tokens"] as? Int)
+        guard prompt != nil || completion != nil else { return false }
 
         UsageStatistics.shared.record(
             promptTokens: prompt ?? 0,
             completionTokens: completion ?? 0
         )
         usageRecorded = true
-        usageScanBuffer = Data()
-    }
-
-    private struct UsagePayload: Decodable {
-        let prompt_tokens: Int?
-        let completion_tokens: Int?
-        let total_tokens: Int?
-        let input_tokens: Int?
-        let output_tokens: Int?
-    }
-
-    /// The `*_tokens` key names present in a body, deduplicated, capped.
-    ///
-    /// Only names are kept — never values, and never the surrounding text — so
-    /// the diagnostic cannot leak what the user was writing.
-    private static func tokenKeyNames(in data: Data) -> String {
-        guard let text = String(data: data, encoding: .utf8) else { return "unreadable" }
-        guard let regex = try? NSRegularExpression(pattern: "\"([a-zA-Z_]*tokens)\"") else {
-            return "none"
-        }
-        let range = NSRange(text.startIndex..., in: text)
-        var names: [String] = []
-        regex.enumerateMatches(in: text, range: range) { match, _, _ in
-            guard let match, let matchRange = Range(match.range(at: 1), in: text) else { return }
-            let name = String(text[matchRange])
-            if !names.contains(name) { names.append(name) }
-        }
-        return names.isEmpty ? "none" : names.prefix(5).joined(separator: ",")
+        return true
     }
 
     private func describeScan() -> String {
-        "enc=\(upstreamEncoding) marker=\(sawUsageMarker ? 1 : 0) body=\(scannedBodyBytes)"
+        "enc=\(upstreamEncoding) marker=\(sawUsageMarker ? 1 : 0) usage=\(lastUsageShape)"
+            + " chunks=\(chunkCount) body=\(scannedBodyBytes)"
     }
 
     func codeFromHeader() -> Int? {
@@ -219,13 +197,18 @@ class AIGateProxySwitchHandler: ChannelInboundHandler {
         // usage panel's request count stays honest; tokens stay 0 because the
         // provider never reported them.
         if !usageRecorded, upstreamCode == 200 {
-            // 3.0.88: record why the tokens are zeros. The panel can only show
-            // the accumulated numbers, and "0 tokens but the request counted"
-            // is produced by a provider that reports nothing, by one that
-            // reports under other key names, and by a compressed body the scan
-            // cannot read — the diagnostic tells them apart.
-            UsageStatistics.appendDiagnostic(
-                "usage: missing \(describeScan()) keys=\(Self.tokenKeyNames(in: usageScanBuffer))")
+            // A non-streaming answer is a single JSON document with no trailing
+            // newline, so it is still sitting in the tail when the channel
+            // closes. One last attempt before accounting for the request.
+            _ = scanUsageLine(usageScanBuffer)
+        }
+        if !usageRecorded, upstreamCode == 200 {
+            // 3.0.88/3.0.89: record why the tokens are zeros. The panel can only
+            // show the accumulated numbers, and "0 tokens but the request
+            // counted" is produced by a provider that reports nothing, by one
+            // whose `usage` is `null` in every chunk, and by a compressed body —
+            // the diagnostic tells them apart.
+            UsageStatistics.appendDiagnostic("usage: no numbers reported " + describeScan())
             UsageStatistics.shared.record(promptTokens: 0, completionTokens: 0)
             usageRecorded = true
         }
