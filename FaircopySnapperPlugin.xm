@@ -52,6 +52,15 @@ static NSString *const kFCPluginIdentifier = @"wiki.qaq.snapper3.plugin.faircopy
 static NSString *const kFCFallbackURL = @"faircopy://ocr";
 static NSString *const kFCPluginsDirectory = @"/var/mobile/Library/Snapper3/Plugins";
 
+/// The capture window, remembered at the moment ShellX builds it.
+///
+/// 3.0.91 went looking for it at tap time and, when the scene enumeration came
+/// up empty, walked the object graph instead - which reads weak ivars as if
+/// they were plain pointers and killed SpringBoard.  Hooking the window's own
+/// initialisers is both cheaper and safer: our image loads before
+/// ScreenshotShell's, so the hook is already in place when the window appears.
+static __weak UIWindow *fcCaptureWindow = nil;
+
 #pragma mark - log
 
 static void FCLog(NSString *format, ...)
@@ -340,6 +349,8 @@ static UIImage *FCImageFromCropOwner(id owner, NSString **explanation)
 
 static UIWindow *FCCaptureWindow(void)
 {
+    if (fcCaptureWindow)
+        return fcCaptureWindow;
     for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:[UIWindowScene class]])
             continue;
@@ -353,85 +364,6 @@ static UIWindow *FCCaptureWindow(void)
 static UIImage *FCImageFromCaptureWindow(NSString **explanation)
 {
     return FCImageFromCropOwner(FCCaptureWindow(), explanation);
-}
-
-/// Find a capture window that `connectedScenes` does not list.
-///
-/// ShellX builds its capture window from its own window scene, so the scene
-/// enumeration above can come up empty even though the window is right there.
-/// Every window in the process is reachable from the application object itself
-/// (`UIApplication` keeps them in its own array ivar), so this walks the graph
-/// looking for the one object that carries `_ssOrigCaptureImage`.
-///
-/// Only that object counts — a stray UIImage picked out of SpringBoard's view
-/// tree would be somebody's wallpaper, which is worse than nothing.
-static UIImage *FCImageFromGraph(id root, NSString **explanation)
-{
-    NSMutableArray *queue = [NSMutableArray array];
-    if (root)
-        [queue addObject:root];
-    id delegate = FCPerform(root, @"messagingDelegate");
-    if (delegate && delegate != root)
-        [queue addObject:delegate];
-    // Seeded with the application, not its delegate: the windows hang off the
-    // application's own ivar, and BFS reaches them within the first few hops.
-    [queue addObject:UIApplication.sharedApplication];
-    if (UIApplication.sharedApplication.delegate)
-        [queue addObject:UIApplication.sharedApplication.delegate];
-    for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-        if (![scene isKindOfClass:[UIWindowScene class]])
-            continue;
-        for (UIWindow *window in ((UIWindowScene *)scene).windows)
-            [queue addObject:window];
-    }
-
-    NSMutableSet *visited = [NSMutableSet set];
-    NSInteger budget = 3000;
-    while (queue.count > 0 && budget-- > 0) {
-        id object = queue.firstObject;
-        [queue removeObjectAtIndex:0];
-        if (!object)
-            continue;
-        NSString *key = [NSString stringWithFormat:@"%p", (__bridge void *)object];
-        if ([visited containsObject:key])
-            continue;
-        [visited addObject:key];
-
-        UIImage *cropped = FCImageFromCropOwner(object, explanation);
-        if (cropped)
-            return cropped;
-
-        if ([object isKindOfClass:[NSString class]] || [object isKindOfClass:[NSNumber class]] ||
-            [object isKindOfClass:[NSData class]] || [object isKindOfClass:[NSDate class]] ||
-            [object isKindOfClass:[UIImage class]])
-            continue;
-        if ([object isKindOfClass:[NSArray class]]) {
-            for (id element in (NSArray *)object)
-                if (queue.count < 4000)
-                    [queue addObject:element];
-            continue;
-        }
-        if ([object isKindOfClass:[NSDictionary class]]) {
-            for (id element in [(NSDictionary *)object allValues])
-                if (queue.count < 4000)
-                    [queue addObject:element];
-            continue;
-        }
-
-        unsigned int count = 0;
-        Ivar *ivars = class_copyIvarList(object_getClass(object), &count);
-        for (unsigned int index = 0; index < count; index++) {
-            const char *type = ivar_getTypeEncoding(ivars[index]);
-            if (!type || type[0] != '@')
-                continue;
-            id value = object_getIvar(object, ivars[index]);
-            if (value && queue.count < 4000)
-                [queue addObject:value];
-        }
-        if (ivars)
-            free(ivars);
-    }
-    return nil;
 }
 
 /// Written when nothing could be found, so the next version does not have to
@@ -669,8 +601,9 @@ static void FCHandOffImage(UIImage *image, NSString *source)
 /// Menu road — this is the one with the snap attached.
 - (void)internal_doMenuAction:(id)action forSnap:(id)snap
 {
-    FCLog(@"menu action from %@, snap %@",
-          NSStringFromClass([action class]), NSStringFromClass([snap class]));
+    FCLog(@"menu action from %@, snap %@, remembered window %@",
+          NSStringFromClass([action class]), NSStringFromClass([snap class]),
+          fcCaptureWindow ? NSStringFromClass([fcCaptureWindow class]) : @"none");
     UIImage *image = FCImageFromSnap(snap);
     if (!image) {
         NSString *explanation = nil;
@@ -694,17 +627,18 @@ static void FCHandOffImage(UIImage *image, NSString *source)
 /// argument carries no picture, so it comes from the capture window instead.
 - (void)internal_doActionBarAction:(id)action
 {
+    // Logged before anything is read, so that "tapped and nothing happened" can
+    // never again mean "no line at all" - 3.0.91's log stopped right here.
+    FCLog(@"action bar action from %@, remembered window %@",
+          NSStringFromClass([action class]),
+          fcCaptureWindow ? NSStringFromClass([fcCaptureWindow class]) : @"none");
+
     NSString *explanation = nil;
     UIImage *image = FCImageFromCaptureWindow(&explanation);
-    if (image)
-        FCLog(@"action bar action from %@: %@",
-              NSStringFromClass([action class]), explanation ?: @"window");
     if (!image) {
-        NSString *graphExplanation = nil;
-        image = FCImageFromGraph(action, &graphExplanation);
-        if (image)
-            FCLog(@"action bar action from %@: picture from the argument graph, %@",
-                  NSStringFromClass([action class]), graphExplanation ?: @"unnamed");
+        // The shim's messaging delegate is the only other thing that could
+        // carry the frame, and looking at it costs nothing.
+        image = FCImageFromCropOwner(FCPerform(action, @"messagingDelegate"), &explanation);
     }
     if (!image) {
         FCDumpGraph(action);
@@ -712,6 +646,7 @@ static void FCHandOffImage(UIImage *image, NSString *source)
               NSStringFromClass([action class]));
         return;
     }
+    FCLog(@"action bar action: %@", explanation ?: @"window");
     FCHandOffImage(image, @"action bar");
 }
 
@@ -859,6 +794,51 @@ static void FCAdoptSnapperProtocol(void)
 %end
 
 %hook SSAreaCaptureWindow
+
+/// Remember the window the moment it exists.  Both initialisers are hooked
+/// because the class implements both, and `-showActions` refreshes the pointer
+/// in the one case the hooks could have been late for: a window that was
+/// already built before this image finished loading.
+- (id)initWithWindowScene:(UIWindowScene *)scene
+{
+    id window = %orig;
+    if ([window isKindOfClass:[UIWindow class]]) {
+        fcCaptureWindow = (UIWindow *)window;
+        FCLog(@"capture window created with a scene: %@",
+              NSStringFromClass([window class]));
+    }
+    return window;
+}
+
+- (id)initWithFrame:(CGRect)frame
+{
+    id window = %orig;
+    if ([window isKindOfClass:[UIWindow class]]) {
+        fcCaptureWindow = (UIWindow *)window;
+        FCLog(@"capture window created with a frame: %@",
+              NSStringFromClass([window class]));
+    }
+    return window;
+}
+
+- (void)showActions
+{
+    if (!fcCaptureWindow && [self isKindOfClass:[UIWindow class]])
+        fcCaptureWindow = (UIWindow *)self;
+    %orig;
+    FCLog(@"showActions: window %@", fcCaptureWindow ? @"held" : @"missing");
+}
+
+/// The menu asks for a plugin by identifier before it can draw the button, so
+/// one line here answers "is our entry really in this menu" without guessing.
+- (id)pluginForId:(NSString *)identifier
+{
+    id plugin = %orig;
+    if ([identifier isEqualToString:kFCPluginIdentifier])
+        FCLog(@"pluginForId: %@ -> %@", identifier,
+              plugin ? NSStringFromClass([plugin class]) : @"nil");
+    return plugin;
+}
 
 - (void)reloadPluginsUI
 {
