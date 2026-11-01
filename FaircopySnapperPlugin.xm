@@ -48,6 +48,12 @@ static NSString *const kFCResultNotification = @"wiki.qaq.faircopy.ocr.result";
 // managers was involved — so every step writes one line here.
 static NSString *const kFCLogPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_snapper.log";
 
+/// Written only when every route to the picture came up empty: the capture
+/// window's own ivars (raw pointers, never messaged) and its view tree.  One
+/// file, overwritten each time, so the next version reads facts instead of
+/// guessing at which ivar holds the frozen frame.
+static NSString *const kFCWindowLogPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_snapper_window.log";
+
 static NSString *const kFCPluginIdentifier = @"wiki.qaq.snapper3.plugin.faircopy";
 static NSString *const kFCFallbackURL = @"faircopy://ocr";
 static NSString *const kFCPluginsDirectory = @"/var/mobile/Library/Snapper3/Plugins";
@@ -314,24 +320,158 @@ static UIImage *FCCropImage(UIImage *image, CGRect crop)
     }];
 }
 
+/// The last resort that always has pixels: draw the capture window's own layer.
+///
+/// Its frozen frame is whatever is on screen minus the dimming rectangles, and
+/// those sit outside the selection, so cropping to the selection recovers the
+/// original picture at full resolution without knowing where the frame is
+/// stored.  Only ever called while the window is still up (button tap).
+static UIImage *FCRenderCaptureWindow(id owner)
+{
+    if (![owner isKindOfClass:[UIView class]])
+        return nil;
+    UIView *view = (UIView *)owner;
+    CGRect rect = view.bounds;
+    if (rect.size.width < 8 || rect.size.height < 8)
+        return nil;
+
+    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
+    format.scale = [UIScreen mainScreen].scale > 0 ? [UIScreen mainScreen].scale : 1.0;
+    format.opaque = NO;
+    UIGraphicsImageRenderer *renderer =
+        [[UIGraphicsImageRenderer alloc] initWithSize:rect.size format:format];
+    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
+        if (![view drawViewHierarchyInRect:rect afterScreenUpdates:NO])
+            [view.layer renderInContext:context.CGContext];
+    }];
+}
+
+/// The largest picture anywhere below `view`.
+///
+/// ShellX draws the frozen frame into a plain `UIImageView`, so the view tree
+/// is a route to it that needs no ivar read at all - which matters, because
+/// the named-ivar route has come back empty twice now while the screenshot is
+/// plainly on screen.
+static void FCScanForBiggestImage(UIView *view, UIView **bestView, CGFloat *bestArea)
+{
+    if ([view isKindOfClass:[UIImageView class]]) {
+        UIImage *image = ((UIImageView *)view).image;
+        CGFloat area = image.size.width * image.size.height;
+        if (area > 0 && area > *bestArea) {
+            *bestArea = area;
+            *bestView = view;
+        }
+    }
+    for (UIView *child in view.subviews)
+        FCScanForBiggestImage(child, bestView, bestArea);
+}
+
+static void FCAppendViewTree(NSMutableString *dump, UIView *view, int depth)
+{
+    if (depth > 6)
+        return;
+    NSMutableString *pad = [NSMutableString string];
+    for (int i = 0; i < depth; i++)
+        [pad appendString:@"  "];
+    NSString *extra = @"";
+    if ([view isKindOfClass:[UIImageView class]]) {
+        UIImage *image = ((UIImageView *)view).image;
+        extra = [NSString stringWithFormat:@" image=%.0fx%.0f", image.size.width, image.size.height];
+    }
+    [dump appendFormat:@"%@%@ frame=%@%@\n", pad, NSStringFromClass([view class]),
+                       NSStringFromCGRect(view.frame), extra];
+    for (UIView *child in view.subviews)
+        FCAppendViewTree(dump, child, depth + 1);
+}
+
+/// Facts, not guesses: every ivar of the capture window with its name, type,
+/// offset and (for object types) the raw pointer, plus the view tree below it.
+/// Pointers are printed without being messaged - reading a `__weak` ivar as if
+/// it were a plain pointer is what killed SpringBoard in 3.0.91.
+static void FCDumpCaptureWindow(id owner, NSString *why)
+{
+    NSMutableString *dump = [NSMutableString string];
+    [dump appendFormat:@"== %@ ==\n", why];
+    if (!owner) {
+        [dump appendString:@"owner: nil\n"];
+    } else {
+        Class cls = object_getClass(owner);
+        [dump appendFormat:@"class: %@\n", NSStringFromClass(cls)];
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList(cls, &count);
+        for (unsigned int i = 0; i < count; i++) {
+            Ivar ivar = ivars[i];
+            const char *name = ivar_getName(ivar);
+            const char *type = ivar_getTypeEncoding(ivar);
+            NSString *value = @"-";
+            if (type && type[0] == '@')
+                value = [NSString stringWithFormat:@"%p",
+                         (__bridge void *)object_getIvar(owner, ivar)];
+            [dump appendFormat:@"  ivar %-30s %-10s off=%-4ld %@\n",
+                               name ?: "?", type ?: "?",
+                               (long)ivar_getOffset(ivar), value];
+        }
+        if (ivars)
+            free(ivars);
+        if ([owner isKindOfClass:[UIView class]])
+            FCAppendViewTree(dump, (UIView *)owner, 0);
+    }
+    [dump writeToFile:kFCWindowLogPath atomically:YES
+            encoding:NSUTF8StringEncoding error:NULL];
+    FCLog(@"%@: no picture, window state written", why);
+}
+
 /// ShellX's capture window keeps everything we need and hands our plugin
-/// nothing: `_ssOrigCaptureImage` is the frozen full-screen frame, and
-/// `_selectionRect` / `_ssOrigCaptureBounds` say which part of it the user
-/// picked.  So the picture is taken from the window itself rather than from the
-/// argument, which is only an `SSSnapperCropShim` (its `messagingDelegate`
-/// answers `displayMessage:` and nothing else).
+/// nothing: the argument is only an `SSSnapperCropShim` (its `messagingDelegate`
+/// answers `displayMessage:` and nothing else).  Five routes, cheapest first,
+/// and the last two need no ivar at all - which is the point, since 3.0.94's
+/// log showed both named ivars coming back empty while the frame was on screen.
 static UIImage *FCImageFromCropOwner(id owner, NSString **explanation)
 {
+    if (!owner)
+        return nil;
+
+    // 1. ShellX's own answer.  `-extractCroppedImage` is the method its
+    //    built-in plugins are fed from, so it needs no rectangle arithmetic.
+    id extracted = FCPerform(owner, @"extractCroppedImage");
+    if ([extracted isKindOfClass:[UIImage class]] && ((UIImage *)extracted).size.width >= 1) {
+        if (explanation)
+            *explanation = @"extractCroppedImage";
+        return extracted;
+    }
+
+    // 2. The frozen frame, under the name the class dump gives it.
     UIImage *full = FCReadImageIvar(owner, @"_ssOrigCaptureImage");
+    NSString *source = @"_ssOrigCaptureImage";
     if (!full) {
         // The frozen frame is also what the dimming layer draws.
         Ivar ivar = class_getInstanceVariable(object_getClass(owner), "_freezeBgView");
         id view = ivar ? object_getIvar(owner, ivar) : nil;
         if ([view isKindOfClass:[UIImageView class]])
             full = ((UIImageView *)view).image;
+        source = @"_freezeBgView";
     }
-    if (!full)
+    // 3. The same frame as a picture in the view tree.
+    if (!full && [owner isKindOfClass:[UIView class]]) {
+        UIView *bestView = nil;
+        CGFloat bestArea = 0;
+        FCScanForBiggestImage((UIView *)owner, &bestView, &bestArea);
+        if ([bestView isKindOfClass:[UIImageView class]])
+            full = ((UIImageView *)bestView).image;
+        source = [NSString stringWithFormat:@"view tree %@",
+                  bestView ? NSStringFromClass([bestView class]) : @"(no image view)"];
+    }
+    // 4. Draw the window ourselves and crop that.
+    if (!full) {
+        full = FCRenderCaptureWindow(owner);
+        source = @"window render";
+    }
+    if (!full) {
+        FCDumpCaptureWindow(owner, @"no picture");
+        if (explanation)
+            *explanation = @"nothing (window state written)";
         return nil;
+    }
 
     CGRect selection = CGRectZero;
     CGRect bounds = CGRectZero;
@@ -359,8 +499,7 @@ static UIImage *FCImageFromCropOwner(id owner, NSString **explanation)
     if (explanation) {
         *explanation = [NSString stringWithFormat:
             @"%@ frame=%.0fx%.0f selection=%@ bounds=%@ crop=%@",
-            NSStringFromClass([owner class]),
-            full.size.width, full.size.height,
+            source, full.size.width, full.size.height,
             NSStringFromCGRect(selection), NSStringFromCGRect(bounds),
             NSStringFromCGRect(crop)];
     }
@@ -389,8 +528,10 @@ static UIImage *FCImageFromCaptureWindow(NSString **explanation)
 /// Take the crop now, while the window is still up.
 static void FCSnapshotSelection(NSString *why)
 {
-    if (!fcCaptureWindow)
+    if (!fcCaptureWindow) {
+        FCLog(@"%@: no window to snapshot", why);
         return;
+    }
     NSString *explanation = nil;
     UIImage *image = FCImageFromCaptureWindow(&explanation);
     if (!image) {
@@ -879,6 +1020,24 @@ static void FCAdoptSnapperProtocol(void)
               NSStringFromClass([window class]));
     }
     return window;
+}
+
+/// One line of ground truth: whatever ShellX hands its own plugins, taken from
+/// the same method, at the same instant.  If this prints a size while our
+/// snapshot path still finds nothing, the fault is in our reads, not in the
+/// timing.
+- (id)extractCroppedImage
+{
+    id image = %orig;
+    if ([image isKindOfClass:[UIImage class]]) {
+        UIImage *picture = (UIImage *)image;
+        FCLog(@"extractCroppedImage -> %.0fx%.0f",
+              picture.size.width, picture.size.height);
+    } else {
+        FCLog(@"extractCroppedImage -> %@",
+              image ? NSStringFromClass([image class]) : @"nil");
+    }
+    return image;
 }
 
 - (void)showActions
