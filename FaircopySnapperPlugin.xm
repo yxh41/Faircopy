@@ -732,7 +732,7 @@ static void FCArmFallback(void)
             return;
 
         if (FCDaemonIsAlive()) {
-            FCLog(@"no answer in 2s, resident worker is up — waiting for it");
+            FCLog(@"no answer in 2s, resident worker is up, waiting for it");
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{
                 if (fcInvocationSequence != mine)
