@@ -30,12 +30,24 @@ public struct SamplingConfig: Codable, Equatable {
     }
 }
 
-private let generalPrompt =
+/// The behavioural block every task prompt ends with (3.0.104: parameterised).
+///
+/// Why the language rule is a parameter: until 3.0.103 this block was a single
+/// constant and translate appended it *after* "translate into \(target)" — so
+/// the last strict rule the model read was "always respond in the same language
+/// as the user input". A model that obeys the final rule repeats the source
+/// back, which is exactly what "翻译了结果还是英文" looked like on device
+/// (`faircopy_usage.log` 18:18:51: a 200 with 255 chunks and no usage — the
+/// request did run). Translate now supplies its own rule; every other mode
+/// keeps the default, which reproduces the previous string byte for byte.
+private func generalPromptBody(
+    languageRule: String = "- Always respond in the same language as the user input (for mixed-language input, keep the mix)."
+) -> String {
     """
     You are a rewriting assistant that improves clarity, fluency, and tone without adding new facts or changing meaning.
 
     Strict rules:
-    - Always respond in the same language as the user input (for mixed-language input, keep the mix).
+    \(languageRule)
     - Output plain text only. Do not use Markdown, lists, headings, code blocks, or quotes unless they already exist in the original.
     - Preserve the original perspective/pronouns (“I”, “you”, etc.) and keep paragraph structure when possible.
     - Be faithful: do not fabricate information, citations, or numbers. If something is unclear, reflect the original content without inventing details; if needed, make it safer but do not add new content.
@@ -47,6 +59,9 @@ private let generalPrompt =
 
     The current date in the user's location is \(Date().formatted(date: .complete, time: .complete)).
     """
+}
+
+private let generalPrompt = generalPromptBody()
 
 private let humanAlignedExample: [ChatQuery.ChatCompletionMessageParam] = [
     .user(.init(content: .init(string:
@@ -311,8 +326,13 @@ public extension Prompt {
             Make the text concise: keep essential information and intent, remove redundancy, and tighten phrasing. Ensure the result remains clear and faithful to the original. \(generalPrompt)
             """
         case .translate:
+            // Never used for a real request: `resolvedPrompt(translateTarget:)`
+            // always routes translate through `translationPrompt(target:)`,
+            // which carries the target language and its own rules block
+            // (3.0.104). Kept in the same shape so nothing that previews
+            // `prompt` shows the old contradicting text.
             """
-            Translate the text into the user-selected target language, detecting the source language automatically and keeping any existing language mix intact. Preserve meaning, tone, names, numbers, code, and quotations; do not add or omit content. Output only the translated text. \(generalPrompt)
+            Translate the text into the user-selected target language. Detect the source language automatically. Preserve meaning, tone, names, numbers, code, and quotations; do not add or omit content. The answer must be written in the target language: the source language must never be echoed back unchanged. Output only the translated text. \(generalPromptBody(languageRule: "- Always respond in the target language, whatever language the input is written in."))
             """
         case .expand:
             """
@@ -334,9 +354,20 @@ public extension Prompt {
         self == .translate ? Prompt.translationPrompt(target: target) : prompt
     }
 
+    /// 3.0.104: three changes, all of them about the same failure — the model
+    /// answering in the source language.
+    ///
+    /// 1. The instruction is imperative about the output language and no longer
+    ///    offers "if the text is already in \(target), return it unchanged" as
+    ///    an easy out; that clause was read as permission to echo on every run.
+    /// 2. The trailing rules block gets its own language rule instead of the
+    ///    rewriting default ("respond in the same language as the input"), which
+    ///    used to be the last thing in the message and therefore the winner.
+    /// 3. The mixed-language carve-out is gone: a mixed source still has to come
+    ///    out in one target language, otherwise half of it stays untranslated.
     private static func translationPrompt(target: String) -> String {
         """
-        Translate the following text into \(target). Detect the source language automatically and preserve all meaning, tone, names, numbers, code, and quotations; do not add or omit content. If the text is already in \(target), return it unchanged. Output only the translated text. \(generalPrompt)
+        Translate the text into \(target). Detect the source language automatically. Preserve meaning, tone, names, numbers, code, and quotations; do not add or omit content. The answer must be written in \(target): the source language must never be echoed back unchanged. Output only the translated text. \(generalPromptBody(languageRule: "- Always respond in \(target), whatever language the input is written in."))
         """
     }
 }
@@ -656,7 +687,13 @@ public extension Prompt {
                     请重复您的要求，以确认我们的订单是否正常处理。
                     """
                 )),
-            ] + humanAlignedExample
+            ]
+            // 3.0.104: no `humanAlignedExample` here. Those four pairs all
+            // return the input untouched (おはよう〜 → おはよう〜,
+            // `What is happening?` → `What is happening?`), so after two real
+            // translations the model was looking at a 4:2 majority telling it
+            // to copy. That is a fine anchor for rewrite modes and a direct
+            // contradiction for this one.
 
             // MARK: - Expand
 
