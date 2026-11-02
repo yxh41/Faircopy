@@ -50,6 +50,25 @@ extension Presenter {
         /// Checked by the streaming callbacks so post-cancel events are ignored.
         var streamCancelled: Bool = false
 
+        /// 3.0.108: how the panel asks to become taller.
+        ///
+        /// The height of this card is not decided in SwiftUI — it is
+        /// `preferredContentSize`, measured once by `WritingToolController` from
+        /// the content's natural size. Growing it therefore has to travel back
+        /// out to UIKit, and a closure on the context is the shortest honest
+        /// path: the view knows the tier the user picked, the controller is the
+        /// only thing that can apply it.
+        ///
+        /// Deliberately not `@Published`: the tier is owned by the view and
+        /// re-publishing it would re-render the panel on every flick, which is
+        /// exactly the kind of "content moves before the border does" stutter
+        /// that made continuous dragging a bad idea in the first place.
+        var heightTierHandler: ((Int) -> Void)?
+
+        func applyHeightTier(_ tier: Int) {
+            heightTierHandler?(tier)
+        }
+
         init(
             parentView: UIView,
             parentController: UIViewController,

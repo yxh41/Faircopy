@@ -68,6 +68,10 @@ struct WritingToolsView: View {
     /// its height is the scarce resource, not its information density.
     @State var showsSource: Bool = false
 
+    /// 3.0.108: which height tier the handle has been flicked to. 1 is the size
+    /// the presenter measured, so a panel nobody touches looks exactly as before.
+    @State var heightTier: Int = 1
+
     @State var headerDescription: String = ""
     @State var isHeaderDescriptionAnimated: Bool = true
 
@@ -213,6 +217,9 @@ struct WritingToolsView: View {
 
     public var body: some View {
         VStack(spacing: 16) {
+            if showsHeightGrip {
+                heightGrip
+            }
             title
             if shouldShowError {
                 errorView
@@ -305,6 +312,59 @@ struct WritingToolsView: View {
 }
 
 extension WritingToolsView {
+    // MARK: - Panel height (3.0.108)
+
+    /// Only on the two screens that overflow.
+    ///
+    /// 分词 chips and a translation both run past the card and both already
+    /// scroll — the handle decides how much of them is visible at once. The
+    /// button grid is sized to fit its content, so a handle there would promise
+    /// something it cannot deliver.
+    var showsHeightGrip: Bool {
+        guard shouldShowOutput else { return false }
+        return taskPrompt == .segment || taskPrompt == .translate
+    }
+
+    /// The card's own height handle.
+    ///
+    /// A flick, not a drag. This card's height is `preferredContentSize`, i.e.
+    /// UIKit's to lay out, and applying it once per tier keeps the border and
+    /// the content arriving together. Applying it per drag frame is what makes
+    /// the content grow while the border is still on its way — the stutter that
+    /// ruled out following the finger in the first place.
+    ///
+    /// 12pt of travel is enough to mean it and short enough to feel like a
+    /// flick; the capsule sits in its own strip above the title so it can never
+    /// steal a tap meant for a mode button.
+    var heightGrip: some View {
+        Capsule()
+            .fill(.white.opacity(heightTier > 1 ? 0.7 : 0.42))
+            .frame(width: 38, height: 4)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 8)
+                    .onEnded { value in
+                        if value.translation.height <= -12 {
+                            setHeightTier(heightTier + 1)
+                        } else if value.translation.height >= 12 {
+                            setHeightTier(heightTier - 1)
+                        }
+                    }
+            )
+            .animation(.easeInOut(duration: 0.2), value: heightTier)
+    }
+
+    /// 1 = as presented, 2 and 3 taller. Clamped at both ends; a flick that
+    /// cannot change anything does not reach UIKit at all.
+    func setHeightTier(_ tier: Int) {
+        let clamped = min(max(tier, 1), 3)
+        guard clamped != heightTier else { return }
+        heightTier = clamped
+        context.applyHeightTier(clamped)
+    }
+
     struct ModelHandler: Codable, Identifiable, Equatable {
         let id: UUID
         let model: String
