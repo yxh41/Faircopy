@@ -65,8 +65,23 @@ extension Presenter {
         /// that made continuous dragging a bad idea in the first place.
         var heightTierHandler: ((Int) -> Void)?
 
+        /// 3.0.110: how the panel asks to go back to whatever size its current
+        /// content needs.
+        ///
+        /// The handle only exists on 分词 and 翻译, but the height it changes
+        /// belongs to the card, not to the screen inside it — so leaving an
+        /// expanded panel for the button grid left a 754pt card holding a 500pt
+        /// grid. Resetting to the recorded base is not the fix either: the grid
+        /// is taller than the 分词 panel it came from, and restoring that number
+        /// would squeeze it. Only a fresh measurement is correct.
+        var naturalHeightHandler: (() -> Void)?
+
         func applyHeightTier(_ tier: Int) {
             heightTierHandler?(tier)
+        }
+
+        func requestNaturalHeight() {
+            naturalHeightHandler?()
         }
 
         init(

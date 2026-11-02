@@ -296,6 +296,15 @@ struct WritingToolsView: View {
                 break
             }
         }
+        .onChange(of: showsHeightGrip) { visible in
+            // 3.0.110: the handle only lives on 分词 and 翻译, but the height it
+            // sets belongs to the card, not to the screen inside it. Leaving an
+            // expanded panel for the button grid used to leave a 754pt card
+            // holding a 500pt grid, with the remainder empty.
+            guard !visible else { return }
+            heightTier = 1
+            context.requestNaturalHeight()
+        }
         .onChange(of: shouldShowSelectiveButtons) { animated in
             isHeaderDescriptionAnimated = animated
             // A running task hands the panel over the moment `isRunning` flips;

@@ -34,6 +34,9 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         context.heightTierHandler = { [weak self] tier in
             self?.applyHeightTier(tier)
         }
+        context.naturalHeightHandler = { [weak self] in
+            self?.resetHeightToNatural()
+        }
     }
 
     @available(*, unavailable)
@@ -100,6 +103,58 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         if baseHeight <= 0 { baseHeight = view.bounds.height }
+    }
+
+    /// 3.0.110: back to the size the current content actually needs.
+    ///
+    /// Measured, not restored from `baseHeight`. The button grid is taller than
+    /// the 分词 panel the user expanded from (368), so putting that number back
+    /// would squeeze the grid rather than remove the empty space. Only a fresh
+    /// fitting pass answers "how tall does this screen want to be".
+    ///
+    /// Deferred one runloop because it is called from `onChange`: at that moment
+    /// SwiftUI has decided to show the grid but has not laid it out yet, and a
+    /// fitting pass taken now would still measure the outgoing 分词 view.
+    func resetHeightToNatural() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.view.setNeedsLayout()
+            self.view.layoutIfNeeded()
+            let width = self.preferredContentSize.width > 1
+                ? self.preferredContentSize.width
+                : self.view.bounds.width
+            let natural = self.view.systemLayoutSizeFitting(
+                CGSize(width: width, height: .greatestFiniteMagnitude))
+            let container = self.presentationController?.containerView ?? self.view.window
+            let available = (container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40
+            let target = max(1, min(floor(natural.height), floor(max(CGFloat(1), available))))
+            let previous = self.preferredContentSize.height
+            guard abs(target - previous) > 0.5 else {
+                fcPanelLog("panel height reset: natural=\(Int(natural.height)) already fits")
+                return
+            }
+
+            self.preferredContentSize = CGSize(
+                width: self.preferredContentSize.width, height: target)
+            UIView.animate(
+                withDuration: 0.28,
+                delay: 0,
+                options: [.curveEaseInOut, .beginFromCurrentState]
+            ) {
+                self.presentationController?.containerView?.setNeedsLayout()
+                self.presentationController?.containerView?.layoutIfNeeded()
+                self.view.superview?.setNeedsLayout()
+            }
+            fcPanelLog(
+                "panel height reset natural=\(Int(natural.height)) "
+                    + "\(Int(previous))->\(Int(target))")
+            // One runloop later, record what the card actually ended up at.
+            DispatchQueue.main.async {
+                let spring = self.presentationController as? FaircopySpringPresentationController
+                let applied = spring?.laidOutCardHeight ?? self.view.bounds.height
+                fcPanelLog("panel height applied card=\(Int(applied)) want=\(Int(target))")
+            }
+        }
     }
 
     override func viewDidLoad() {
