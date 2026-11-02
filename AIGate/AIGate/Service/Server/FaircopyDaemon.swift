@@ -100,31 +100,34 @@ enum FaircopyDaemon {
         )
 
         bootStamp = Date().timeIntervalSince1970
-        // No heart beat yet. `warmUp` writes the first one, and only if Vision
-        // really runs in this process.
+        log("daemon: observer installed, warming vision up on the main thread")
+        // 3.0.99: synchronous on purpose. Asynchronously this text never
+        // appeared: the worker exited within milliseconds of announcing itself,
+        // and a background queue racing a dying process leaves no evidence at
+        // all. Run it here and the log says exactly how far it got.
         warmUp()
+        log("daemon: warm up returned, ready=\(ready)")
         // `loop=timer keeper` is the marker the release check looks for: one
         // boot line per process. More than one in the log means launchd is
         // restarting the worker, i.e. it is exiting instead of waiting again.
         log(
             "daemon: resident ocr worker booted pid=\(getpid()) uid=\(getuid()) loop=timer keeper")
 
-        // 🔴 3.0.98: this has to be a loop that actually waits.
+        // 🔴 3.0.99: the loop has to *wait*, and `CFRunLoopRun()` does not.
         //
-        // `RunLoop.current.run()` returns *immediately* when the loop owns no
-        // timer and no source — and the heart beat above is a DispatchSource,
-        // which GCD services off the run loop entirely. So 3.0.97 booted, wrote
-        // one heart beat, fell straight through to `exit(EXIT_SUCCESS)`, and
-        // launchd's KeepAlive started it again five seconds later. The file was
-        // always fresh, the log said the worker was up, and every single
-        // `faircopy.ocr.request` was posted to a process that had already left:
-        // a Darwin notification is not queued for anyone who is not listening.
+        // It returns `kCFRunLoopRunFinished` the instant the loop owns no source,
+        // and neither the heart beat (a DispatchSource, serviced by GCD off the
+        // run loop entirely) nor `RunLoop.add(timer, forMode: .common)` kept it
+        // alive: 3.0.98 booted, logged, and was gone again inside the same
+        // millisecond, so launchd restarted it every five seconds and every
+        // `faircopy.ocr.request` went to a process that had already left. A
+        // Darwin notification is not queued for anyone who is not listening.
         //
-        // A repeating run-loop timer is what gives the loop something to wait
-        // for; the notification port is then serviced on the same loop.
-        let keeper = Timer(timeInterval: 3600, repeats: true) { _ in beat() }
-        RunLoop.current.add(keeper, forMode: .common)
-        CFRunLoopRun()
+        // `run(mode:before:)` is the one that blocks: without a source it sleeps
+        // until the date, so the outer loop can never fall through.
+        while true {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(60))
+        }
         exit(EXIT_SUCCESS)
     }
 
@@ -146,42 +149,39 @@ enum FaircopyDaemon {
     private static var ready = false
 
     private static func warmUp() {
-        DispatchQueue.global(qos: .utility).async {
-            let started = Date()
-            let side = 16
-            // `CGColorSpaceCreateDeviceRGB()` is not optional in the Swift
-            // overlay, so it cannot sit in a conditional binding.
-            let space = CGColorSpaceCreateDeviceRGB()
-            guard let context = CGContext(data: nil, width: side, height: side,
-                                          bitsPerComponent: 8, bytesPerRow: side * 4,
-                                          space: space,
-                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
-                  let page = context.makeImage()
-            else {
-                log("daemon: warm up could not draw a blank page")
-                return
-            }
-
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            request.recognitionLanguages = ["zh-Hans"]
-            request.usesLanguageCorrection = true
-            do {
-                try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
-            } catch {
-                log(
-                    "daemon: vision refused to run here, staying out of the way: "
-                        + error.localizedDescription)
-                return
-            }
-
-            DispatchQueue.main.async {
-                ready = true
-                startHeartbeat()
-                log(
-                    "daemon: vision ready in \(Int(Date().timeIntervalSince(started) * 1000)) ms, taking over")
-            }
+        let started = Date()
+        let side = 16
+        // `CGColorSpaceCreateDeviceRGB()` is not optional in the Swift overlay,
+        // so it cannot sit in a conditional binding.
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let context = CGContext(data: nil, width: side, height: side,
+                                      bitsPerComponent: 8, bytesPerRow: side * 4,
+                                      space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let page = context.makeImage()
+        else {
+            log("daemon: warm up could not draw a blank page")
+            return
         }
+
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["zh-Hans"]
+        request.usesLanguageCorrection = true
+        log("daemon: running one accurate pass to prove vision works here")
+        do {
+            try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
+        } catch {
+            log(
+                "daemon: vision refused to run here, staying out of the way: "
+                    + error.localizedDescription)
+            return
+        }
+
+        ready = true
+        startHeartbeat()
+        log(
+            "daemon: vision ready in \(Int(Date().timeIntervalSince(started) * 1000)) ms, taking over")
     }
 
     // MARK: - Heart beat
