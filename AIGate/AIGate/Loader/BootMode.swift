@@ -10,6 +10,10 @@ import Foundation
 enum BootMode: String, CaseIterable {
     case settingApp = "SettingApp"
     case serviceDaemon = "ServiceDaemon"
+    /// 3.0.97: the resident OCR worker — the network service plus the silent
+    /// `faircopy.ocr.request` listener, and no window of any kind. This is what
+    /// the LaunchDaemon runs, so a picture hand-off never has to launch the app.
+    case faircopyDaemon = "FaircopyDaemon"
     case bootBoth = "BootBoth"
 }
 

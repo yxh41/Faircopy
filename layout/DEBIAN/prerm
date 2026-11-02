@@ -1,12 +1,19 @@
 #!/bin/sh
 
-if [ -f /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
-    launchctl unload -w /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
-elif [ -f /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
-    launchctl unload -w /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
-else
-    ROOTHIDE_PATH=$(ls -d /var/containers/Bundle/Application/.jbroot-*/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist)
-    launchctl unload -w $ROOTHIDE_PATH > /dev/null 2>&1
-fi
+LABEL="wiki.qaq.faircopyservices"
+
+for candidate in /var/containers/Bundle/Application/.jbroot-*/Library/LaunchDaemons/$LABEL.plist \
+                 /var/jb/Library/LaunchDaemons/$LABEL.plist \
+                 /Library/LaunchDaemons/$LABEL.plist; do
+	[ -f "$candidate" ] && launchctl unload -w "$candidate" > /dev/null 2>&1
+done
+
+killall -9 AIGate > /dev/null 2>&1
+
+# The heart beat says "a resident worker is answering requests". It is treated as
+# valid for 15 s, so leaving it behind would make the app step aside for a worker
+# that is no longer there — every hand-off would then wait for an answer that
+# never comes.
+rm -f /var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_daemon.json
 
 exit 0

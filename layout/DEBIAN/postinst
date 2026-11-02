@@ -1,14 +1,126 @@
 #!/bin/sh
 
+# The daemon is what makes the picture hand-off invisible.
+#
+# Vision's accurate text network cannot run in SpringBoard (every `.accurate`
+# request there fails with `Error computing NN outputs`, and `.fast` has no
+# Chinese model), so the words have to be read in a normal process. Until 3.0.97
+# that process was the AIGate app, which meant launching it for every hand-off:
+# the black flash, the switch away from what the user was reading, and the
+# bounce back. A LaunchDaemon removes all three — launchd starts it at boot, it
+# is never suspended, and it has no window to show.
+#
+# Two things made the shipped daemon useless before, and both are fixed here:
+#
+#   1. `Program` pointed at /Applications/AIGate.app/AIGate. Correct for a
+#      rootful jailbreak, non-existent under roothide, where the app lives in a
+#      per-device random `.jbroot-<hash>/Applications/` directory that no build
+#      step can know. A daemon whose program is missing is silently not started,
+#      so the file is written at install time with the real path instead.
+#
+#   2. It was configured with `POSIXSpawnType=App` + `UserName=mobile`, i.e.
+#      "start this bundle the way FrontBoard would". launchd does not do that for
+#      a daemon. The configuration below is the minimal one Snapper 3 uses for
+#      its own high-accuracy OCR daemon on Dopamine (`com.jontelang.snapper3ocrd`:
+#      RunAtLoad + KeepAlive + a real program path, nothing else).
+
+LABEL="wiki.qaq.faircopyservices"
+LOGDIR="/var/mobile/Library/Preferences/wiki.qaq.ai.gate"
+INSTALL_LOG="$LOGDIR/faircopy_install.log"
+
+write_daemon() {
+	plist="$1"
+	program="$2"
+	mkdir -p "$(dirname "$plist")" 2>/dev/null
+	cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>EnablePressuredExit</key>
+	<false/>
+	<key>EnableTransactions</key>
+	<false/>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>BOOT_MODE</key>
+		<string>FaircopyDaemon</string>
+		<key>DISABLE_TWEAKS</key>
+		<string>1</string>
+		<key>_MSSafeMode</key>
+		<string>1</string>
+	</dict>
+	<key>HighPriorityIO</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>Label</key>
+	<string>$LABEL</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>Program</key>
+	<string>$program</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>5</integer>
+</dict>
+</plist>
+EOF
+}
+
+install_daemon() {
+	plist="$1"
+	program="$2"
+	launchctl unload "$plist" > /dev/null 2>&1
+	write_daemon "$plist" "$program"
+	launchctl load -w "$plist" > /dev/null 2>&1
+}
+
+# Stop the old copy before touching anything: a resident AIGate would otherwise
+# keep running the previous build's code until the next respring.
+for candidate in /var/containers/Bundle/Application/.jbroot-*/Library/LaunchDaemons/$LABEL.plist \
+                 /var/jb/Library/LaunchDaemons/$LABEL.plist \
+                 /Library/LaunchDaemons/$LABEL.plist; do
+	[ -f "$candidate" ] && launchctl unload "$candidate" > /dev/null 2>&1
+done
+
 killall -9 AIGate > /dev/null 2>&1
 
-if [ -f /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
-    launchctl load -w /Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
-elif [ -f /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist ]; then
-    launchctl load -w /var/jb/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist > /dev/null 2>&1
-else
-    ROOTHIDE_PATH=$(ls -d /var/containers/Bundle/Application/.jbroot-*/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist)
-    launchctl load -w $ROOTHIDE_PATH > /dev/null 2>&1
+DONE=0
+
+# roothide: the app is inside the randomised root.
+for jb in /var/containers/Bundle/Application/.jbroot-*; do
+	[ -d "$jb/Applications/AIGate.app" ] || continue
+	install_daemon "$jb/Library/LaunchDaemons/$LABEL.plist" "$jb/Applications/AIGate.app/AIGate"
+	DONE=1
+	break
+done
+
+if [ "$DONE" -eq 0 ] && [ -d /var/jb/Applications/AIGate.app ]; then
+	install_daemon "/var/jb/Library/LaunchDaemons/$LABEL.plist" "/var/jb/Applications/AIGate.app/AIGate"
+	DONE=1
 fi
+
+if [ "$DONE" -eq 0 ] && [ -d /Applications/AIGate.app ]; then
+	install_daemon "/Library/LaunchDaemons/$LABEL.plist" "/Applications/AIGate.app/AIGate"
+	DONE=1
+fi
+
+# A daemon that fails to start leaves no trace anywhere the user can see, which
+# is exactly how the previous two releases went unnoticed. One small file makes
+# the outcome readable from the tweak's own log directory.
+mkdir -p "$LOGDIR" 2>/dev/null
+chown mobile:mobile "$LOGDIR" 2>/dev/null
+{
+	echo "=== installed $(date) ==="
+	echo "installed=$DONE"
+	echo "-- launchctl list --"
+	launchctl list 2>/dev/null | grep "$LABEL"
+	echo "-- process --"
+	ps -A 2>/dev/null | grep -i "[A]IGate"
+	echo "=== end ==="
+} > "$INSTALL_LOG" 2>&1
+chown mobile:mobile "$INSTALL_LOG" 2>/dev/null
 
 exit 0

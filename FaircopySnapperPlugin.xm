@@ -50,6 +50,16 @@ static NSString *const kFCRecognizeLogPath = @"/var/mobile/Library/Preferences/w
 static NSString *const kFCRequestNotification = @"wiki.qaq.faircopy.ocr.request";
 static NSString *const kFCResultNotification = @"wiki.qaq.faircopy.ocr.result";
 
+/// 3.0.97: the resident worker's heart beat. Written every 5 s by
+/// FaircopyDaemon, treated as valid for 15 s here.
+///
+/// It exists so this plugin can tell "the worker is reading the picture right
+/// now, it just needs a moment" from "nobody is listening, launch AIGate". The
+/// first case must never take the visible road: launching the app is exactly the
+/// black flash and the drop to the home screen the daemon was added to remove.
+/// KEEP IN SYNC with FaircopyDaemon.heartbeatPath.
+static NSString *const kFCDaemonHeartbeatPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_daemon.json";
+
 // Our own diagnostics.  A plugin either appears in somebody's menu or it does
 // not, and there is no way to tell from the outside which of the three
 // managers was involved — so every step writes one line here.
@@ -685,15 +695,33 @@ static void FCWatchForResult(void)
         FCLog(@"could not watch %@: %u", kFCResultNotification, status);
 }
 
-/// A resident AIGate answers the request notification within a second or two.
-/// If it is not running at all — freshly installed, killed by memory pressure —
-/// nothing ever answers, and the only way left is the visible road: a URL
-/// launch that AIGate immediately hides, recognising the same picture it finds
-/// on disk and bouncing straight back.
+/// True while FaircopyDaemon is alive and answering requests (3.0.97).
 ///
-/// 3.0.96: 6 s -> 2 s. The resident road takes well under a second, so six
-/// seconds was dead air in front of a launch the user had already asked for;
-/// two still leaves room for a busy device.
+/// A missing or unparsable file means "no worker", which is the safe answer: the
+/// caller then takes the visible road, which still works.
+static BOOL FCDaemonIsAlive(void)
+{
+    NSData *data = [NSData dataWithContentsOfFile:kFCDaemonHeartbeatPath];
+    if (!data)
+        return NO;
+    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+    if (![object isKindOfClass:[NSDictionary class]])
+        return NO;
+    id stamp = ((NSDictionary *)object)[@"at"];
+    if (![stamp isKindOfClass:[NSNumber class]])
+        return NO;
+    return ([[NSDate date] timeIntervalSince1970] - [stamp doubleValue]) < 15.0;
+}
+
+/// How long to wait before assuming nobody is going to answer.
+///
+/// 3.0.96: 6 s -> 2 s, because the resident app answered well under a second and
+/// the six seconds were dead air in front of a launch the user had already asked
+/// for. 3.0.97 keeps the same first look (2 s) but splits the outcome: a live
+/// worker gets a much longer grace period before the visible road is taken,
+/// because accurate Chinese recognition on a cold model can take a few seconds
+/// and launching AIGate on top of a recognition that was about to succeed is the
+/// one thing this version is trying to stop.
 static void FCArmFallback(void)
 {
     FCWatchForResult();
@@ -702,7 +730,20 @@ static void FCArmFallback(void)
                    dispatch_get_main_queue(), ^{
         if (fcInvocationSequence != mine)
             return;
-        FCLog(@"no answer in 2s, opening %@", kFCFallbackURL);
+
+        if (FCDaemonIsAlive()) {
+            FCLog(@"no answer in 2s, resident worker is up — waiting for it");
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
+                           dispatch_get_main_queue(), ^{
+                if (fcInvocationSequence != mine)
+                    return;
+                FCLog(@"still no answer in 8s, opening %@", kFCFallbackURL);
+                FCOpenURL([NSURL URLWithString:kFCFallbackURL]);
+            });
+            return;
+        }
+
+        FCLog(@"no answer in 2s and no resident worker, opening %@", kFCFallbackURL);
         FCOpenURL([NSURL URLWithString:kFCFallbackURL]);
     });
 }

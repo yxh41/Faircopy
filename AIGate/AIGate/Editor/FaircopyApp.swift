@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import ImageIO
 import SwiftUI
 import Vision
 
@@ -649,15 +650,15 @@ enum FaircopyImageOCR {
         DispatchQueue.global(qos: .userInitiated).async {
             let started = Date()
             guard let data = try? Data(contentsOf: URL(fileURLWithPath: inputPath)),
-                  let image = UIImage(data: data),
-                  let cgImage = image.cgImage
+                  let picture = loadPicture(data)
             else {
                 appendLog("input unreadable: \(inputPath)")
                 DispatchQueue.main.async { completion(Outcome(text: "")) }
                 return
             }
-            appendLog("input \(cgImage.width)x\(cgImage.height) orientation=\(image.imageOrientation.rawValue) bytes=\(data.count)")
-            let orientation = cgImageOrientation(of: image)
+            let cgImage = picture.0
+            let orientation = picture.1
+            appendLog("input \(cgImage.width)x\(cgImage.height) orientation=\(orientation.rawValue) bytes=\(data.count)")
             var best = ""
             var bestLabel = "nothing"
             for (index, attempt) in attempts.enumerated() {
@@ -752,6 +753,14 @@ enum FaircopyImageOCR {
         DispatchQueue.main.async {
             guard !backgroundBusy else {
                 appendLog("ocr: background request ignored (one already running)")
+                return
+            }
+            // 3.0.97: a resident worker is answering this request. Both roads
+            // reading the same picture would hand off two panels, so this one
+            // stays out of the way whenever the daemon is up — which is the
+            // normal case now that launchd starts it at boot.
+            if FaircopyDaemon.isAlive() {
+                appendLog("ocr: background request left to the resident worker")
                 return
             }
             backgroundBusy = true
@@ -911,6 +920,29 @@ enum FaircopyImageOCR {
         let confidences = observations.compactMap { $0.topCandidates(1).first?.confidence }
         guard !confidences.isEmpty else { return 0 }
         return Double(confidences.reduce(0, +)) / Double(confidences.count)
+    }
+
+    /// Reads the hand-off picture without assuming UIKit is usable.
+    ///
+    /// 3.0.97: ImageIO first. The resident daemon (`FaircopyDaemon`) is a plain
+    /// Foundation process with no UIKit lifecycle, and while `UIImage(data:)`
+    /// does happen to work there, the picture needs nothing from UIKit at all.
+    /// Going through ImageIO means both processes decode it the same way, EXIF
+    /// orientation included, instead of one of them silently returning nil and
+    /// logging `input unreadable` on every single request.
+    private static func loadPicture(_ data: Data) -> (CGImage, CGImagePropertyOrientation)? {
+        if let source = CGImageSourceCreateWithData(data as CFData, nil),
+           let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+            var orientation: CGImagePropertyOrientation = .up
+            if let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? NSDictionary,
+               let number = properties[kCGImagePropertyOrientation] as? NSNumber,
+               let parsed = CGImagePropertyOrientation(rawValue: number.uint32Value) {
+                orientation = parsed
+            }
+            return (image, orientation)
+        }
+        guard let legacy = UIImage(data: data), let image = legacy.cgImage else { return nil }
+        return (image, cgImageOrientation(of: legacy))
     }
 
     private static func cgImageOrientation(of image: UIImage) -> CGImagePropertyOrientation {

@@ -43,6 +43,8 @@
 		CCE0004A2C74B62000C5B8D3 /* AIGateHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5004D6602C6E249B007337BE /* AIGateHandler.swift */; };
 		CCE0004B2C74B62000C5B8D3 /* IdleTerminationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5004D65E2C6E247B007337BE /* IdleTerminationHandler.swift */; };
 		CCE0004C2C74B62000C5B8D3 /* ServiceDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50641BE22C6DD81600D94C51 /* ServiceDaemon.swift */; };
+		FCFCFD022C90000100FA1C02 /* FaircopyDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCFCFD012C90000100FA1C01 /* FaircopyDaemon.swift */; };
+		FCFCFD032C90000100FA1C03 /* FaircopyDaemon.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCFCFD012C90000100FA1C01 /* FaircopyDaemon.swift */; };
 		CCE0004D2C74B62000C5B8D3 /* AIGateProxyHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5004D6642C6E2AFE007337BE /* AIGateProxyHandler.swift */; };
 		CCE0004E2C74B62000C5B8D3 /* AIGateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5004D65C2C6E2434007337BE /* AIGateService.swift */; };
 		CCE0004F2C74B62000C5B8D3 /* AIGateProxySwitchHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5004D66A2C6E2E5E007337BE /* AIGateProxySwitchHandler.swift */; };
@@ -117,6 +119,7 @@
 		50641BDC2C6DD6D100D94C51 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		50641BDE2C6DD71200D94C51 /* BootMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BootMode.swift; sourceTree = "<group>"; };
 		50641BE22C6DD81600D94C51 /* ServiceDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceDaemon.swift; sourceTree = "<group>"; };
+		FCFCFD012C90000100FA1C01 /* FaircopyDaemon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaircopyDaemon.swift; sourceTree = "<group>"; };
 		50641BEB2C6DDE3F00D94C51 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		50641BED2C6DFA2100D94C51 /* Persist.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Persist.swift; sourceTree = "<group>"; };
 		50641BEE2C6DFA2100D94C51 /* PersistProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PersistProvider.swift; sourceTree = "<group>"; };
@@ -315,6 +318,7 @@
 				5004D65E2C6E247B007337BE /* IdleTerminationHandler.swift */,
 				5094E68F2C7711410062F7BD /* HTTPHelper.swift */,
 				50641BE22C6DD81600D94C51 /* ServiceDaemon.swift */,
+				FCFCFD012C90000100FA1C01 /* FaircopyDaemon.swift */,
 				5094E68C2C770F9F0062F7BD /* ServiceError.swift */,
 				CCE0FF022C7F000200A1B2C0 /* UsageStatistics.swift */,
 			);
@@ -486,6 +490,7 @@
 				CCE0004B2C74B62000C5B8D3 /* IdleTerminationHandler.swift in Sources */,
 				50A7AC8E2C785F6E00C59694 /* CommonProvider.swift in Sources */,
 				CCE0004C2C74B62000C5B8D3 /* ServiceDaemon.swift in Sources */,
+				FCFCFD022C90000100FA1C02 /* FaircopyDaemon.swift in Sources */,
 				CCE0004D2C74B62000C5B8D3 /* AIGateProxyHandler.swift in Sources */,
 				50256EB32C7F3D7A00FF90FC /* LiteEditionBanners.swift in Sources */,
 				CCE0004E2C74B62000C5B8D3 /* AIGateService.swift in Sources */,
@@ -528,6 +533,7 @@
 				50A7AC8F2C785F7200C59694 /* CommonProvider.swift in Sources */,
 				509D329D2C7AF3100092E267 /* Configuration+Endpoint.swift in Sources */,
 				CCE0007D2C7639F900C5B8D3 /* ServiceDaemon.swift in Sources */,
+				FCFCFD032C90000100FA1C03 /* FaircopyDaemon.swift in Sources */,
 				50256EB42C7F3EC700FF90FC /* LiteEditionBanners.swift in Sources */,
 				CCE0007E2C7639F900C5B8D3 /* AIGateProxyHandler.swift in Sources */,
 				CCE0007F2C7639F900C5B8D3 /* AIGateService.swift in Sources */,

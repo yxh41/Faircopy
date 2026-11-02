@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 3.0.97: this runs the resident OCR worker, not the old network-only
+	     service. `FaircopyDaemon` keeps the network service and adds the
+	     `faircopy.ocr.request` listener, with no window and no app lifecycle.
+
+	     It is deliberately a plain LaunchDaemon: no `POSIXSpawnType=App`, no
+	     `UserName`. That combination asks launchd to start a bundle as if
+	     FrontBoard had launched it, which it will not do for a daemon — the
+	     process simply never appears. Snapper 3's own high-accuracy OCR daemon
+	     (`com.jontelang.snapper3ocrd`) is configured the same minimal way, and
+	     recognising Chinese is exactly what it does on Dopamine. -->
 	<key>EnablePressuredExit</key>
 	<false/>
 	<key>EnableTransactions</key>
@@ -13,37 +23,21 @@
 		<key>DISABLE_TWEAKS</key>
 		<string>1</string>
 		<key>BOOT_MODE</key>
-		<string>ServiceDaemon</string>
+		<string>FaircopyDaemon</string>
 	</dict>
-	<key>GroupName</key>
-	<string>mobile</string>
 	<key>HighPriorityIO</key>
 	<true/>
 	<key>KeepAlive</key>
 	<true/>
 	<key>Label</key>
 	<string>wiki.qaq.faircopyservices</string>
-	<key>POSIXSpawnType</key>
-	<string>App</string>
 	<key>ProcessType</key>
-	<string>Interactive</string>
+	<string>Background</string>
 	<key>Program</key>
 	<string>/Applications/AIGate.app/AIGate</string>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>ThrottleInterval</key>
 	<integer>5</integer>
-	<key>UserName</key>
-	<string>mobile</string>
-	<key>_AdditionalProperties</key>
-	<dict>
-		<key>RunningBoard</key>
-		<dict>
-			<key>Managed</key>
-			<false/>
-			<key>Reported</key>
-			<false/>
-		</dict>
-	</dict>
 </dict>
 </plist>

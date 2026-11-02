@@ -23,6 +23,8 @@ func print(_ items: Any..., separator: String = " ", terminator _: String = "\n"
 switch BootMode.current {
 case .serviceDaemon:
     ServiceDaemon.main()
+case .faircopyDaemon:
+    FaircopyDaemon.main()
 case .settingApp:
     FaircopyApp.main()
 case .bootBoth:
