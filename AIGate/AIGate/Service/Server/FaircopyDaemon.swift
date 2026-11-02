@@ -420,19 +420,23 @@ private func fc_backtrace(
     _ size: Int32
 ) -> Int32
 
-/// Runs on the crashing thread, so it uses raw POSIX calls and a fixed buffer
-/// only — the normal `log()` helper reads the whole file and rewrites it
-/// atomically, which would deadlock or corrupt the log on the way out.
+/// Runs on the crashing thread, so nothing here formats with `snprintf` —
+/// Swift cannot call a C variadic function at all — and nothing builds a Swift
+/// `String`. Every line is written from a `StaticString` plus a hand-rolled
+/// decimal, which is the only shape that cannot allocate or take a lock while
+/// the process is already dying.
 ///
 /// Each frame is resolved with `dladdr`, so the log names the image and the
-/// nearest symbol straight away: no offline symbolication, no dSYM, no guessing
-/// whether the fault is Vision, Espresso, Metal or libsystem.
+/// nearest symbol straight away: no offline symbolication, no dSYM, and no
+/// guessing whether the fault is Vision, Espresso, Metal or libsystem.
 private func fc_daemon_fault(_ sig: Int32) {
     let fd = open(FaircopyDaemon.logPath, O_WRONLY | O_APPEND | O_CREAT, 0o644)
     if fd >= 0 {
-        var line = [CChar](repeating: 0, count: 512)
-        snprintf(&line, 512, "\ndaemon: FAULT signal=%d pid=%d\n", sig, getpid())
-        _ = write(fd, line, Int(strlen(line)))
+        fc_write(fd, "\ndaemon: FAULT signal=")
+        fc_writeDecimal(fd, UInt(bitPattern: Int(sig)))
+        fc_write(fd, " pid=")
+        fc_writeDecimal(fd, UInt(getpid()))
+        fc_write(fd, "\n")
 
         var frames = [UnsafeMutableRawPointer?](repeating: nil, count: 32)
         let count = fc_backtrace(&frames, 32)
@@ -441,22 +445,30 @@ private func fc_daemon_fault(_ sig: Int32) {
             if let address = frames[index] {
                 var info = Dl_info()
                 if dladdr(UnsafeRawPointer(address), &info) != 0 {
-                    if let image = info.dli_fname, let symbol = info.dli_sname {
-                        snprintf(&line, 512, "  #%ld %p %s %s\n", index, address, image, symbol)
-                    } else if let image = info.dli_fname {
-                        snprintf(&line, 512, "  #%ld %p %s\n", index, address, image)
+                    fc_write(fd, "  #")
+                    fc_writeDecimal(fd, UInt(index))
+                    fc_write(fd, " @")
+                    fc_writeDecimal(fd, UInt(bitPattern: address))
+                    fc_write(fd, " ")
+                    if let image = info.dli_fname {
+                        fc_writeCString(fd, image)
                     } else {
-                        snprintf(&line, 512, "  #%ld %p\n", index, address)
+                        fc_write(fd, "?")
                     }
-                    _ = write(fd, line, Int(strlen(line)))
+                    fc_write(fd, " ")
+                    if let symbol = info.dli_sname {
+                        fc_writeCString(fd, symbol)
+                    } else {
+                        fc_write(fd, "?")
+                    }
+                    fc_write(fd, "\n")
                 }
             }
             index += 1
         }
-        // Names only say so much; the raw image base lets the address be turned
-        // into a symbol later if the crashing frame had none.
-        snprintf(&line, 512, "daemon: FAULT end, %d frames\n", count)
-        _ = write(fd, line, Int(strlen(line)))
+        fc_write(fd, "daemon: FAULT end frames=")
+        fc_writeDecimal(fd, UInt(bitPattern: Int(count)))
+        fc_write(fd, "\n")
         close(fd)
     }
     // Let the default action happen so the system still records the crash: this
@@ -466,6 +478,39 @@ private func fc_daemon_fault(_ sig: Int32) {
 }
 
 /// Typed up front: `signal(3)` wants a `@convention(c)` pointer, and naming the
-/// conversion explicitly is what makes it a compile-time constant rather than a
-/// closure that might be allowed to capture.
+/// conversion explicitly makes it a compile-time constant rather than a closure
+/// that could be allowed to capture.
 private let fc_daemon_fault_handler: @convention(c) (Int32) -> Void = fc_daemon_fault
+
+private func fc_write(_ fd: Int32, _ text: StaticString) {
+    text.withUTF8Buffer { buffer in
+        if let base = buffer.baseAddress {
+            _ = write(fd, base, buffer.count)
+        }
+    }
+}
+
+private func fc_writeCString(_ fd: Int32, _ text: UnsafePointer<CChar>) {
+    _ = write(fd, text, Int(strlen(text)))
+}
+
+/// Unsigned decimal without `snprintf`, which the Swift overlay marks
+/// unavailable because it is a C variadic function.
+private func fc_writeDecimal(_ fd: Int32, _ value: UInt) {
+    var reversed = [CChar](repeating: 0, count: 24)
+    var digits = [CChar](repeating: 0, count: 24)
+    var remaining = value
+    var count = 0
+    repeat {
+        reversed[count] = CChar(48 + Int(remaining % 10))
+        count += 1
+        remaining /= 10
+    } while remaining > 0 && count < 24
+    var out = 0
+    while count > 0 {
+        count -= 1
+        digits[out] = reversed[count]
+        out += 1
+    }
+    _ = write(fd, digits, out)
+}
