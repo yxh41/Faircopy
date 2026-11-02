@@ -11,8 +11,86 @@ import SwiftUI
 import UIKit
 
 extension WritingToolsView {
+    /// 3.0.107: what the panel is reading, shown above what it produced.
+    ///
+    /// A translation is only as trustworthy as the words it started from, and
+    /// until now those were thrown away the moment the request went out.
+    /// `PanelPending.keyword` carries the OCR text into the panel as the
+    /// subject, but the UI rendered only `output` — so when a line went
+    /// missing, "the model dropped it" and "the OCR never saw it" looked
+    /// exactly the same from the outside.
+    ///
+    /// Hidden in 分词: that area already is the source, with the words picked
+    /// out individually, and repeating it above itself would only cost height.
+    var showsSourceExcerpt: Bool {
+        guard taskPrompt != .segment else { return false }
+        return !sourceSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var sourceExcerpt: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showsSource.toggle()
+                }
+                // The one in-binary trace this feature has: the strings above
+                // ("Source" / "Show" / "Hide") are far too short to survive
+                // Swift's small-literal inlining, so the release check needs a
+                // line long enough to land in __cstring to prove this shipped.
+                print("[Faircopy] source excerpt toggled, expanded=\(showsSource) chars=\(sourceSubject.count)")
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Source".localized)
+                        .font(.system(size: 11, weight: .medium))
+                    Text(String(format: (sourceSubject.count == 1 ? "%d character" : "%d characters").localized, sourceSubject.count))
+                        .font(.system(size: 10))
+                        .opacity(0.55)
+                    Spacer(minLength: 0)
+                    Text((showsSource ? "Hide" : "Show").localized)
+                        .font(.system(size: 11))
+                        .opacity(0.55)
+                }
+                .foregroundStyle(.white.opacity(0.8))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if showsSource {
+                // Capped, and scrolling inside the cap. This card floats over
+                // another app's screen; letting a long source push the answer
+                // off the bottom would trade the thing the user asked for
+                // against a reference they only glance at.
+                ScrollView {
+                    Text(sourceSubject)
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.white.opacity(0.72))
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 76)
+            } else {
+                Text(sourceSubject)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(.white.opacity(0.07))
+        )
+        .transition(.opacity)
+    }
+
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
+            if showsSourceExcerpt {
+                sourceExcerpt
+            }
             if taskPrompt == .segment {
                 segmentOutputArea
             } else if output.isEmpty {

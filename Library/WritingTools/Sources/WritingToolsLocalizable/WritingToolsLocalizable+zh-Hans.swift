@@ -46,6 +46,10 @@ extension WritingToolsLocalizable {
             "Again": "重试",
             "Accept": "接受",
             "Copy": "复制",
+            /* 3.0.107: 回答上方的原文对照条（默认收起） */
+            "Source": "原文",
+            "Show": "展开",
+            "Hide": "收起",
             "Copy in Source Order": "按原文顺序复制",
             "Copy in Selection Order": "按选择顺序复制",
             "Order: Source": "顺序：原文",

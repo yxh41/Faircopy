@@ -6,9 +6,23 @@
 //
 
 import AVFoundation
+import CommonCrypto
 import ImageIO
 import SwiftUI
 import Vision
+
+/// 3.0.107: the picture's own bytes are the cache key, so it has to be a digest.
+///
+/// `String.sha1` already exists for storage keys, but a screenshot is megabytes
+/// of binary and turning it into a String first would cost more than the
+/// recognition it is trying to avoid.
+private extension Data {
+    var fcSHA256: String {
+        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+        withUnsafeBytes { _ = CC_SHA256($0.baseAddress, CC_LONG($0.count), &digest) }
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+}
 
 /// The iOS SDK ships no <notify/notify.h>, so declare the symbol we need the
 /// same way TaskProcess+ObjC.swift declares its private POSIX entry points.
@@ -584,6 +598,93 @@ enum FaircopyImageOCR {
         return value.isEmpty ? "segment" : value
     }
 
+    // MARK: - Recognition cache (3.0.107)
+
+    /// One picture, one recognition.
+    ///
+    /// Swiping the same screenshot twice used to decode and recognise it twice,
+    /// and the accurate pass is the expensive half of this whole feature: 1.6 s
+    /// warm, 4.9 s when the Chinese network has been paged out. The second
+    /// answer would be byte-identical, so the words are kept for ten minutes,
+    /// keyed by the picture's own bytes.
+    ///
+    /// Keyed by bytes only — `mode` and `target` decide what the panel *does*
+    /// with the words, never what the words are, and folding them into the key
+    /// would only stop hits from happening.
+    ///
+    /// `data.count` is logged next to the hit so a stale cache can be told from
+    /// a wrong one when the same screen changes by a single pixel.
+    static let cacheDirectory = directory + "/faircopy_ocr_cache"
+    static let cacheLifetime: TimeInterval = 10 * 60
+
+    static func cachedText(for data: Data) -> String? {
+        let path = cachePath(for: data)
+        guard let raw = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let object = try? JSONSerialization.jsonObject(with: raw) as? [String: Any],
+              let at = object["at"] as? Double,
+              let text = object["text"] as? String,
+              !text.isEmpty
+        else { return nil }
+        let age = Date().timeIntervalSince1970 - at
+        guard age >= 0, age < cacheLifetime else {
+            // Expired. Remove it here rather than waiting for the next write:
+            // a picture swiped once and never again would otherwise sit in the
+            // shared directory for ever.
+            try? FileManager.default.removeItem(atPath: path)
+            return nil
+        }
+        return text
+    }
+
+    /// Empty recognitions are never stored.
+    ///
+    /// A picture with no words answers `nothing to hand off`, and the caller
+    /// then takes the visible road. Caching that emptiness would kill the only
+    /// working road for ten minutes, and it would look exactly like a worker
+    /// that had died again.
+    static func storeCachedText(_ text: String, for data: Data) {
+        guard !text.isEmpty else { return }
+        let manager = FileManager.default
+        // Two processes write here — this app as `mobile`, the resident worker
+        // as root — so whoever creates the directory must leave it writable by
+        // the other, or half of all writes fail silently.
+        try? manager.createDirectory(
+            atPath: cacheDirectory,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o777])
+        try? manager.setAttributes(
+            [.posixPermissions: 0o777], ofItemAtPath: cacheDirectory)
+        let payload: [String: Any] = [
+            "at": Date().timeIntervalSince1970,
+            "text": text,
+            "bytes": data.count,
+        ]
+        guard let raw = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? raw.write(to: URL(fileURLWithPath: cachePath(for: data)), options: .atomic)
+        pruneCache()
+    }
+
+    private static func cachePath(for data: Data) -> String {
+        cacheDirectory + "/" + data.fcSHA256 + ".json"
+    }
+
+    /// Lazy cleanup, on write only. A timer would be one more thing that can
+    /// fire after the daemon has already been stood down.
+    private static func pruneCache() {
+        let manager = FileManager.default
+        guard let names = try? manager.contentsOfDirectory(atPath: cacheDirectory) else { return }
+        let cutoff = Date().timeIntervalSince1970 - cacheLifetime
+        for name in names where name.hasSuffix(".json") {
+            let path = cacheDirectory + "/" + name
+            guard let attributes = try? manager.attributesOfItem(atPath: path),
+                  let modified = attributes[.modificationDate] as? Date
+            else { continue }
+            if modified.timeIntervalSince1970 < cutoff {
+                try? manager.removeItem(atPath: path)
+            }
+        }
+    }
+
     /// 3.0.87: drop the hand-off files once they have done their job.
     ///
     /// The caller leaves a full-size screenshot here, and nothing ever removed
@@ -650,9 +751,22 @@ enum FaircopyImageOCR {
     static func recognize(completion: @escaping (Outcome) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             let started = Date()
-            guard let data = try? Data(contentsOf: URL(fileURLWithPath: inputPath)),
-                  let picture = loadPicture(data)
-            else {
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: inputPath)) else {
+                appendLog("input unreadable: \(inputPath)")
+                DispatchQueue.main.async { completion(Outcome(text: "")) }
+                return
+            }
+            // 3.0.107: checked before decoding, not after. A hit is supposed to
+            // cost nothing, and `loadPicture` alone is worth ~100 ms on a
+            // full-screen capture.
+            if let cached = cachedText(for: data) {
+                let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+                appendLog(
+                    "ocr: cache hit, vision skipped, chars=\(cached.count) bytes=\(data.count) ms=\(elapsed)")
+                DispatchQueue.main.async { completion(Outcome(text: cached)) }
+                return
+            }
+            guard let picture = loadPicture(data) else {
                 appendLog("input unreadable: \(inputPath)")
                 DispatchQueue.main.async { completion(Outcome(text: "")) }
                 return
@@ -696,6 +810,7 @@ enum FaircopyImageOCR {
                 }
             }
             appendLog("result chars=\(best.count) ms=\(Int(Date().timeIntervalSince(started) * 1000)) from \(bestLabel)")
+            storeCachedText(best, for: data)
             DispatchQueue.main.async { completion(Outcome(text: best)) }
         }
     }

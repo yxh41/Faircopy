@@ -54,6 +54,20 @@ struct WritingToolsView: View {
     @State var modelList: ModelTree = .init(values: [:])
     @State var output: String = ""
 
+    /// 3.0.107: the words this panel is working on, captured once.
+    ///
+    /// `textProxy.selectedText` is live — a Replace rewrites it — so the source
+    /// is copied when the panel is built. Text that changed while the user was
+    /// comparing it against the answer would be worse than showing none.
+    ///
+    /// No new file, no new field: this is the same `PanelPending.keyword` the
+    /// caller already sent, which the presenter put into the text proxy as the
+    /// subject. Showing it is purely a UI change.
+    @State var sourceSubject: String = ""
+    /// Collapsed by default. This panel floats over someone else's screen and
+    /// its height is the scarce resource, not its information density.
+    @State var showsSource: Bool = false
+
     @State var headerDescription: String = ""
     @State var isHeaderDescriptionAnimated: Bool = true
 
@@ -190,6 +204,11 @@ struct WritingToolsView: View {
         let initial: Prompt = context.autoMode == "segment" ? .segment
             : (context.autoMode == "translate" ? .translate : .rewrite)
         _taskPrompt = .init(initialValue: initial)
+        // 3.0.107: captured before the first frame so the source is already
+        // there when the panel lands. `onAppear` re-checks it, because a
+        // synthesized standalone view can be filled a beat after the presenter
+        // builds this context.
+        _sourceSubject = .init(initialValue: context.textProxy.selectedText)
     }
 
     public var body: some View {
@@ -238,6 +257,10 @@ struct WritingToolsView: View {
             }
         }
         .onAppear {
+            // 3.0.107: the floor under the init-time capture above.
+            if sourceSubject.isEmpty {
+                sourceSubject = context.textProxy.selectedText
+            }
             // Warm the shared light-impact generator before the first tap. Every
             // press fires `impactOccurred()` on a cold engine otherwise, and a
             // cold engine delays or drops it — which is why the first button
