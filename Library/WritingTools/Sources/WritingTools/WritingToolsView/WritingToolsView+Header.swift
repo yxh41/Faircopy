@@ -78,7 +78,7 @@ extension WritingToolsView {
                         Button {
                             setModel(modelHandler)
                         } label: {
-                            if model == modelHandler.model {
+                            if isActivatedModel(modelHandler) {
                                 Label(modelHandler.model, systemImage: "checkmark")
                             } else {
                                 Text(modelHandler.model)
@@ -103,7 +103,7 @@ extension WritingToolsView {
                             Button {
                                 setModel(modelHandler)
                             } label: {
-                                if model == modelHandler.model {
+                                if isActivatedModel(modelHandler) {
                                     Label(modelHandler.model, systemImage: "checkmark")
                                 } else {
                                     Text(modelHandler.model)
@@ -120,6 +120,18 @@ extension WritingToolsView {
                 .foregroundStyle(.clear)
         }
         .buttonStyle(.plain)
+    }
+
+    /// 3.0.106: the checkmark follows the activated endpoint, not the model name.
+    ///
+    /// Falls back to the name only when the gateway did not send `endpoint_id`
+    /// (a panel talking to an older service), which is the behaviour of 3.0.105
+    /// and before.
+    func isActivatedModel(_ handler: ModelHandler) -> Bool {
+        if !activeEndpointID.isEmpty {
+            return activeEndpointID.caseInsensitiveCompare(handler.id.uuidString) == .orderedSame
+        }
+        return model == handler.model
     }
 
     var closeButton: some View {
@@ -148,6 +160,7 @@ extension WritingToolsView {
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.25) {
             let request = Configurator.shared.gateModelCheckRequest
             var checkModel = ""
+            var checkEndpointID = ""
             var checkModelList = [ModelHandler]()
             var checkCustomPrompts = [CustomPromptEntry]()
             let sem = DispatchSemaphore(value: 0)
@@ -166,7 +179,16 @@ extension WritingToolsView {
                     checkModelList = modelList
                         .compactMap { try? JSONSerialization.data(withJSONObject: $0) }
                         .compactMap { try? dec.decode(ModelHandler.self, from: $0) }
-                        .sorted { $0.id.uuidString < $1.id.uuidString }
+                        // 3.0.106: by name, so the menu reads in a stable order.
+                        // It used to sort by `id.uuidString`, i.e. by random
+                        // UUID, which reshuffled the list whenever an endpoint
+                        // was added and made a switch hard to follow.
+                        .sorted {
+                            ($0.model, $0.id.uuidString) < ($1.model, $1.id.uuidString)
+                        }
+                }
+                if let endpointID = json["endpoint_id"] as? String {
+                    checkEndpointID = endpointID
                 }
                 if let customPrompts = json["custom_prompts"] as? [Any] {
                     lazy var dec = JSONDecoder()
@@ -194,6 +216,10 @@ extension WritingToolsView {
                     modelList = tree
                     dirty = true
                 }
+                if activeEndpointID != checkEndpointID {
+                    activeEndpointID = checkEndpointID
+                    dirty = true
+                }
                 if customPrompts != checkCustomPrompts {
                     customPrompts = checkCustomPrompts
                     dirty = true
@@ -219,8 +245,29 @@ extension WritingToolsView {
         var request = Configurator.shared.gateModelSetRequest
         request.setValue(model.id.uuidString, forHTTPHeaderField: "X-Faircopy-ModelID")
         URLSession.shared.dataTask(with: request) { _, _, _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { postSetupModel() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                postSetupModel()
+                confirmModelSwitch(model.id)
+            }
         }.resume()
+    }
+
+    /// 3.0.106: make the panel reflect the switch it just asked for.
+    ///
+    /// The gateway used to answer 200 before the write landed (it queued the
+    /// write on the main thread), so the single read 100 ms later could still
+    /// see the old endpoint and the checkmark did not move. The gateway now
+    /// writes first; this retry covers the remaining case — a worker busy with
+    /// a recognition, which delays its main queue by up to a second.
+    func confirmModelSwitch(_ expected: UUID, attempt: Int = 0) {
+        guard attempt < 4 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            if self.activeEndpointID.caseInsensitiveCompare(expected.uuidString) == .orderedSame {
+                return
+            }
+            self.checkModelName()
+            self.confirmModelSwitch(expected, attempt: attempt + 1)
+        }
     }
 
     func postSetupModel() {

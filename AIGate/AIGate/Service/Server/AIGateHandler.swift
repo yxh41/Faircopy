@@ -73,11 +73,21 @@ class AIGateHandler: ChannelDuplexHandler {
                 let model: String?
                 let model_list: [Configuration.Endpoint]
                 let custom_prompts: [CustomPrompt]
+                /// 3.0.106: which endpoint is activated, by id.
+                ///
+                /// The panel used to place its checkmark by comparing model
+                /// *names*, and two endpoints serving the same name (one relay
+                /// with two keys, or an official plus a backup) are the normal
+                /// setup — picking the other one showed a check on both and
+                /// looked like the switch did nothing. `model` stays for panels
+                /// built before this field existed.
+                let endpoint_id: String?
             }
             context.responseWithHTTP(code: 200, json: Payload(
                 model: Configuration.shared.activatedEndpoint?.model,
                 model_list: Configuration.shared.endpointHandlerForQuickSwitch(),
-                custom_prompts: Configuration.shared.allCustomPrompts
+                custom_prompts: Configuration.shared.allCustomPrompts,
+                endpoint_id: Configuration.shared.activatedEndpoint?.id.uuidString
             ))
             return
         } else if checkForServerCommandIfIsGettingUsage() {
@@ -88,15 +98,26 @@ class AIGateHandler: ChannelDuplexHandler {
                 context.terminateChannel(reason: .modelNotFound)
                 return
             }
-            if BootMode.current == .serviceDaemon {
-                Configuration.shared.activatedEndpointID = modelID
-                Configuration.shared.saveNow()
-            } else {
+            // 3.0.106: apply inline unless this process has a window server.
+            //
+            // 3.0.97 added `BootMode.faircopyDaemon` for the resident worker and
+            // 3.0.103 moved this gateway into it, but the branch below still
+            // only recognised `.serviceDaemon` — so the worker took the App
+            // path: the 200 left first, the write landed on the main queue
+            // afterwards, and the panel asks for the current model 100 ms after
+            // that 200. A switch could therefore read back as "no change". Only
+            // `.settingApp` / `.bootBoth` have a UI to keep on the main thread;
+            // both daemons answer the reply only once the switch is in memory
+            // and on disk.
+            if BootMode.current == .settingApp || BootMode.current == .bootBoth {
                 DispatchQueue.main.async {
                     Configuration.shared.activatedEndpointID = modelID
                     Configuration.shared.saveNow()
                     Configuration.shared.reloadValueFromSystem()
                 }
+            } else {
+                Configuration.shared.activatedEndpointID = modelID
+                Configuration.shared.saveNow()
             }
             context.responseWithHTTP(code: 200, json: [
                 "status": "ok",

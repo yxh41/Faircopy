@@ -44,6 +44,13 @@ struct WritingToolsView: View {
     @State var shouldRetryWhenActive: Bool = false
 
     @State var model: String = ""
+    /// 3.0.106: the activated endpoint's id, as reported by `/metrics?query=model`.
+    ///
+    /// The menu used to decide its checkmark from `model`, a model *name*, and
+    /// two endpoints serving the same name are a normal setup — so the check sat
+    /// on both rows and a real switch looked like a no-op. Empty means the
+    /// gateway predates this field; the name comparison is kept for that case.
+    @State var activeEndpointID: String = ""
     @State var modelList: ModelTree = .init(values: [:])
     @State var output: String = ""
 
