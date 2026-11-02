@@ -162,6 +162,28 @@ final class FaircopySpringPresentationController: UIPresentationController {
             card.bounds = CGRect(origin: .zero, size: target.size)
             card.center = CGPoint(x: target.midX, y: target.midY)
         }
+        // 3.0.109: the shadow path was drawn once in
+        // presentationTransitionWillBegin and never touched again. An explicit
+        // path does not follow `bounds`, so once 3.0.108 let the card change
+        // height at runtime the shadow kept the height the panel arrived at —
+        // the part below it was left unshadowed and the corner radius no longer
+        // lined up. Redrawn only when the size actually changed, since this runs
+        // on every container layout.
+        if card.layer.shadowPath == nil || card.layer.shadowPath?.boundingBox.size != card.bounds.size {
+            card.layer.shadowPath = UIBezierPath(
+                roundedRect: card.bounds,
+                cornerRadius: Self.cornerRadius
+            ).cgPath
+        }
+    }
+
+    /// 3.0.109: the height the card is actually laid out at.
+    ///
+    /// `preferredContentSize` is only a request — it is the answer to "did UIKit
+    /// (or this controller) actually take it" that matters when a resize does
+    /// not show up on screen. Read after a layout pass, never during one.
+    var laidOutCardHeight: CGFloat {
+        animatedCard?.bounds.height ?? -1
     }
 
     @objc private func handleBackdropTap() {

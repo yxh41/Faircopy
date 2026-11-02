@@ -85,6 +85,16 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         fcPanelLog(
             "panel height tier=\(index) base=\(Int(base)) \(Int(previous))->\(Int(target)) "
                 + "limit=\(Int(limit)) style=\(modalPresentationStyle.rawValue)")
+        // 3.0.109: `preferredContentSize` is a request, not an outcome — and the
+        // 3.0.108 log could only prove the request had been made. Record what the
+        // card was actually laid out at once this pass is done, so "accepted but
+        // not applied" is distinguishable from "never submitted" from a file.
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            let spring = self.presentationController as? FaircopySpringPresentationController
+            let applied = spring?.laidOutCardHeight ?? self.view.bounds.height
+            fcPanelLog("panel height applied card=\(Int(applied)) want=\(Int(target))")
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
