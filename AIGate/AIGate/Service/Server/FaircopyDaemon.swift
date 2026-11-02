@@ -56,7 +56,33 @@ enum FaircopyDaemon {
     /// user would get two panels (or a panel on top of another panel).
     private static var heartbeat: DispatchSourceTimer?
 
+    /// The worker keeps its own log (3.0.99).
+    ///
+    /// `FaircopyImageOCR.appendLog` does a read-modify-write on `faircopy_ocr.log`,
+    /// which the app writes too; two processes doing that lose each other's
+    /// lines. More to the point, 3.0.98's worker never reached that call at all,
+    /// so whether this file exists is the cheapest possible answer to "did the
+    /// daemon run a single line of our code" — the question that cost a release.
+    static let logPath = FaircopyImageOCR.directory + "/faircopy_daemon.log"
+
+    static func log(_ line: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        let entry = "\(formatter.string(from: Date())) [\(getpid())] \(line)\n"
+        let url = URL(fileURLWithPath: logPath)
+        var existing = (try? Data(contentsOf: url)) ?? Data()
+        if existing.count > 16 * 1024 { existing = Data() }
+        existing.append(Data(entry.utf8))
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        try? existing.write(to: url, options: .atomic)
+    }
+
     static func main() -> Never {
+        // Before anything else can decide this process has nothing to do.
+        let extra = CommandLine.arguments.dropFirst().joined(separator: " ")
+        log("boot: worker entered args=\(extra)")
+
         // Deliberately NOT starting `ServiceDaemon` here. That service is built
         // around a UIApplication living in the same process (`GateSessionDelegate`,
         // jetsam control, the network listener), and a crash in it would take the
@@ -80,7 +106,7 @@ enum FaircopyDaemon {
         // `loop=timer keeper` is the marker the release check looks for: one
         // boot line per process. More than one in the log means launchd is
         // restarting the worker, i.e. it is exiting instead of waiting again.
-        FaircopyImageOCR.appendLog(
+        log(
             "daemon: resident ocr worker booted pid=\(getpid()) uid=\(getuid()) loop=timer keeper")
 
         // 🔴 3.0.98: this has to be a loop that actually waits.
@@ -132,7 +158,7 @@ enum FaircopyDaemon {
                                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
                   let page = context.makeImage()
             else {
-                FaircopyImageOCR.appendLog("daemon: warm up could not draw a blank page")
+                log("daemon: warm up could not draw a blank page")
                 return
             }
 
@@ -143,7 +169,7 @@ enum FaircopyDaemon {
             do {
                 try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
             } catch {
-                FaircopyImageOCR.appendLog(
+                log(
                     "daemon: vision refused to run here, staying out of the way: "
                         + error.localizedDescription)
                 return
@@ -152,7 +178,7 @@ enum FaircopyDaemon {
             DispatchQueue.main.async {
                 ready = true
                 startHeartbeat()
-                FaircopyImageOCR.appendLog(
+                log(
                     "daemon: vision ready in \(Int(Date().timeIntervalSince(started) * 1000)) ms, taking over")
             }
         }
@@ -216,12 +242,12 @@ enum FaircopyDaemon {
         // beat it never wrote means the app is answering this request, and
         // recognising it here as well would hand off a second panel.
         guard ready else {
-            FaircopyImageOCR.appendLog(
+            log(
                 "daemon: request left to the app, vision is not available here")
             return
         }
         guard !busy else {
-            FaircopyImageOCR.appendLog("daemon: request ignored (one already running)")
+            log("daemon: request ignored (one already running)")
             return
         }
         busy = true
@@ -234,7 +260,7 @@ enum FaircopyDaemon {
         let named = FaircopyImageOCR.requestedDisplayTarget()
         let target = named ?? ""
         let mode = FaircopyImageOCR.requestedMode()
-        FaircopyImageOCR.appendLog(
+        log(
             "daemon: request target=\(named ?? "auto") mode=\(mode)")
 
         FaircopyImageOCR.recognize { outcome in
@@ -259,11 +285,11 @@ enum FaircopyDaemon {
                 // before the capture window has finished tearing down; repeats
                 // find the invocation claimed and are ignored.
                 fc_daemon_notify_post("wiki.qaq.faircopy.present")
-                FaircopyImageOCR.appendLog("daemon: panel broadcast, \(text.count) chars")
+                log("daemon: panel broadcast, \(text.count) chars")
             } else {
                 // Nothing to hand off. `retry` in the result file tells the
                 // caller to fall back to the visible road, which still works.
-                FaircopyImageOCR.appendLog("daemon: nothing to hand off")
+                log("daemon: nothing to hand off")
             }
             busy = false
         }

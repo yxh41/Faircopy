@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 3.0.97: this runs the resident OCR worker, not the old network-only
+	<!-- 3.0.99: this runs the resident OCR worker, not the old network-only
 	     service. `FaircopyDaemon` keeps the network service and adds the
 	     `faircopy.ocr.request` listener, with no window and no app lifecycle.
 
@@ -11,7 +11,15 @@
 	     FrontBoard had launched it, which it will not do for a daemon — the
 	     process simply never appears. Snapper 3's own high-accuracy OCR daemon
 	     (`com.jontelang.snapper3ocrd`) is configured the same minimal way, and
-	     recognising Chinese is exactly what it does on Dopamine. -->
+	     recognising Chinese is exactly what it does on Dopamine.
+
+	     The worker flag travels as an ARGUMENT, not as BOOT_MODE below. On
+	     iOS 15+ process spawning belongs to RunningBoard and a LaunchDaemon does
+	     not reliably inherit `EnvironmentVariables`; 3.0.98 shipped the flag that
+	     way, so the binary booted as the settings app, `UIApplicationMain`
+	     returned at once (no window server session), and launchd reported a
+	     healthy daemon with exit status 0 that never answered anything. The
+	     environment entry is kept for a manual run; nothing depends on it. -->
 	<key>EnablePressuredExit</key>
 	<false/>
 	<key>EnableTransactions</key>
@@ -33,10 +41,17 @@
 	<string>wiki.qaq.faircopyservices</string>
 	<key>ProcessType</key>
 	<string>Background</string>
-	<key>Program</key>
-	<string>/Applications/AIGate.app/AIGate</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Applications/AIGate.app/AIGate</string>
+		<string>--faircopy-daemon</string>
+	</array>
 	<key>RunAtLoad</key>
 	<true/>
+	<key>StandardErrorPath</key>
+	<string>/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_daemon.err</string>
+	<key>StandardOutPath</key>
+	<string>/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_daemon.out</string>
 	<key>ThrottleInterval</key>
 	<integer>5</integer>
 </dict>

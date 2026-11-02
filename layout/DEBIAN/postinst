@@ -10,7 +10,7 @@
 # bounce back. A LaunchDaemon removes all three — launchd starts it at boot, it
 # is never suspended, and it has no window to show.
 #
-# Two things made the shipped daemon useless before, and both are fixed here:
+# Three things made the shipped daemon useless, and all three are fixed here:
 #
 #   1. `Program` pointed at /Applications/AIGate.app/AIGate. Correct for a
 #      rootful jailbreak, non-existent under roothide, where the app lives in a
@@ -23,16 +23,30 @@
 #      a daemon. The configuration below is the minimal one Snapper 3 uses for
 #      its own high-accuracy OCR daemon on Dopamine (`com.jontelang.snapper3ocrd`:
 #      RunAtLoad + KeepAlive + a real program path, nothing else).
+#
+#   3. The worker flag travelled as `BOOT_MODE` in `EnvironmentVariables`, which
+#      a launchingd-started daemon does not reliably inherit on iOS 15+ (process
+#      spawning belongs to RunningBoard). 3.0.98 therefore booted the binary as
+#      the settings app, `UIApplicationMain` returned immediately because there
+#      is no window server session, `main.swift` reached its `exit(0)`, and
+#      launchctl reported a healthy pid with status 0 while the worker never ran
+#      a single line — `faircopy_ocr.log` was not even created. The flag is an
+#      ARGUMENT now; an argument cannot be lost that way.
 
 LABEL="wiki.qaq.faircopyservices"
 LOGDIR="/var/mobile/Library/Preferences/wiki.qaq.ai.gate"
 INSTALL_LOG="$LOGDIR/faircopy_install.log"
+
+mkdir -p "$LOGDIR" 2>/dev/null
+chown mobile:mobile "$LOGDIR" 2>/dev/null
 
 # launchd is a system process and is not redirected by roothide's libroot, so the
 # system copy is the right one to talk to — and calling it by path means the job
 # does not depend on whatever PATH dpkg happens to hand this script.
 LAUNCHCTL="/bin/launchctl"
 [ -x "$LAUNCHCTL" ] || LAUNCHCTL="launchctl"
+
+LOAD_RESULT="(not run)"
 
 write_daemon() {
 	plist="$1"
@@ -64,15 +78,23 @@ write_daemon() {
 	<string>$LABEL</string>
 	<key>ProcessType</key>
 	<string>Background</string>
-	<key>Program</key>
-	<string>$program</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>$program</string>
+		<string>--faircopy-daemon</string>
+	</array>
 	<key>RunAtLoad</key>
 	<true/>
+	<key>StandardErrorPath</key>
+	<string>$LOGDIR/faircopy_daemon.err</string>
+	<key>StandardOutPath</key>
+	<string>$LOGDIR/faircopy_daemon.out</string>
 	<key>ThrottleInterval</key>
 	<integer>5</integer>
 </dict>
 </plist>
 EOF
+	chmod 644 "$plist" 2>/dev/null
 }
 
 install_daemon() {
@@ -80,7 +102,9 @@ install_daemon() {
 	program="$2"
 	"$LAUNCHCTL" unload "$plist" > /dev/null 2>&1
 	write_daemon "$plist" "$program"
-	"$LAUNCHCTL" load -w "$plist" > /dev/null 2>&1
+	LOAD_RESULT=$("$LAUNCHCTL" load -w "$plist" 2>&1)
+	rc=$?
+	LOAD_RESULT="rc=$rc out=$LOAD_RESULT"
 }
 
 # Stop the old copy before touching anything: a resident AIGate would otherwise
@@ -114,17 +138,28 @@ if [ "$DONE" -eq 0 ] && [ -d /Applications/AIGate.app ]; then
 fi
 
 # A daemon that fails to start leaves no trace anywhere the user can see, which
-# is exactly how the previous two releases went unnoticed. One small file makes
-# the outcome readable from the tweak's own log directory.
-mkdir -p "$LOGDIR" 2>/dev/null
-chown mobile:mobile "$LOGDIR" 2>/dev/null
+# is exactly how the previous releases went unnoticed. This file makes the
+# outcome readable from the tweak's own log directory — including what launchctl
+# said, which is the difference between "not loaded" and "loaded and exited".
 {
 	echo "=== installed $(date) ==="
 	echo "installed=$DONE"
+	echo "launchctl=$LAUNCHCTL"
+	echo "load: $LOAD_RESULT"
 	echo "-- launchctl list --"
 	"$LAUNCHCTL" list 2>/dev/null | grep "$LABEL"
+	echo "-- launchctl print (state / pid / last exit) --"
+	"$LAUNCHCTL" print "system/$LABEL" 2>&1 | grep -E "state = |pid = |last exit|program = |arguments = " | head -12
 	echo "-- process --"
-	ps -A 2>/dev/null | grep -i "[A]IGate"
+	ps -A 2>/dev/null | grep -i "[A]IGate" || echo "(ps gave nothing)"
+	echo "-- worker logs --"
+	for f in faircopy_daemon.log faircopy_daemon.err faircopy_ocr.log; do
+		if [ -f "$LOGDIR/$f" ]; then
+			echo "  $f: $(wc -l < "$LOGDIR/$f" | tr -d ' ') lines"
+		else
+			echo "  $f: absent"
+		fi
+	done
 	echo "=== end ==="
 } > "$INSTALL_LOG" 2>&1
 chown mobile:mobile "$INSTALL_LOG" 2>/dev/null

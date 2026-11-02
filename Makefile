@@ -1,4 +1,4 @@
-export PACKAGE_VERSION := 3.0.98
+export PACKAGE_VERSION := 3.0.99
 
 ARCHS := arm64 arm64e
 TARGET := iphone:clang:latest:15.0
@@ -75,7 +75,8 @@ clean::
 	$(ECHO_NOTHING)rm -rf Frameworks/WritingToolsLocalizable.xcframework || true$(ECHO_END)
 	$(ECHO_NOTHING)rm -rf Frameworks/WritingToolsInjector.xcframework || true$(ECHO_END)
 
-ifeq ($(THEOS_PACKAGE_SCHEME), rootless)
-stage::
-	plutil -replace Program -string $(THEOS_PACKAGE_INSTALL_PREFIX)/Applications/AIGate.app/AIGate $(THEOS_STAGING_DIR)/Library/LaunchDaemons/wiki.qaq.faircopyservices.plist
-endif
+# The daemon plist is no longer patched at staging time. postinst rewrites it at
+# install time with the program path that actually exists (roothide puts the app
+# in a per-device `.jbroot-<hash>` directory), so a staging-time rewrite would be
+# thrown away — and 3.0.99's plist has no `Program` key to replace anyway, since
+# the worker flag travels as an argument now.

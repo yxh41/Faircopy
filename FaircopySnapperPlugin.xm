@@ -1343,8 +1343,11 @@ static void FCScheduleShellXHookRetry(int remaining)
         // per app launch would trim the useful part of the log away within an
         // hour. A process that can show the plugin is a process worth a line.
         if (snapperInstalled || shellxInstalled || pluginsFolder) {
-            FCLog(@"loaded: snapper=%d shellx=%d metadata folder=%d recognize log=%d",
-                  snapperInstalled, shellxInstalled, pluginsFolder,
+            // 3.0.99: the version is in the line. "which build is actually
+            // installed" has cost several rounds of guessing, and there is no
+            // cheaper place to answer it than the first line of the log.
+            FCLog(@"loaded: v%s snapper=%d shellx=%d metadata folder=%d recognize log=%d",
+                  PACKAGE_VERSION, snapperInstalled, shellxInstalled, pluginsFolder,
                   [manager fileExistsAtPath:kFCRecognizeLogPath]);
         }
         %init(FaircopySnapper);
