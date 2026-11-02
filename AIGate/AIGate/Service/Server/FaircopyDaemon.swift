@@ -39,6 +39,7 @@
 //  and presents the panel in place. No app switch anywhere on the path.
 
 import CoreGraphics
+import Darwin
 import Foundation
 import Vision
 
@@ -83,6 +84,18 @@ enum FaircopyDaemon {
         let extra = CommandLine.arguments.dropFirst().joined(separator: " ")
         log("boot: worker entered args=\(extra)")
 
+        // 3.0.101: install the handlers first. The accurate pass faults the
+        // process without raising anything Swift can catch and without writing
+        // a byte to stderr (3.0.100 proved that: `.err` and `.out` stayed at 0
+        // bytes across every restart), so the only way to learn *where* it dies
+        // is to catch the signal inside the process and print the stack.
+        installFaultHandlers()
+
+        // A worker that cannot warm up is restarted by launchd every five
+        // seconds forever. That is a battery fire on a device the user is
+        // holding, so a flapping worker backs off before it touches Vision.
+        backOffIfFlapping()
+
         // Deliberately NOT starting `ServiceDaemon` here. That service is built
         // around a UIApplication living in the same process (`GateSessionDelegate`,
         // jetsam control, the network listener), and a crash in it would take the
@@ -100,7 +113,7 @@ enum FaircopyDaemon {
         )
 
         bootStamp = Date().timeIntervalSince1970
-        log("daemon: observer installed, warming vision up on the main thread")
+        log("daemon: observer installed, probing vision")
         // 3.0.99: synchronous on purpose. Asynchronously this text never
         // appeared: the worker exited within milliseconds of announcing itself,
         // and a background queue racing a dying process leaves no evidence at
@@ -113,22 +126,74 @@ enum FaircopyDaemon {
         log(
             "daemon: resident ocr worker booted pid=\(getpid()) uid=\(getuid()) loop=timer keeper")
 
-        // 🔴 3.0.99: the loop has to *wait*, and `CFRunLoopRun()` does not.
+        // 🔴 3.0.101: the loop has to *wait*, and `run(mode:before:)` alone does
+        // not make it wait.
         //
-        // It returns `kCFRunLoopRunFinished` the instant the loop owns no source,
-        // and neither the heart beat (a DispatchSource, serviced by GCD off the
-        // run loop entirely) nor `RunLoop.add(timer, forMode: .common)` kept it
-        // alive: 3.0.98 booted, logged, and was gone again inside the same
-        // millisecond, so launchd restarted it every five seconds and every
-        // `faircopy.ocr.request` went to a process that had already left. A
-        // Darwin notification is not queued for anyone who is not listening.
-        //
-        // `run(mode:before:)` is the one that blocks: without a source it sleeps
-        // until the date, so the outer loop can never fall through.
+        // Foundation is explicit about it: "If no input sources or timers are
+        // attached to the run loop, this method exits immediately." The heart
+        // beat is a DispatchSource, which GCD services off the run loop
+        // entirely, so it does not count. 3.0.100 never reached this line (the
+        // accurate pass faulted first), which means the question "does the loop
+        // hold" was never actually answered — so a real repeating timer is
+        // attached here as a source before the loop is entered. Without it the
+        // worker would spin a core at 100% and, worse, never receive the Darwin
+        // notification it exists for.
+        keeperTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in }
+        log("daemon: run loop armed with a 15 s timer source")
+
         while true {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(60))
+            autoreleasepool {
+                RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(60))
+            }
         }
         exit(EXIT_SUCCESS)
+    }
+
+    /// Strong reference so the run loop source above is never deallocated.
+    private static var keeperTimer: Timer?
+
+    // MARK: - Forensics
+
+    /// 3.0.101: the worker dies inside `VNImageRequestHandler.perform` and leaves
+    /// no message anywhere. Swift's `do/catch` cannot see a memory fault, and a
+    /// memory fault writes nothing to stderr, so launchd's `StandardErrorPath`
+    /// stays empty — which is exactly the evidence 3.0.100 produced (both files
+    /// at 0 bytes, never touched). Catching the signal here and dumping the
+    /// stack into our own log is the only way to see the crash site.
+    private static func installFaultHandlers() {
+        for sig in [SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP] {
+            _ = signal(sig, fc_daemon_fault)
+        }
+        NSSetUncaughtExceptionHandler { exception in
+            log("daemon: uncaught exception \(exception.name.rawValue) reason=\(exception.reason ?? "-")")
+            log("daemon: exception stack\n" + exception.callStackSymbols.joined(separator: "\n"))
+        }
+        log("daemon: fault handlers installed segv/bus/ill/fpe/abrt/trap")
+    }
+
+    private static let bootPath = FaircopyImageOCR.directory + "/faircopy_daemon_boot.json"
+
+    /// Turns a five-second restart storm into a fifteen-second one.
+    ///
+    /// A worker that faults in warm up is relaunched by `KeepAlive` for as long
+    /// as the package stays installed. Ten boots a minute, each loading a Vision
+    /// model, is a lot of heat on a phone in someone's hand — so a boot that
+    /// arrives suspiciously soon after the previous one waits first.
+    private static func backOffIfFlapping() {
+        let url = URL(fileURLWithPath: bootPath)
+        let now = Date().timeIntervalSince1970
+        if let data = try? Data(contentsOf: url),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let at = object["at"] as? Double,
+           now - at < 15 {
+            log("daemon: crash loop guard, last boot was \(Int(now - at)) s ago, waiting 15 s")
+            sleep(15)
+        }
+        let payload: [String: Any] = ["at": Date().timeIntervalSince1970, "pid": Int(getpid())]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        try? data.write(to: url, options: .atomic)
     }
 
     // MARK: - Warm up
@@ -164,11 +229,44 @@ enum FaircopyDaemon {
             return
         }
 
+        // 3.0.101: make this process look like the one place accurate Vision is
+        // known to work — a normal app process. A launchd daemon starts in `/`
+        // with no HOME and no TMPDIR; the app has both. Nothing about the request
+        // below needs a real home directory to compile, so if Vision cares about
+        // it at all (model cache, Espresso scratch space), this is where it shows.
+        let env = ProcessInfo.processInfo.environment
+        log(
+            "daemon: probe uid=\(getuid()) home=\(NSHomeDirectory()) tmp=\(NSTemporaryDirectory()) cwd=\(FileManager.default.currentDirectoryPath)"
+        )
+        log("daemon: probe env HOME=\(env["HOME"] ?? "-") TMPDIR=\(env["TMPDIR"] ?? "-")")
+        _ = setenv("HOME", "/var/mobile", 1)
+        _ = setenv("TMPDIR", "/tmp", 1)
+        _ = chdir("/var/mobile")
+        log(
+            "daemon: probe normalised home=\(NSHomeDirectory()) tmp=\(NSTemporaryDirectory()) cwd=\(FileManager.default.currentDirectoryPath)"
+        )
+
+        // Control pass. `.fast` has no Chinese model at all, so it is worthless
+        // for the product — but it runs the same framework, the same handler and
+        // the same picture. If this survives and the accurate pass does not, the
+        // fault is the accurate network. If even this faults, nothing Vision does
+        // works in this process and the environment is the culprit.
+        log("daemon: probe fast pass on a \(side)x\(side) blank page")
+        let control = VNRecognizeTextRequest()
+        control.recognitionLevel = .fast
+        control.recognitionLanguages = ["en-US"]
+        do {
+            try VNImageRequestHandler(cgImage: page, options: [:]).perform([control])
+            log("daemon: probe fast pass survived")
+        } catch {
+            log("daemon: probe fast pass refused: " + error.localizedDescription)
+        }
+
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["zh-Hans"]
         request.usesLanguageCorrection = true
-        log("daemon: running one accurate pass to prove vision works here")
+        log("daemon: probe accurate pass, langs=zh-Hans correction=on")
         do {
             try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
         } catch {
@@ -308,4 +406,61 @@ private func fc_daemon_request_callback(
     DispatchQueue.main.async {
         FaircopyDaemon.handleRequest()
     }
+}
+
+// MARK: - Signal forensics
+
+/// `backtrace(3)` lives in libsystem_c but the iOS SDK ships no <execinfo.h>,
+/// so the symbol is declared by hand. It is the only libexecinfo symbol used:
+/// `backtrace_symbols_fd` is not reliably exported on iOS, and
+/// `backtrace_symbols` allocates, which is not safe inside a signal handler.
+@_silgen_name("backtrace")
+private func fc_backtrace(
+    _ buffer: UnsafeMutablePointer<UnsafeMutableRawPointer?>?,
+    _ size: Int32
+) -> Int32
+
+/// Runs on the crashing thread, so it uses raw POSIX calls and a fixed buffer
+/// only — the normal `log()` helper reads the whole file and rewrites it
+/// atomically, which would deadlock or corrupt the log on the way out.
+///
+/// Each frame is resolved with `dladdr`, so the log names the image and the
+/// nearest symbol straight away: no offline symbolication, no dSYM, no guessing
+/// whether the fault is Vision, Espresso, Metal or libsystem.
+private func fc_daemon_fault(_ sig: Int32) {
+    let fd = open(FaircopyDaemon.logPath, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+    if fd >= 0 {
+        var line = [CChar](repeating: 0, count: 512)
+        snprintf(&line, 512, "\ndaemon: FAULT signal=%d pid=%d\n", sig, getpid())
+        _ = write(fd, line, strlen(line))
+
+        var frames = [UnsafeMutableRawPointer?](repeating: nil, count: 32)
+        let count = fc_backtrace(&frames, 32)
+        var index = 0
+        while index < Int(count) {
+            if let address = frames[index] {
+                var info = Dl_info()
+                if dladdr(UnsafeRawPointer(address), &info) != 0 {
+                    if let image = info.dli_fname, let symbol = info.dli_sname {
+                        snprintf(&line, 512, "  #%ld %p %s %s\n", index, address, image, symbol)
+                    } else if let image = info.dli_fname {
+                        snprintf(&line, 512, "  #%ld %p %s\n", index, address, image)
+                    } else {
+                        snprintf(&line, 512, "  #%ld %p\n", index, address)
+                    }
+                    _ = write(fd, line, strlen(line))
+                }
+            }
+            index += 1
+        }
+        // Names only say so much; the raw image base lets the address be turned
+        // into a symbol later if the crashing frame had none.
+        snprintf(&line, 512, "daemon: FAULT end, %d frames\n", count)
+        _ = write(fd, line, strlen(line))
+        close(fd)
+    }
+    // Let the default action happen so the system still records the crash: this
+    // handler only adds evidence, it does not swallow the fault.
+    _ = signal(sig, SIG_DFL)
+    _ = raise(sig)
 }
