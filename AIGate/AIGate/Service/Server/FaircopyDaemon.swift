@@ -164,10 +164,10 @@ enum FaircopyDaemon {
         for sig in [SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP] {
             _ = signal(sig, fc_daemon_fault_handler)
         }
-        NSSetUncaughtExceptionHandler { exception in
-            log("daemon: uncaught exception \(exception.name.rawValue) reason=\(exception.reason ?? "-")")
-            log("daemon: exception stack\n" + exception.callStackSymbols.joined(separator: "\n"))
-        }
+        // A closure here would have to reach `Self`, and a `@convention(c)`
+        // pointer cannot be formed from anything that captures context — so the
+        // body lives at file scope as a plain function.
+        NSSetUncaughtExceptionHandler(fc_daemon_exception_handler)
         log("daemon: fault handlers installed segv/bus/ill/fpe/abrt/trap")
     }
 
@@ -481,6 +481,20 @@ private func fc_daemon_fault(_ sig: Int32) {
 /// conversion explicitly makes it a compile-time constant rather than a closure
 /// that could be allowed to capture.
 private let fc_daemon_fault_handler: @convention(c) (Int32) -> Void = fc_daemon_fault
+
+/// An uncaught Objective-C exception is not a signal and Swift cannot catch it,
+/// so it gets its own reporter. Reaching `FaircopyDaemon.log` from a top-level
+/// function is fine; doing it inside a closure is not, because the closure would
+/// capture `Self` and could then not be passed as a C pointer.
+private func fc_daemon_exception(_ exception: NSException) {
+    FaircopyDaemon.log(
+        "daemon: uncaught exception " + exception.name.rawValue + " reason=" + (exception.reason ?? "-")
+    )
+    FaircopyDaemon.log(
+        "daemon: exception stack\n" + exception.callStackSymbols.joined(separator: "\n"))
+}
+
+private let fc_daemon_exception_handler: @convention(c) (NSException) -> Void = fc_daemon_exception
 
 private func fc_write(_ fd: Int32, _ text: StaticString) {
     text.withUTF8Buffer { buffer in
