@@ -66,7 +66,15 @@ enum FaircopyDaemon {
     /// daemon run a single line of our code" — the question that cost a release.
     static let logPath = FaircopyImageOCR.directory + "/faircopy_daemon.log"
 
+    /// 3.0.103: the gateway thread logs too, and `log()` is a read-modify-write
+    /// on one file. Two writers without a lock lose each other's lines, which is
+    /// exactly the kind of damage that makes a log worthless when it matters.
+    /// Not taken from the signal handler — that one writes raw.
+    private static let logLock = NSLock()
+
     static func log(_ line: String) {
+        logLock.lock()
+        defer { logLock.unlock() }
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
         let entry = "\(formatter.string(from: Date())) [\(getpid())] \(line)\n"
@@ -91,10 +99,29 @@ enum FaircopyDaemon {
         // is to catch the signal inside the process and print the stack.
         installFaultHandlers()
 
-        // A worker that cannot warm up is restarted by launchd every five
-        // seconds forever. That is a battery fire on a device the user is
-        // holding, so a flapping worker backs off before it touches Vision.
-        backOffIfFlapping()
+        // 🔴 3.0.103: the gateway the panel actually dials.
+        //
+        // 3.0.102 finally got the picture read, and the panel then said it could
+        // not establish a connection — because it was telling the truth. The
+        // writing panel never talks to the model provider itself: `Configurator`
+        // dials `http://127.0.0.1:5540`, and that listener was only ever started
+        // by `FaircopyRootView.spawnService()` as a `BOOT_MODE=ServiceDaemon`
+        // child of the running app. Once this worker took the app out of the
+        // road, nobody was listening on 5540 at all.
+        //
+        // The credentials are not the problem: `GlobalStorage` keeps them as
+        // plain files under `/var/mobile/Library/Preferences/wiki.qaq.ai.gate/`,
+        // which is exactly why its own comment says "the launch daemon must read
+        // credentials before first unlock after boot". So the gateway can be
+        // served from here, with the same key, the same endpoint and the same
+        // usage accounting as before.
+        //
+        // What is deliberately NOT started is `ServiceDaemon` itself: its loop
+        // exits as soon as `BootMode` is not `.bootBoth`, and it builds a
+        // `GateSessionDelegate` around a UIApplication this process does not
+        // have. The listener alone is all the panel needs.
+        //
+        // Called below, once the jetsam allowance is already lifted.
 
         // 🔴 3.0.102: this is the whole bug.
         //
@@ -118,13 +145,17 @@ enum FaircopyDaemon {
         // zero means "no limit".
         releaseJetsamLimit()
 
-        // Deliberately NOT starting `ServiceDaemon` here. That service is built
-        // around a UIApplication living in the same process (`GateSessionDelegate`,
-        // jetsam control, the network listener), and a crash in it would take the
-        // OCR worker down with it — launchd would restart the pair, crash again,
-        // and the user would get a recognition that never answers. The two have
-        // nothing to do with each other: the app still runs the service its own
-        // way when the user opens it, and the daemon only reads pictures.
+        // A worker that cannot warm up is restarted by launchd every five
+        // seconds forever. That is a battery fire on a device the user is
+        // holding, so a flapping worker backs off before it touches Vision.
+        // 3.0.102 defeats the reason it flaps, so this is the seat belt, not
+        // the brake.
+        backOffIfFlapping()
+
+        // Only now: the gateway allocates buffers and a thread, and none of that
+        // may happen while the low default allowance still applies.
+        startGateway()
+
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             nil,
@@ -246,6 +277,41 @@ enum FaircopyDaemon {
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
+    }
+
+    // MARK: - Gateway
+
+    /// The listener the writing panel dials (3.0.103).
+    ///
+    /// `AIGateService` binds 127.0.0.1:5540 and proxies every panel request to
+    /// the configured endpoint, swapping in the model id and the key and
+    /// accounting the tokens. The app used to own that as a child process; this
+    /// process owns it now, so a picture hand-off never needs the app at all.
+    ///
+    /// Rebinding is retried rather than treated as fatal: while AIGate is open
+    /// its own child already holds the port and a second bind simply fails.
+    /// Five seconds later the port is either still theirs — nothing to do — or
+    /// free again, because the app was closed, and this loop takes over.
+    private static func startGateway() {
+        Thread {
+            var lastNote = "listening"
+            while true {
+                do {
+                    let service = try AIGateService()
+                    lastNote = "listening"
+                    log("daemon: gateway listening on 127.0.0.1:\(aiGateServicePort)")
+                    try service.wait()
+                    log("daemon: gateway channel closed, rebinding")
+                } catch {
+                    let note = error.localizedDescription
+                    if note != lastNote {
+                        lastNote = note
+                        log("daemon: gateway bind failed, the app may own the port: \(note)")
+                    }
+                }
+                sleep(5)
+            }
+        }.start()
     }
 
     // MARK: - Warm up
