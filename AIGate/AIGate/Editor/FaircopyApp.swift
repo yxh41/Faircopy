@@ -598,7 +598,8 @@ enum FaircopyImageOCR {
         try? manager.removeItem(atPath: inputPath)
         try? manager.removeItem(atPath: displayTargetPath)
         try? manager.removeItem(atPath: modePath)
-        appendLog("ocr: handoff files discarded")
+        // 3.0.105: no log line here. It fired once per picture and said nothing
+        // the `result chars=… ms=…` line above had not already said.
     }
 
     /// When the last hand-off finished, whatever road took it (3.0.86).

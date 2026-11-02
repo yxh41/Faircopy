@@ -172,7 +172,6 @@ enum FaircopyDaemon {
         // and a background queue racing a dying process leaves no evidence at
         // all. Run it here and the log says exactly how far it got.
         warmUp()
-        log("daemon: warm up returned, ready=\(ready)")
         // `loop=timer keeper` is the marker the release check looks for: one
         // boot line per process. More than one in the log means launchd is
         // restarting the worker, i.e. it is exiting instead of waiting again.
@@ -192,7 +191,6 @@ enum FaircopyDaemon {
         // worker would spin a core at 100% and, worse, never receive the Darwin
         // notification it exists for.
         keeperTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { _ in }
-        log("daemon: run loop armed with a 15 s timer source")
 
         while true {
             autoreleasepool {
@@ -221,7 +219,6 @@ enum FaircopyDaemon {
         // pointer cannot be formed from anything that captures context — so the
         // body lives at file scope as a plain function.
         NSSetUncaughtExceptionHandler(fc_daemon_exception_handler)
-        log("daemon: fault handlers installed segv/bus/ill/fpe/abrt/trap")
     }
 
     private static let bootPath = FaircopyImageOCR.directory + "/faircopy_daemon_boot.json"
@@ -230,30 +227,20 @@ enum FaircopyDaemon {
     ///
     /// `memorystatus_control` is already declared in `Extension/Jetsam/Jetsam.h`,
     /// which the bridging header pulls in, and `JetsamDisableControl()` in
-    /// `Jetsam.m` is the same call — but it returns void, and knowing whether the
-    /// entitlement was honoured matters here, so the call is made directly and
-    /// its return code is logged. A refusal shows up as a negative number and
-    /// tells us to look elsewhere instead of guessing at the next failure.
+    /// `Jetsam.m` is the same call — but it returns void, so the call is made
+    /// directly and its return code checked.
+    ///
+    /// 3.0.105: silent on success. This used to log `rc=0 rss=17 MB` on every
+    /// boot; the question it answered ("is the allowance really lifted?") was
+    /// settled by one boot of 3.0.102, and the rss figures were only ever there
+    /// to show how much the accurate network asks for. A refusal still has to be
+    /// visible, because it is the only sign the private entitlement went away.
     private static func releaseJetsamLimit() {
         let code = memorystatus_control(
             UInt32(MEMORYSTATUS_CMD_SET_JETSAM_TASK_LIMIT), getpid(), 0, nil, 0)
-        log("daemon: jetsam limit released rc=\(code) rss=\(residentMegabytes()) MB")
-    }
-
-    /// Resident size, in megabytes. Only ever used for the log: the point of the
-    /// two numbers around the accurate pass is to show how much the Chinese
-    /// network actually asks for, which is the figure jetsam was judging.
-    private static func residentMegabytes() -> Int {
-        var info = mach_task_basic_info_data_t()
-        var count = mach_msg_type_number_t(
-            MemoryLayout<mach_task_basic_info_data_t>.stride / MemoryLayout<natural_t>.stride)
-        let result = withUnsafeMutablePointer(to: &info) { pointer -> kern_return_t in
-            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
-                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
-            }
+        if code != 0 {
+            log("daemon: jetsam limit refused rc=\(code)")
         }
-        guard result == KERN_SUCCESS else { return -1 }
-        return Int(info.resident_size) / (1024 * 1024)
     }
 
     /// Turns a five-second restart storm into a fifteen-second one.
@@ -347,46 +334,24 @@ enum FaircopyDaemon {
             return
         }
 
-        // 3.0.101: make this process look like the one place accurate Vision is
-        // known to work — a normal app process. A launchd daemon starts in `/`
-        // with no HOME and no TMPDIR; the app has both. Nothing about the request
-        // below needs a real home directory to compile, so if Vision cares about
-        // it at all (model cache, Espresso scratch space), this is where it shows.
-        let env = ProcessInfo.processInfo.environment
-        log(
-            "daemon: probe uid=\(getuid()) home=\(NSHomeDirectory()) tmp=\(NSTemporaryDirectory()) cwd=\(FileManager.default.currentDirectoryPath)"
-        )
-        log("daemon: probe env HOME=\(env["HOME"] ?? "-") TMPDIR=\(env["TMPDIR"] ?? "-")")
+        // Make this process look like the one place accurate Vision is known to
+        // work — a normal app process. A launchd daemon starts in `/` with no
+        // HOME and no TMPDIR; the app has both, and the model cache / Espresso
+        // scratch space may care. The three lines that used to report the before
+        // and after of this were 3.0.101 forensics: they are gone in 3.0.105,
+        // the normalisation itself stays.
         _ = setenv("HOME", "/var/mobile", 1)
         _ = setenv("TMPDIR", "/tmp", 1)
         _ = chdir("/var/mobile")
-        log(
-            "daemon: probe normalised home=\(NSHomeDirectory()) tmp=\(NSTemporaryDirectory()) cwd=\(FileManager.default.currentDirectoryPath)"
-        )
 
-        // Control pass. `.fast` has no Chinese model at all, so it is worthless
-        // for the product — but it runs the same framework, the same handler and
-        // the same picture. If this survives and the accurate pass does not, the
-        // fault is the accurate network. If even this faults, nothing Vision does
-        // works in this process and the environment is the culprit.
-        log("daemon: probe fast pass on a \(side)x\(side) blank page")
-        let control = VNRecognizeTextRequest()
-        control.recognitionLevel = .fast
-        control.recognitionLanguages = ["en-US"]
-        do {
-            try VNImageRequestHandler(cgImage: page, options: [:]).perform([control])
-            log("daemon: probe fast pass survived")
-        } catch {
-            log("daemon: probe fast pass refused: " + error.localizedDescription)
-        }
-
+        // ONE pass, accurate, zh-Hans. The `.fast` control pass that used to run
+        // first existed only to prove the fault was level-specific rather than
+        // process-wide (3.0.101); 3.0.102 answered that with jetsam, so since
+        // 3.0.105 the boot no longer spends a Vision call on it.
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["zh-Hans"]
         request.usesLanguageCorrection = true
-        log(
-            "daemon: probe accurate pass, langs=zh-Hans correction=on rss=\(residentMegabytes()) MB"
-        )
         do {
             try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
         } catch {
@@ -395,8 +360,6 @@ enum FaircopyDaemon {
                     + error.localizedDescription)
             return
         }
-        log("daemon: probe accurate pass survived, rss=\(residentMegabytes()) MB")
-
         ready = true
         startHeartbeat()
         log(

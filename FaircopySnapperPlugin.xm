@@ -795,8 +795,14 @@ static BOOL FCPerformBool(id object, NSString *selectorName, BOOL *answered)
 /// sits in `faircopy_ocr_target.txt`, and with no target it falls back to
 /// "whoever opened me" — SpringBoard, because the launch comes from here.
 /// SpringBoard's own answer to "who is in front" is private and has moved
-/// between releases, so every plausible spelling is tried and the winner is
-/// logged: one build then says which one this iOS honours.
+/// between releases, so every plausible spelling is tried.
+///
+/// 3.0.105: only the *outcome* is logged now, by `display target %@` in
+/// `FCHandOffImage`. The five `front app via …` lines were 3.0.85 forensics —
+/// they answered "which spelling does 16.4 honour", and the answer was "none of
+/// them": every probe returns nothing here, the arbitration below takes over,
+/// and it does not need the name at all. Keeping the probe identities is what
+/// the comments in this function are for; a log line per action is not.
 static NSString *FCFrontmostBundleIdentifier(void)
 {
     NSString *answer = nil;
@@ -804,7 +810,6 @@ static NSString *FCFrontmostBundleIdentifier(void)
     // 1. +[SBApplication frontmostApplication]
     answer = FCBundleIDOf(FCPerform(NSClassFromString(@"SBApplication"), @"frontmostApplication"));
     if (answer.length > 0) {
-        FCLog(@"front app via SBApplication = %@", answer);
         return answer;
     }
 
@@ -812,7 +817,6 @@ static NSString *FCFrontmostBundleIdentifier(void)
     id controller = FCPerform(NSClassFromString(@"SBApplicationController"), @"sharedInstance");
     answer = FCBundleIDOf(FCPerform(controller, @"frontmostApplication"));
     if (answer.length > 0) {
-        FCLog(@"front app via SBApplicationController = %@", answer);
         return answer;
     }
 
@@ -824,14 +828,12 @@ static NSString *FCFrontmostBundleIdentifier(void)
         workspace = FCPerform(NSClassFromString(@"SBMainWorkspace"), @"mainWorkspace");
     answer = FCBundleIDOf(FCPerform(workspace, @"frontmostApplication"));
     if (answer.length > 0) {
-        FCLog(@"front app via %@ = %@", NSStringFromClass([workspace class]), answer);
         return answer;
     }
 
     // 4. SpringBoard is an application too; some releases answer there.
     answer = FCBundleIDOf(FCPerform(UIApplication.sharedApplication, @"frontmostApplication"));
     if (answer.length > 0) {
-        FCLog(@"front app via UIApplication = %@", answer);
         return answer;
     }
 
@@ -843,7 +845,6 @@ static NSString *FCFrontmostBundleIdentifier(void)
             if (FCPerformBool(candidate, @"isFrontmostApplication", &answered) && answered) {
                 answer = FCBundleIDOf(candidate);
                 if (answer.length > 0) {
-                    FCLog(@"front app via isFrontmostApplication = %@", answer);
                     return answer;
                 }
             }
@@ -974,7 +975,8 @@ static void FCHandOffImage(UIImage *image, NSString *source)
 /// because a caller that skips the menu path still reaches us.
 - (void)processImage:(UIImage *)image
 {
-    FCLog(@"processImage: entry");
+    // 3.0.105: `processImage: entry` dropped — `picture WxH` from FCHandOffImage
+    // already proves this method ran, one line later, and carries more.
     FCHandOffImage(image, @"processImage");
 }
 
