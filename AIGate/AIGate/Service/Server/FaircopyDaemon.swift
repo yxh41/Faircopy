@@ -96,6 +96,28 @@ enum FaircopyDaemon {
         // holding, so a flapping worker backs off before it touches Vision.
         backOffIfFlapping()
 
+        // 🔴 3.0.102: this is the whole bug.
+        //
+        // 3.0.101 proved that `.fast` survives and `.accurate` kills the process
+        // without a single one of the installed signal handlers ever running —
+        // and the fault handler always writes its header line before it walks
+        // the stack, so "no header at all" can only mean the kernel killed the
+        // process outright. SIGKILL is not catchable, and the one thing that
+        // SIGKILLs a launchd job the moment it grows is jetsam.
+        //
+        // A foreground app gets a large allowance, which is why the very same
+        // binary reads Chinese perfectly when the user opens AIGate. A launchd
+        // daemon gets a small one, `.fast`'s little Latin model fits inside it,
+        // and `.accurate`'s Chinese network does not — which is exactly the
+        // boundary the log shows (and why the moment of death wandered between
+        // zero and six seconds: it depends on how far the load got).
+        //
+        // The app already carries `com.apple.private.memorystatus` and
+        // `com.apple.private.kernel.jetsam`; `Jetsam.m` has always had the call
+        // that uses them, it simply was never made on this road. A task limit of
+        // zero means "no limit".
+        releaseJetsamLimit()
+
         // Deliberately NOT starting `ServiceDaemon` here. That service is built
         // around a UIApplication living in the same process (`GateSessionDelegate`,
         // jetsam control, the network listener), and a crash in it would take the
@@ -172,6 +194,36 @@ enum FaircopyDaemon {
     }
 
     private static let bootPath = FaircopyImageOCR.directory + "/faircopy_daemon_boot.json"
+
+    /// Raises this task's jetsam allowance to "none" (3.0.102).
+    ///
+    /// `memorystatus_control` is already declared in `Extension/Jetsam/Jetsam.h`,
+    /// which the bridging header pulls in, and `JetsamDisableControl()` in
+    /// `Jetsam.m` is the same call — but it returns void, and knowing whether the
+    /// entitlement was honoured matters here, so the call is made directly and
+    /// its return code is logged. A refusal shows up as a negative number and
+    /// tells us to look elsewhere instead of guessing at the next failure.
+    private static func releaseJetsamLimit() {
+        let code = memorystatus_control(
+            UInt32(MEMORYSTATUS_CMD_SET_JETSAM_TASK_LIMIT), getpid(), 0, nil, 0)
+        log("daemon: jetsam limit released rc=\(code) rss=\(residentMegabytes()) MB")
+    }
+
+    /// Resident size, in megabytes. Only ever used for the log: the point of the
+    /// two numbers around the accurate pass is to show how much the Chinese
+    /// network actually asks for, which is the figure jetsam was judging.
+    private static func residentMegabytes() -> Int {
+        var info = mach_task_basic_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<mach_task_basic_info_data_t>.stride / MemoryLayout<natural_t>.stride)
+        let result = withUnsafeMutablePointer(to: &info) { pointer -> kern_return_t in
+            pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { rebound in
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), rebound, &count)
+            }
+        }
+        guard result == KERN_SUCCESS else { return -1 }
+        return Int(info.resident_size) / (1024 * 1024)
+    }
 
     /// Turns a five-second restart storm into a fifteen-second one.
     ///
@@ -266,7 +318,9 @@ enum FaircopyDaemon {
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["zh-Hans"]
         request.usesLanguageCorrection = true
-        log("daemon: probe accurate pass, langs=zh-Hans correction=on")
+        log(
+            "daemon: probe accurate pass, langs=zh-Hans correction=on rss=\(residentMegabytes()) MB"
+        )
         do {
             try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
         } catch {
@@ -275,6 +329,7 @@ enum FaircopyDaemon {
                     + error.localizedDescription)
             return
         }
+        log("daemon: probe accurate pass survived, rss=\(residentMegabytes()) MB")
 
         ready = true
         startHeartbeat()
