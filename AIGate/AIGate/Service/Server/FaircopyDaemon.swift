@@ -123,8 +123,10 @@ enum FaircopyDaemon {
         DispatchQueue.global(qos: .utility).async {
             let started = Date()
             let side = 16
-            guard let space = CGColorSpaceCreateDeviceRGB(),
-                  let context = CGContext(data: nil, width: side, height: side,
+            // `CGColorSpaceCreateDeviceRGB()` is not optional in the Swift
+            // overlay, so it cannot sit in a conditional binding.
+            let space = CGColorSpaceCreateDeviceRGB()
+            guard let context = CGContext(data: nil, width: side, height: side,
                                           bitsPerComponent: 8, bytesPerRow: side * 4,
                                           space: space,
                                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
