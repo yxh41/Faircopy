@@ -73,11 +73,87 @@ enum FaircopyDaemon {
             .deliverImmediately
         )
 
-        startHeartbeat()
+        bootStamp = Date().timeIntervalSince1970
+        // No heart beat yet. `warmUp` writes the first one, and only if Vision
+        // really runs in this process.
+        warmUp()
+        // `loop=timer keeper` is the marker the release check looks for: one
+        // boot line per process. More than one in the log means launchd is
+        // restarting the worker, i.e. it is exiting instead of waiting again.
         FaircopyImageOCR.appendLog(
-            "daemon: resident ocr worker booted pid=\(getpid()) uid=\(getuid())")
-        RunLoop.current.run()
+            "daemon: resident ocr worker booted pid=\(getpid()) uid=\(getuid()) loop=timer keeper")
+
+        // 🔴 3.0.98: this has to be a loop that actually waits.
+        //
+        // `RunLoop.current.run()` returns *immediately* when the loop owns no
+        // timer and no source — and the heart beat above is a DispatchSource,
+        // which GCD services off the run loop entirely. So 3.0.97 booted, wrote
+        // one heart beat, fell straight through to `exit(EXIT_SUCCESS)`, and
+        // launchd's KeepAlive started it again five seconds later. The file was
+        // always fresh, the log said the worker was up, and every single
+        // `faircopy.ocr.request` was posted to a process that had already left:
+        // a Darwin notification is not queued for anyone who is not listening.
+        //
+        // A repeating run-loop timer is what gives the loop something to wait
+        // for; the notification port is then serviced on the same loop.
+        let keeper = Timer(timeInterval: 3600, repeats: true) { _ in beat() }
+        RunLoop.current.add(keeper, forMode: .common)
+        CFRunLoopRun()
         exit(EXIT_SUCCESS)
+    }
+
+    // MARK: - Warm up
+
+    /// True once Vision has actually run in this process (3.0.98).
+    ///
+    /// The worker only announces itself after that. The reason SpringBoard could
+    /// never do this job is that the accurate network refused to run there, and
+    /// nothing says a daemon is exempt: if it refuses here too, the heart beat is
+    /// simply never written. Then the app's own silent road keeps handling
+    /// requests exactly as it did before this release, the plugin's fallback goes
+    /// back to 2 s, and the user gets the old behaviour instead of eight seconds
+    /// of nothing followed by the same old launch.
+    ///
+    /// It doubles as the first-request speed fix: loading the Chinese model takes
+    /// seconds, and doing it here means the first real picture does not pay for
+    /// it. The log line says which of the two happened, so nobody has to guess.
+    private static var ready = false
+
+    private static func warmUp() {
+        DispatchQueue.global(qos: .utility).async {
+            let started = Date()
+            let side = 16
+            guard let space = CGColorSpaceCreateDeviceRGB(),
+                  let context = CGContext(data: nil, width: side, height: side,
+                                          bitsPerComponent: 8, bytesPerRow: side * 4,
+                                          space: space,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+                  let page = context.makeImage()
+            else {
+                FaircopyImageOCR.appendLog("daemon: warm up could not draw a blank page")
+                return
+            }
+
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = ["zh-Hans"]
+            request.usesLanguageCorrection = true
+            do {
+                try VNImageRequestHandler(cgImage: page, options: [:]).perform([request])
+            } catch {
+                FaircopyImageOCR.appendLog(
+                    "daemon: vision refused to run here, staying out of the way: "
+                        + error.localizedDescription)
+                return
+            }
+
+            DispatchQueue.main.async {
+                ready = true
+                startHeartbeat()
+                FaircopyImageOCR.appendLog(
+                    "daemon: vision ready in \(Int(Date().timeIntervalSince(started) * 1000)) ms, taking over")
+            }
+        }
     }
 
     // MARK: - Heart beat
@@ -98,10 +174,16 @@ enum FaircopyDaemon {
         heartbeat = timer
     }
 
+    /// When this process started. Written into the heart beat so a restart loop
+    /// is visible from the outside: a live worker keeps one `since`, a worker
+    /// that launchd keeps restarting shows a new one every time.
+    private static var bootStamp: Double = 0
+
     private static func beat() {
         let payload: [String: Any] = [
             "pid": Int(getpid()),
             "at": Date().timeIntervalSince1970,
+            "since": bootStamp,
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
         let url = URL(fileURLWithPath: heartbeatPath)
@@ -128,6 +210,14 @@ enum FaircopyDaemon {
     /// minus every piece of UIKit: there is no `beginBackgroundTask` to take
     /// out because launchd never suspends this process.
     static func handleRequest() {
+        // A worker that never warmed up must not touch the drop box: the heart
+        // beat it never wrote means the app is answering this request, and
+        // recognising it here as well would hand off a second panel.
+        guard ready else {
+            FaircopyImageOCR.appendLog(
+                "daemon: request left to the app, vision is not available here")
+            return
+        }
         guard !busy else {
             FaircopyImageOCR.appendLog("daemon: request ignored (one already running)")
             return

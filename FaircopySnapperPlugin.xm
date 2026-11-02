@@ -695,19 +695,29 @@ static void FCWatchForResult(void)
         FCLog(@"could not watch %@: %u", kFCResultNotification, status);
 }
 
+/// The resident worker's last heart beat, or nil when there is none readable.
+///
+/// 3.0.98: kept as a dictionary rather than a BOOL so the log can name the pid
+/// and the boot time. A worker in a launchd restart loop looks perfectly alive
+/// from the outside — it rewrites this file every time it comes up — and the
+/// only way to tell that apart from a healthy one is that its pid and `since`
+/// keep changing.
+static NSDictionary *FCDaemonHeartbeat(void)
+{
+    NSData *data = [NSData dataWithContentsOfFile:kFCDaemonHeartbeatPath];
+    if (!data)
+        return nil;
+    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+    return [object isKindOfClass:[NSDictionary class]] ? object : nil;
+}
+
 /// True while FaircopyDaemon is alive and answering requests (3.0.97).
 ///
 /// A missing or unparsable file means "no worker", which is the safe answer: the
 /// caller then takes the visible road, which still works.
 static BOOL FCDaemonIsAlive(void)
 {
-    NSData *data = [NSData dataWithContentsOfFile:kFCDaemonHeartbeatPath];
-    if (!data)
-        return NO;
-    id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
-    if (![object isKindOfClass:[NSDictionary class]])
-        return NO;
-    id stamp = ((NSDictionary *)object)[@"at"];
+    id stamp = FCDaemonHeartbeat()[@"at"];
     if (![stamp isKindOfClass:[NSNumber class]])
         return NO;
     return ([[NSDate date] timeIntervalSince1970] - [stamp doubleValue]) < 15.0;
@@ -732,12 +742,16 @@ static void FCArmFallback(void)
             return;
 
         if (FCDaemonIsAlive()) {
-            FCLog(@"no answer in 2s, resident worker is up, waiting for it");
+            NSDictionary *beat = FCDaemonHeartbeat();
+            FCLog(@"no answer in 2s, resident worker is up (pid %@ since %@), waiting for it",
+                  beat[@"pid"] ?: @"?", beat[@"since"] ?: @"?");
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6.0 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{
                 if (fcInvocationSequence != mine)
                     return;
-                FCLog(@"still no answer in 8s, opening %@", kFCFallbackURL);
+                NSDictionary *now = FCDaemonHeartbeat();
+                FCLog(@"still no answer in 8s, opening %@ (worker pid %@ since %@)",
+                      kFCFallbackURL, now[@"pid"] ?: @"gone", now[@"since"] ?: @"-");
                 FCOpenURL([NSURL URLWithString:kFCFallbackURL]);
             });
             return;
