@@ -162,7 +162,7 @@ enum FaircopyDaemon {
     /// stack into our own log is the only way to see the crash site.
     private static func installFaultHandlers() {
         for sig in [SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT, SIGTRAP] {
-            _ = signal(sig, fc_daemon_fault)
+            _ = signal(sig, fc_daemon_fault_handler)
         }
         NSSetUncaughtExceptionHandler { exception in
             log("daemon: uncaught exception \(exception.name.rawValue) reason=\(exception.reason ?? "-")")
@@ -432,7 +432,7 @@ private func fc_daemon_fault(_ sig: Int32) {
     if fd >= 0 {
         var line = [CChar](repeating: 0, count: 512)
         snprintf(&line, 512, "\ndaemon: FAULT signal=%d pid=%d\n", sig, getpid())
-        _ = write(fd, line, strlen(line))
+        _ = write(fd, line, Int(strlen(line)))
 
         var frames = [UnsafeMutableRawPointer?](repeating: nil, count: 32)
         let count = fc_backtrace(&frames, 32)
@@ -448,7 +448,7 @@ private func fc_daemon_fault(_ sig: Int32) {
                     } else {
                         snprintf(&line, 512, "  #%ld %p\n", index, address)
                     }
-                    _ = write(fd, line, strlen(line))
+                    _ = write(fd, line, Int(strlen(line)))
                 }
             }
             index += 1
@@ -456,7 +456,7 @@ private func fc_daemon_fault(_ sig: Int32) {
         // Names only say so much; the raw image base lets the address be turned
         // into a symbol later if the crashing frame had none.
         snprintf(&line, 512, "daemon: FAULT end, %d frames\n", count)
-        _ = write(fd, line, strlen(line))
+        _ = write(fd, line, Int(strlen(line)))
         close(fd)
     }
     // Let the default action happen so the system still records the crash: this
@@ -464,3 +464,8 @@ private func fc_daemon_fault(_ sig: Int32) {
     _ = signal(sig, SIG_DFL)
     _ = raise(sig)
 }
+
+/// Typed up front: `signal(3)` wants a `@convention(c)` pointer, and naming the
+/// conversion explicitly is what makes it a compile-time constant rather than a
+/// closure that might be allowed to capture.
+private let fc_daemon_fault_handler: @convention(c) (Int32) -> Void = fc_daemon_fault
