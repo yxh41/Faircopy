@@ -47,6 +47,11 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     private var dragFromHeight: CGFloat = 0
     private var dragToHeight: CGFloat = 0
 
+    /// 3.0.113: the tier the card was resting at when the finger went down. The
+    /// settle rule is relative to it, so a drag that ends 40% of the way to the
+    /// next tier commits instead of snapping back to where it started.
+    private var dragStartTier = 1
+
     /// 3.0.112: the frame probe. Nothing is drawn from these numbers — they are
     /// written to `faircopy_panel.log` once per drag so "is a per-frame resize
     /// affordable on this device" is answered by a measurement instead of a
@@ -156,6 +161,10 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// frame, so 20ms already means one dropped frame.
     private static let dragSlowFrame: TimeInterval = 0.020
 
+    /// 3.0.113: see `moveHeightDrag` — a centred card has to grow by twice the
+    /// travel for its top edge, the one the handle sits on, to track the finger.
+    private static let centeredGrowthFactor: CGFloat = 2
+
     func beginHeightDrag() {
         guard !dragIsActive else { return }
         dragIsActive = true
@@ -164,6 +173,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             : view.bounds.height
         dragFromHeight = dragAnchor
         dragToHeight = dragAnchor
+        dragStartTier = geometricHeightTier()
         dragFrames = 0
         dragIntervalSum = 0
         dragIntervalMax = 0
@@ -196,24 +206,44 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         if interval > Self.dragSlowFrame { dragSlowFrames += 1 }
     }
 
-    /// One call per touch frame. `growth` is how far the card should be from
-    /// where it started, in points, positive = taller.
+    /// One call per touch frame. `growth` is how far the finger has travelled,
+    /// in points, positive = dragged up.
+    ///
+    /// The card is vertically centred (`frameOfPresentedViewInContainerView`
+    /// puts it at `(container - height) / 2`), so growing it by N moves its top
+    /// edge up by only N/2 — the handle would drift away from the finger at half
+    /// speed and read as "not following". Doubling the travel makes the top edge
+    /// land exactly under the finger while the card stays centred.
     func moveHeightDrag(growth: CGFloat) {
         guard dragIsActive else { return }
         let container = presentationController?.containerView ?? view.window
         let available = floor((container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40)
         let lowest = min(baseHeight > 1 ? baseHeight : dragAnchor, available)
-        let target = min(max(dragAnchor + growth, lowest), max(lowest, available))
+        let wanted = dragAnchor + growth * Self.centeredGrowthFactor
+        let target = min(max(wanted, lowest), max(lowest, available))
         dragToHeight = target
         guard abs(target - preferredContentSize.height) > 0.5 else { return }
 
         preferredContentSize = CGSize(width: preferredContentSize.width, height: target)
         // No `UIView.animate` here on purpose: the finger is the animation, and
-        // a 0.28s animation restarted every frame would fight the gesture. The
-        // layout is timed so the log can say whether the cost is ours.
+        // a 0.28s animation restarted every frame would fight the gesture.
+        //
+        // 3.0.113: the card is placed directly instead of asking for a layout
+        // pass. `preferredContentSize` does not mark the container dirty, so
+        // `containerView.layoutIfNeeded()` returned without doing anything and
+        // the card never moved — the release-time snap was the only visible
+        // change. The layout is timed so the log can say whether the cost is
+        // ours.
         let started = CACurrentMediaTime()
-        presentationController?.containerView?.layoutIfNeeded()
-        view.superview?.layoutIfNeeded()
+        if let spring = presentationController as? FaircopySpringPresentationController {
+            spring.applyCardFrameNow()
+        } else {
+            // The popover path owns its own layout; it only needs to be told.
+            presentationController?.containerView?.setNeedsLayout()
+            presentationController?.containerView?.layoutIfNeeded()
+            view.superview?.setNeedsLayout()
+            view.superview?.layoutIfNeeded()
+        }
         let spent = CACurrentMediaTime() - started
         dragLayoutCount += 1
         dragLayoutSum += spent
@@ -228,11 +258,15 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
         let frames = max(dragFrames, 1)
         let layoutCount = max(dragLayoutCount, 1)
+        let card = (presentationController as? FaircopySpringPresentationController)?
+            .laidOutCardHeight ?? view.bounds.height
         // ASCII only: the verify script proves these exact bytes are in the
         // dylib, and a non-ASCII character would land in `__ustring` instead.
+        // `card` is the field that matters: if it never left `from`, the card
+        // did not follow the finger no matter what the frame numbers say.
         fcPanelLog(String(
             format: "drag perf frames=%d avg_frame=%.1fms max_frame=%.1fms "
-                + "slow=%d layout_avg=%.1fms layout_max=%.1fms from=%d to=%d",
+                + "slow=%d layout_avg=%.1fms layout_max=%.1fms from=%d to=%d card=%d",
             dragFrames,
             dragIntervalSum / Double(frames) * 1000,
             dragIntervalMax * 1000,
@@ -240,36 +274,43 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             dragLayoutSum / Double(layoutCount) * 1000,
             dragLayoutMax * 1000,
             Int(dragFromHeight),
-            Int(dragToHeight)
+            Int(dragToHeight),
+            Int(card)
         ))
 
-        let tier = nearestHeightTier()
-        fcPanelLog("drag settle tier=\(tier) at=\(Int(preferredContentSize.height))")
+        let tier = settlingHeightTier()
+        fcPanelLog("drag settle tier=\(tier) at=\(Int(preferredContentSize.height)) start=\(dragStartTier)")
         // The card snaps to a tier, exactly as the flick version did, so the
         // three sizes stay the defined states. `applyHeightTier` animates it.
         context.commitHeightTier(tier)
         applyHeightTier(tier)
     }
 
-    /// The tier whose height is closest to where the finger left the card.
+    /// Which tier a drag that ended at the current height settles on.
     ///
-    /// Nearest rather than "one step per 12pt of travel": with continuous
-    /// movement the card is already at an arbitrary height, so the honest
-    /// question is "which of the three sizes is this closest to".
-    private func nearestHeightTier() -> Int {
+    /// 3.0.113: hysteresis around the tier the drag started from, 40% of the gap
+    /// in either direction. "Nearest tier" was the wrong rule: dragging from 368
+    /// to 466 covers a quarter of the way to 570, so geometric distance kept
+    /// calling it 1 and the card snapped all the way back — the drag looked
+    /// like it had done nothing. Starting from the tier the user was on, 40% up
+    /// means "halfway there, commit", and 40% down means "you have clearly
+    /// shrunk it, go back a step".
+    private func settlingHeightTier() -> Int {
         let base = baseHeight > 1 ? baseHeight : max(1, preferredContentSize.height)
-        let ratio = preferredContentSize.height / base
         let factors: [CGFloat] = [1, 1, 1.55, 2.05]
-        var best = 1
-        var bestDiff = CGFloat.greatestFiniteMagnitude
-        for index in 1 ..< factors.count {
-            let diff = abs(ratio - factors[index])
-            if diff < bestDiff {
-                bestDiff = diff
-                best = index
-            }
+        let height = preferredContentSize.height
+        var tier = min(max(dragStartTier, 1), factors.count - 1)
+        while tier < factors.count - 1,
+              height >= base * (factors[tier] + (factors[tier + 1] - factors[tier]) * 0.4)
+        {
+            tier += 1
         }
-        return best
+        while tier > 1,
+              height < base * (factors[tier] - (factors[tier] - factors[tier - 1]) * 0.4)
+        {
+            tier -= 1
+        }
+        return tier
     }
 
     /// 3.0.110: back to the size the current content actually needs.
@@ -343,6 +384,24 @@ class WritingToolController: UIHostingController<WritingToolsView> {
                 self.probeNaturalHeight(generation: generation)
             }
         }
+    }
+
+    /// The tier whose height is closest to what the card is at right now. Only
+    /// used to record where a drag started, never to decide where it ends.
+    private func geometricHeightTier() -> Int {
+        let base = baseHeight > 1 ? baseHeight : max(1, preferredContentSize.height)
+        let ratio = preferredContentSize.height / base
+        let factors: [CGFloat] = [1, 1, 1.55, 2.05]
+        var best = 1
+        var bestDiff = CGFloat.greatestFiniteMagnitude
+        for index in 1 ..< factors.count {
+            let diff = abs(ratio - factors[index])
+            if diff < bestDiff {
+                bestDiff = diff
+                best = index
+            }
+        }
+        return best
     }
 
     private func applyNaturalHeight(_ natural: CGFloat, settled: Bool) {

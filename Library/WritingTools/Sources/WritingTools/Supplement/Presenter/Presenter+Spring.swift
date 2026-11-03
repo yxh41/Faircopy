@@ -152,6 +152,17 @@ final class FaircopySpringPresentationController: UIPresentationController {
 
     override func containerViewWillLayoutSubviews() {
         super.containerViewWillLayoutSubviews()
+        applyCardFrameNow()
+    }
+
+    /// 3.0.112: put the card at the height it has been asked for, right now.
+    ///
+    /// Pulled out of the layout pass because a continuous drag cannot wait for
+    /// one: `preferredContentSize` is a plain property, its setter does not mark
+    /// the container dirty, and `layoutIfNeeded` on a clean view does nothing —
+    /// which is exactly why the first drag version moved nothing at all while
+    /// the log cheerfully reported a layout that took 0.0ms.
+    func applyCardFrameNow() {
         guard let card = animatedCard, containerView != nil else { return }
         let target = frameOfPresentedViewInContainerView
         if card.transform.isIdentity {
@@ -162,13 +173,20 @@ final class FaircopySpringPresentationController: UIPresentationController {
             card.bounds = CGRect(origin: .zero, size: target.size)
             card.center = CGPoint(x: target.midX, y: target.midY)
         }
+        // The card's subviews follow by autoresizing, which is applied during a
+        // layout pass — the same pass a drag cannot wait for. Set them directly
+        // so the content is at the new size in this frame, not the next one.
+        clipView.frame = card.bounds
+        if let presented = presentedViewController.view, presented.superview === clipView {
+            presented.frame = clipView.bounds
+        }
         // 3.0.109: the shadow path was drawn once in
         // presentationTransitionWillBegin and never touched again. An explicit
         // path does not follow `bounds`, so once 3.0.108 let the card change
         // height at runtime the shadow kept the height the panel arrived at —
         // the part below it was left unshadowed and the corner radius no longer
         // lined up. Redrawn only when the size actually changed, since this runs
-        // on every container layout.
+        // on every container layout and on every touch frame of a drag.
         if card.layer.shadowPath == nil || card.layer.shadowPath?.boundingBox.size != card.bounds.size {
             card.layer.shadowPath = UIBezierPath(
                 roundedRect: card.bounds,
