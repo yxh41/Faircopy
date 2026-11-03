@@ -89,7 +89,19 @@ final class FaircopySpringPresentationController: UIPresentationController {
         didSet {
             guard shadowSuppressed != oldValue, animatedCard != nil else { return }
             cardView.layer.shadowOpacity = shadowSuppressed ? 0 : Self.shadowOpacity
+            // 3.0.116: the path is stale by exactly the drag's travel, and the
+            // snap that follows is not guaranteed to lay out — `applyHeightTier`
+            // returns early when the drag already ended at the tier's own height,
+            // which is the common case. Redrawing here means the shadow is right
+            // the moment it becomes visible, whatever the layout pass does next.
+            if !shadowSuppressed { redrawShadowPath() }
         }
+    }
+
+    /// 3.0.116: the height the shadow path currently describes. Logged after a
+    /// drag so "the shadow kept the old size" is a reading, not a guess.
+    var laidOutShadowHeight: CGFloat {
+        animatedCard?.layer.shadowPath?.boundingBox.height ?? -1
     }
 
     override var frameOfPresentedViewInContainerView: CGRect {
@@ -211,11 +223,18 @@ final class FaircopySpringPresentationController: UIPresentationController {
            (card.layer.shadowPath == nil
                || card.layer.shadowPath?.boundingBox.size != card.bounds.size)
         {
-            card.layer.shadowPath = UIBezierPath(
-                roundedRect: card.bounds,
-                cornerRadius: Self.cornerRadius
-            ).cgPath
+            redrawShadowPath()
         }
+    }
+
+    /// 3.0.116: the single place a shadow path is built, so the three callers
+    /// (layout, the end of a drag, and the first presentation) cannot drift.
+    private func redrawShadowPath() {
+        guard let card = animatedCard else { return }
+        card.layer.shadowPath = UIBezierPath(
+            roundedRect: card.bounds,
+            cornerRadius: Self.cornerRadius
+        ).cgPath
     }
 
     /// 3.0.109: the height the card is actually laid out at.

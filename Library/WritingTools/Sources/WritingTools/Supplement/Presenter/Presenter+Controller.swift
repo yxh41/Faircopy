@@ -361,11 +361,14 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         fcPanelLog(String(
             format: "drag settle tier=%d at=%d start=%d dir=%@",
             tier, Int(preferredContentSize.height), dragStartTier, direction))
-        // Restored before the snap so the layout pass it triggers redraws the
-        // path at the tier's size instead of leaving the drag's corner radius
-        // behind.
-        (presentationController as? FaircopySpringPresentationController)?
-            .shadowSuppressed = false
+        // Restored before the snap so the shadow is correct at the size the card
+        // is actually at — and redraws its own path, because the snap below is
+        // skipped whenever the drag already ended on the tier's height.
+        let spring = presentationController as? FaircopySpringPresentationController
+        spring?.shadowSuppressed = false
+        fcPanelLog(String(
+            format: "drag shadow restored path=%d card=%d",
+            Int(spring?.laidOutShadowHeight ?? -1), Int(card)))
         // The card snaps to a tier, exactly as the flick version did, so the
         // three sizes stay the defined states. `applyHeightTier` animates it.
         context.commitHeightTier(tier)
