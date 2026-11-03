@@ -40,6 +40,12 @@ INSTALL_LOG="$LOGDIR/faircopy_install.log"
 mkdir -p "$LOGDIR" 2>/dev/null
 chown mobile:mobile "$LOGDIR" 2>/dev/null
 
+# 3.0.117: the card-height log is silent from now on (a `faircopy_debug` marker
+# file next to it switches it back on), so the copy left behind by the releases
+# that were still tuning the drag is removed instead of sitting there looking
+# live. It is the plugin's own diagnostic file, nothing else reads it.
+rm -f "$LOGDIR/faircopy_panel.log"
+
 # launchd is a system process and is not redirected by roothide's libroot, so the
 # system copy is the right one to talk to — and calling it by path means the job
 # does not depend on whatever PATH dpkg happens to hand this script.

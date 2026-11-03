@@ -641,13 +641,25 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 /// UIKit take the number" is answerable from a file listing instead of a
 /// debugger — which matters because the popover and the Q-bounce card read
 /// `preferredContentSize` through different paths.
+///
+/// 3.0.117: silent unless asked for. The height work is finished, so the file
+/// had become an unbounded write on every gesture for nobody's benefit. It is
+/// not deleted, because a card that misbehaves on one device still needs to be
+/// readable there: dropping a `faircopy_debug` file next to it switches the
+/// lines back on, and a normal install writes nothing at all.
 private let fcPanelStamp: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm:ss.SSS"
     return formatter
 }()
 
+/// Checked once per process: a marker file lookup on every touch frame would
+/// put a syscall back into the path this release is clearing.
+private let fcPanelDebugEnabled: Bool = FileManager.default.fileExists(
+    atPath: "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_debug")
+
 private func fcPanelLog(_ line: String) {
+    guard fcPanelDebugEnabled else { return }
     let path = "/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel.log"
     let text = fcPanelStamp.string(from: Date()) + " " + line + "\n"
     guard let data = text.data(using: .utf8) else { return }
