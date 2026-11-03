@@ -72,11 +72,6 @@ struct WritingToolsView: View {
     /// the presenter measured, so a panel nobody touches looks exactly as before.
     @State var heightTier: Int = 1
 
-    /// 3.0.112: true between the first and the last touch frame of one drag, so
-    /// the controller is asked to start and stop the frame probe exactly once
-    /// per gesture instead of once per movement event.
-    @State var isDraggingHeight: Bool = false
-
     @State var headerDescription: String = ""
     @State var isHeaderDescriptionAnimated: Bool = true
 
@@ -354,11 +349,13 @@ extension WritingToolsView {
 
     /// The card's own height handle.
     ///
-    /// 3.0.112: follows the finger. The height still belongs to UIKit
-    /// (`preferredContentSize`), so each touch frame submits it and lays out
-    /// once — with no animation on the card, because an animation restarted
-    /// every frame is the actual stutter. Releasing snaps to the nearest of the
-    /// three tiers, which stay the only resting states.
+    /// The height belongs to UIKit (`preferredContentSize`), so following the
+    /// finger means one resize per frame — which 3.0.113 did from inside
+    /// `onChanged`, the SwiftUI update that is running the gesture, and that
+    /// locked the main thread. 3.0.114 keeps the gesture callback to two plain
+    /// assignments and lets the controller apply the height on its own display
+    /// link beat; releasing snaps to the nearest of the three tiers, which stay
+    /// the only resting states.
     ///
     /// 2pt of travel starts the gesture: the capsule sits in its own strip above
     /// the title, but a zero-distance drag would also swallow a plain tap.
@@ -374,15 +371,12 @@ extension WritingToolsView {
                     .onChanged { value in
                         // Up is negative in SwiftUI's translation; the card grows
                         // upward while staying centred, so negative = taller.
-                        if !isDraggingHeight {
-                            isDraggingHeight = true
-                            context.beginHeightDrag()
-                        }
+                        // Nothing is resized here — the controller only records
+                        // the travel and applies it on its own display-link beat.
+                        context.beginHeightDrag()
                         context.moveHeightDrag(growth: -value.translation.height)
                     }
                     .onEnded { _ in
-                        guard isDraggingHeight else { return }
-                        isDraggingHeight = false
                         context.endHeightDrag()
                     }
             )

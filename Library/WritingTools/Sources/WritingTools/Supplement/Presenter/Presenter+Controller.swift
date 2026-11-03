@@ -59,6 +59,38 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// separates "UIKit cannot keep up" from "everything else in the frame".
     private var dragLink: CADisplayLink?
     private var dragFrames = 0
+
+    /// 3.0.114: the finger's travel, parked until the next display-link beat.
+    ///
+    /// 3.0.113 resized the card inside `DragGesture.onChanged`, i.e. inside the
+    /// SwiftUI update that is running the gesture. Setting the hosting view's
+    /// frame there forces SwiftUI to lay out again from under itself; the main
+    /// thread never came back, so `onEnded` never ran and the log showed two
+    /// `drag begin` lines with no `drag perf` at all. The callback now records
+    /// two fields and returns, and the resize happens on the display link's own
+    /// beat, outside any SwiftUI transaction.
+    private var pendingDragGrowth: CGFloat = 0
+    private var hasPendingDragGrowth = false
+
+    /// 3.0.114: how long one resize may take before following is abandoned.
+    ///
+    /// A per-frame SwiftUI relayout is the expensive part of this feature and
+    /// the cost depends on what is on screen, so the feature throttles itself
+    /// rather than trusting the estimate: the first frame over this budget
+    /// stops the following for the rest of the drag, and the panel falls back
+    /// to "tap and it snaps" — which is slower than the flick version but never
+    /// jams the UI.
+    private static let dragFollowBudget: TimeInterval = 0.040
+    private var dragFollowDisabled = false
+
+    /// 3.0.114: at most one resize per 30Hz.
+    ///
+    /// 60Hz commits double the layout work for a difference nobody can see on a
+    /// large flat card, and they leave no headroom for the relayout that SwiftUI
+    /// has to do behind it.
+    private static let dragApplyInterval: CFTimeInterval = 1.0 / 30.0
+    private var lastDragApplyStamp: CFTimeInterval = 0
+
     private var dragIntervalSum: TimeInterval = 0
     private var dragIntervalMax: TimeInterval = 0
     private var dragSlowFrames = 0
@@ -182,6 +214,10 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         dragLayoutCount = 0
         dragLayoutSum = 0
         dragLayoutMax = 0
+        pendingDragGrowth = 0
+        hasPendingDragGrowth = false
+        dragFollowDisabled = false
+        lastDragApplyStamp = 0
         let link = CADisplayLink(target: self, selector: #selector(handleDragFrame(_:)))
         link.add(to: .main, forMode: .common)
         dragLink = link
@@ -192,50 +228,74 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     /// Every callback that arrives late widens the gap to the previous one, and
     /// that gap is exactly the dropped-frame count in disguise.
+    ///
+    /// 3.0.114: this is also where the card is resized. The gesture callback only
+    /// parks the travel; the resize runs here, on the display link's beat, so it
+    /// is never nested inside a SwiftUI update.
     @objc private func handleDragFrame(_ link: CADisplayLink) {
-        defer { dragLastStamp = link.timestamp }
-        guard dragLastStamp > 0 else { return }
-        let interval = link.timestamp - dragLastStamp
-        // A gesture that pauses (finger held still, no new layout) reports one
-        // enormous gap when it resumes; the display link is not the thing that
-        // stalled there, so ignore anything longer than a second.
-        guard interval > 0, interval < 1 else { return }
-        dragFrames += 1
-        dragIntervalSum += interval
-        dragIntervalMax = max(dragIntervalMax, interval)
-        if interval > Self.dragSlowFrame { dragSlowFrames += 1 }
+        let previous = dragLastStamp
+        dragLastStamp = link.timestamp
+        if previous > 0 {
+            let interval = link.timestamp - previous
+            // A gesture that pauses (finger held still, no new layout) reports
+            // one enormous gap when it resumes; the display link is not the
+            // thing that stalled there, so ignore anything longer than a second.
+            if interval > 0, interval < 1 {
+                dragFrames += 1
+                dragIntervalSum += interval
+                dragIntervalMax = max(dragIntervalMax, interval)
+                if interval > Self.dragSlowFrame { dragSlowFrames += 1 }
+            }
+        }
+        if hasPendingDragGrowth,
+           link.timestamp - lastDragApplyStamp >= Self.dragApplyInterval
+        {
+            hasPendingDragGrowth = false
+            lastDragApplyStamp = link.timestamp
+            applyDragGrowth(pendingDragGrowth)
+        }
     }
 
     /// One call per touch frame. `growth` is how far the finger has travelled,
     /// in points, positive = dragged up.
+    ///
+    /// 3.0.114: records, does not resize. See `pendingDragGrowth`.
+    func moveHeightDrag(growth: CGFloat) {
+        guard dragIsActive else { return }
+        pendingDragGrowth = growth
+        hasPendingDragGrowth = true
+    }
+
+    /// The resize itself, one per display-link beat at most.
     ///
     /// The card is vertically centred (`frameOfPresentedViewInContainerView`
     /// puts it at `(container - height) / 2`), so growing it by N moves its top
     /// edge up by only N/2 — the handle would drift away from the finger at half
     /// speed and read as "not following". Doubling the travel makes the top edge
     /// land exactly under the finger while the card stays centred.
-    func moveHeightDrag(growth: CGFloat) {
-        guard dragIsActive else { return }
+    private func applyDragGrowth(_ growth: CGFloat) {
+        guard dragIsActive, !dragFollowDisabled else { return }
         let container = presentationController?.containerView ?? view.window
         let available = floor((container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40)
         let lowest = min(baseHeight > 1 ? baseHeight : dragAnchor, available)
         let wanted = dragAnchor + growth * Self.centeredGrowthFactor
         let target = min(max(wanted, lowest), max(lowest, available))
         dragToHeight = target
-        guard abs(target - preferredContentSize.height) > 0.5 else { return }
+        // 1.5pt rather than 0.5: a sub-2pt step is invisible and would only buy
+        // another full SwiftUI relayout.
+        guard abs(target - preferredContentSize.height) > 1.5 else { return }
 
-        preferredContentSize = CGSize(width: preferredContentSize.width, height: target)
-        // No `UIView.animate` here on purpose: the finger is the animation, and
-        // a 0.28s animation restarted every frame would fight the gesture.
-        //
-        // 3.0.113: the card is placed directly instead of asking for a layout
-        // pass. `preferredContentSize` does not mark the container dirty, so
-        // `containerView.layoutIfNeeded()` returned without doing anything and
-        // the card never moved — the release-time snap was the only visible
-        // change. The layout is timed so the log can say whether the cost is
-        // ours.
         let started = CACurrentMediaTime()
+        // Implicit animations would fight the finger: each frame would arrive
+        // as the start of a new 0.25s curve.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        preferredContentSize = CGSize(width: preferredContentSize.width, height: target)
         if let spring = presentationController as? FaircopySpringPresentationController {
+            // 3.0.113: the card is placed directly instead of asking for a
+            // layout pass. `preferredContentSize` does not mark the container
+            // dirty, so `containerView.layoutIfNeeded()` returned without doing
+            // anything and the card never moved.
             spring.applyCardFrameNow()
         } else {
             // The popover path owns its own layout; it only needs to be told.
@@ -244,10 +304,18 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             view.superview?.setNeedsLayout()
             view.superview?.layoutIfNeeded()
         }
+        CATransaction.commit()
         let spent = CACurrentMediaTime() - started
         dragLayoutCount += 1
         dragLayoutSum += spent
         dragLayoutMax = max(dragLayoutMax, spent)
+        if spent > Self.dragFollowBudget {
+            dragFollowDisabled = true
+            hasPendingDragGrowth = false
+            fcPanelLog(String(
+                format: "drag follow off: one frame cost %.1fms at=%d budget=%.0fms",
+                spent * 1000, Int(target), Self.dragFollowBudget * 1000))
+        }
     }
 
     func endHeightDrag() {
@@ -266,7 +334,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         // did not follow the finger no matter what the frame numbers say.
         fcPanelLog(String(
             format: "drag perf frames=%d avg_frame=%.1fms max_frame=%.1fms "
-                + "slow=%d layout_avg=%.1fms layout_max=%.1fms from=%d to=%d card=%d",
+                + "slow=%d layout_avg=%.1fms layout_max=%.1fms from=%d to=%d card=%d follow=%d",
             dragFrames,
             dragIntervalSum / Double(frames) * 1000,
             dragIntervalMax * 1000,
@@ -275,7 +343,8 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             dragLayoutMax * 1000,
             Int(dragFromHeight),
             Int(dragToHeight),
-            Int(card)
+            Int(card),
+            dragFollowDisabled ? 0 : 1
         ))
 
         let tier = settlingHeightTier()
