@@ -76,12 +76,45 @@ extension Presenter {
         /// would squeeze it. Only a fresh measurement is correct.
         var naturalHeightHandler: (() -> Void)?
 
+        /// 3.0.112: the handle now follows the finger, and the card's height is
+        /// submitted once per touch frame.
+        ///
+        /// Three separate closures rather than one "drag" callback because the
+        /// controller needs to bracket the gesture: the begin/end pair starts and
+        /// stops its frame probe, and only that bracket makes the numbers mean
+        /// anything ("how expensive is a per-frame resize" is unanswerable
+        /// without knowing exactly which frames belonged to the drag).
+        var heightDragBegan: (() -> Void)?
+        var heightDragMoved: ((CGFloat) -> Void)?
+        var heightDragEnded: (() -> Void)?
+
+        /// 3.0.112: the tier the controller settled on after a drag, reported
+        /// back so the handle can render its lifted state. The view owns the
+        /// tier it displays, the controller owns the height it snaps to.
+        var heightTierCommitted: ((Int) -> Void)?
+
         func applyHeightTier(_ tier: Int) {
             heightTierHandler?(tier)
         }
 
         func requestNaturalHeight() {
             naturalHeightHandler?()
+        }
+
+        func beginHeightDrag() {
+            heightDragBegan?()
+        }
+
+        func moveHeightDrag(growth: CGFloat) {
+            heightDragMoved?(growth)
+        }
+
+        func endHeightDrag() {
+            heightDragEnded?()
+        }
+
+        func commitHeightTier(_ tier: Int) {
+            heightTierCommitted?(tier)
         }
 
         init(

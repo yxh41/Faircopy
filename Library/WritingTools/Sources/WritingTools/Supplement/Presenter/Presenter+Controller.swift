@@ -36,6 +36,32 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     private var naturalProbeAttempt = 0
     private var naturalProbeSamples: [CGFloat] = []
 
+    /// 3.0.112: one live drag.
+    ///
+    /// `dragAnchor` is the height the card had when the finger went down; growth
+    /// is measured from there rather than accumulated per frame, so a drag that
+    /// reverses direction returns to exactly the height it started at instead of
+    /// drifting by the rounding error of every step.
+    private var dragAnchor: CGFloat = 0
+    private var dragIsActive = false
+    private var dragFromHeight: CGFloat = 0
+    private var dragToHeight: CGFloat = 0
+
+    /// 3.0.112: the frame probe. Nothing is drawn from these numbers — they are
+    /// written to `faircopy_panel.log` once per drag so "is a per-frame resize
+    /// affordable on this device" is answered by a measurement instead of a
+    /// guess. `dragLayoutSum` times only our own layout pass, which is what
+    /// separates "UIKit cannot keep up" from "everything else in the frame".
+    private var dragLink: CADisplayLink?
+    private var dragFrames = 0
+    private var dragIntervalSum: TimeInterval = 0
+    private var dragIntervalMax: TimeInterval = 0
+    private var dragSlowFrames = 0
+    private var dragLastStamp: CFTimeInterval = 0
+    private var dragLayoutCount = 0
+    private var dragLayoutSum: TimeInterval = 0
+    private var dragLayoutMax: TimeInterval = 0
+
     init(context: Presenter.Context) {
         self.context = context
         super.init(rootView: .init(context: context))
@@ -46,6 +72,15 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         }
         context.naturalHeightHandler = { [weak self] in
             self?.resetHeightToNatural()
+        }
+        context.heightDragBegan = { [weak self] in
+            self?.beginHeightDrag()
+        }
+        context.heightDragMoved = { [weak self] growth in
+            self?.moveHeightDrag(growth: growth)
+        }
+        context.heightDragEnded = { [weak self] in
+            self?.endHeightDrag()
         }
     }
 
@@ -115,6 +150,128 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         if baseHeight <= 0 { baseHeight = view.bounds.height }
     }
 
+    // MARK: - 3.0.112: continuous drag
+
+    /// Frames up to this long are considered on time. 60Hz gives 16.7ms per
+    /// frame, so 20ms already means one dropped frame.
+    private static let dragSlowFrame: TimeInterval = 0.020
+
+    func beginHeightDrag() {
+        guard !dragIsActive else { return }
+        dragIsActive = true
+        dragAnchor = preferredContentSize.height > 1
+            ? preferredContentSize.height
+            : view.bounds.height
+        dragFromHeight = dragAnchor
+        dragToHeight = dragAnchor
+        dragFrames = 0
+        dragIntervalSum = 0
+        dragIntervalMax = 0
+        dragSlowFrames = 0
+        dragLastStamp = 0
+        dragLayoutCount = 0
+        dragLayoutSum = 0
+        dragLayoutMax = 0
+        let link = CADisplayLink(target: self, selector: #selector(handleDragFrame(_:)))
+        link.add(to: .main, forMode: .common)
+        dragLink = link
+        fcPanelLog(
+            "drag begin anchor=\(Int(dragAnchor)) base=\(Int(baseHeight)) "
+                + "style=\(modalPresentationStyle.rawValue)")
+    }
+
+    /// Every callback that arrives late widens the gap to the previous one, and
+    /// that gap is exactly the dropped-frame count in disguise.
+    @objc private func handleDragFrame(_ link: CADisplayLink) {
+        defer { dragLastStamp = link.timestamp }
+        guard dragLastStamp > 0 else { return }
+        let interval = link.timestamp - dragLastStamp
+        // A gesture that pauses (finger held still, no new layout) reports one
+        // enormous gap when it resumes; the display link is not the thing that
+        // stalled there, so ignore anything longer than a second.
+        guard interval > 0, interval < 1 else { return }
+        dragFrames += 1
+        dragIntervalSum += interval
+        dragIntervalMax = max(dragIntervalMax, interval)
+        if interval > Self.dragSlowFrame { dragSlowFrames += 1 }
+    }
+
+    /// One call per touch frame. `growth` is how far the card should be from
+    /// where it started, in points, positive = taller.
+    func moveHeightDrag(growth: CGFloat) {
+        guard dragIsActive else { return }
+        let container = presentationController?.containerView ?? view.window
+        let available = floor((container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40)
+        let lowest = min(baseHeight > 1 ? baseHeight : dragAnchor, available)
+        let target = min(max(dragAnchor + growth, lowest), max(lowest, available))
+        dragToHeight = target
+        guard abs(target - preferredContentSize.height) > 0.5 else { return }
+
+        preferredContentSize = CGSize(width: preferredContentSize.width, height: target)
+        // No `UIView.animate` here on purpose: the finger is the animation, and
+        // a 0.28s animation restarted every frame would fight the gesture. The
+        // layout is timed so the log can say whether the cost is ours.
+        let started = CACurrentMediaTime()
+        presentationController?.containerView?.layoutIfNeeded()
+        view.superview?.layoutIfNeeded()
+        let spent = CACurrentMediaTime() - started
+        dragLayoutCount += 1
+        dragLayoutSum += spent
+        dragLayoutMax = max(dragLayoutMax, spent)
+    }
+
+    func endHeightDrag() {
+        guard dragIsActive else { return }
+        dragIsActive = false
+        dragLink?.invalidate()
+        dragLink = nil
+
+        let frames = max(dragFrames, 1)
+        let layoutCount = max(dragLayoutCount, 1)
+        // ASCII only: the verify script proves these exact bytes are in the
+        // dylib, and a non-ASCII character would land in `__ustring` instead.
+        fcPanelLog(String(
+            format: "drag perf frames=%d avg_frame=%.1fms max_frame=%.1fms "
+                + "slow=%d layout_avg=%.1fms layout_max=%.1fms from=%d to=%d",
+            dragFrames,
+            dragIntervalSum / Double(frames) * 1000,
+            dragIntervalMax * 1000,
+            dragSlowFrames,
+            dragLayoutSum / Double(layoutCount) * 1000,
+            dragLayoutMax * 1000,
+            Int(dragFromHeight),
+            Int(dragToHeight)
+        ))
+
+        let tier = nearestHeightTier()
+        fcPanelLog("drag settle tier=\(tier) at=\(Int(preferredContentSize.height))")
+        // The card snaps to a tier, exactly as the flick version did, so the
+        // three sizes stay the defined states. `applyHeightTier` animates it.
+        context.commitHeightTier(tier)
+        applyHeightTier(tier)
+    }
+
+    /// The tier whose height is closest to where the finger left the card.
+    ///
+    /// Nearest rather than "one step per 12pt of travel": with continuous
+    /// movement the card is already at an arbitrary height, so the honest
+    /// question is "which of the three sizes is this closest to".
+    private func nearestHeightTier() -> Int {
+        let base = baseHeight > 1 ? baseHeight : max(1, preferredContentSize.height)
+        let ratio = preferredContentSize.height / base
+        let factors: [CGFloat] = [1, 1, 1.55, 2.05]
+        var best = 1
+        var bestDiff = CGFloat.greatestFiniteMagnitude
+        for index in 1 ..< factors.count {
+            let diff = abs(ratio - factors[index])
+            if diff < bestDiff {
+                bestDiff = diff
+                best = index
+            }
+        }
+        return best
+    }
+
     /// 3.0.110: back to the size the current content actually needs.
     ///
     /// Measured, not restored from `baseHeight`. The button grid is taller than
@@ -136,6 +293,13 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// agree, take the largest reading of the run, and refuse anything that has
     /// collapsed well below the height this card was presented at.
     func resetHeightToNatural() {
+        // A drag owns the height while the finger is down; measuring "what the
+        // content wants" then would fight it and, worse, could resize the card
+        // out from under the gesture if the output cleared mid-drag.
+        guard !dragIsActive else {
+            fcPanelLog("panel height reset skipped: a drag owns the height")
+            return
+        }
         naturalProbeGeneration &+= 1
         let generation = naturalProbeGeneration
         naturalProbeAttempt = 0
@@ -254,6 +418,13 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+
+        // 3.0.112: a display link retains its target. Dismissing the panel
+        // mid-drag would otherwise leave the link ticking and the controller
+        // alive for as long as the process lives.
+        dragLink?.invalidate()
+        dragLink = nil
+        dragIsActive = false
 
         // Abort any in-flight stream so a dismissed panel stops burning tokens.
         context.streamCancelled = true

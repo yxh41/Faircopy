@@ -72,6 +72,11 @@ struct WritingToolsView: View {
     /// the presenter measured, so a panel nobody touches looks exactly as before.
     @State var heightTier: Int = 1
 
+    /// 3.0.112: true between the first and the last touch frame of one drag, so
+    /// the controller is asked to start and stop the frame probe exactly once
+    /// per gesture instead of once per movement event.
+    @State var isDraggingHeight: Bool = false
+
     @State var headerDescription: String = ""
     @State var isHeaderDescriptionAnimated: Bool = true
 
@@ -268,6 +273,19 @@ struct WritingToolsView: View {
             if sourceSubject.isEmpty {
                 sourceSubject = context.textProxy.selectedText
             }
+            // 3.0.112: the controller decides which tier a drag settles on, the
+            // handle only draws it. Only the handle's brightness depends on
+            // this, so it can arrive after the fact.
+            //
+            // Captures the `State` value rather than `self`: the context
+            // outlives this body, and a stored closure holding the view (which
+            // holds the context) would keep the whole panel alive after
+            // dismissal.
+            let tierState = _heightTier
+            context.heightTierCommitted = { tier in
+                let clamped = min(max(tier, 1), 3)
+                if tierState.wrappedValue != clamped { tierState.wrappedValue = clamped }
+            }
             // Warm the shared light-impact generator before the first tap. Every
             // press fires `impactOccurred()` on a cold engine otherwise, and a
             // cold engine delays or drops it — which is why the first button
@@ -336,15 +354,14 @@ extension WritingToolsView {
 
     /// The card's own height handle.
     ///
-    /// A flick, not a drag. This card's height is `preferredContentSize`, i.e.
-    /// UIKit's to lay out, and applying it once per tier keeps the border and
-    /// the content arriving together. Applying it per drag frame is what makes
-    /// the content grow while the border is still on its way — the stutter that
-    /// ruled out following the finger in the first place.
+    /// 3.0.112: follows the finger. The height still belongs to UIKit
+    /// (`preferredContentSize`), so each touch frame submits it and lays out
+    /// once — with no animation on the card, because an animation restarted
+    /// every frame is the actual stutter. Releasing snaps to the nearest of the
+    /// three tiers, which stay the only resting states.
     ///
-    /// 12pt of travel is enough to mean it and short enough to feel like a
-    /// flick; the capsule sits in its own strip above the title so it can never
-    /// steal a tap meant for a mode button.
+    /// 2pt of travel starts the gesture: the capsule sits in its own strip above
+    /// the title, but a zero-distance drag would also swallow a plain tap.
     var heightGrip: some View {
         Capsule()
             .fill(.white.opacity(heightTier > 1 ? 0.7 : 0.42))
@@ -353,25 +370,23 @@ extension WritingToolsView {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 8)
-                    .onEnded { value in
-                        if value.translation.height <= -12 {
-                            setHeightTier(heightTier + 1)
-                        } else if value.translation.height >= 12 {
-                            setHeightTier(heightTier - 1)
+                DragGesture(minimumDistance: 2)
+                    .onChanged { value in
+                        // Up is negative in SwiftUI's translation; the card grows
+                        // upward while staying centred, so negative = taller.
+                        if !isDraggingHeight {
+                            isDraggingHeight = true
+                            context.beginHeightDrag()
                         }
+                        context.moveHeightDrag(growth: -value.translation.height)
+                    }
+                    .onEnded { _ in
+                        guard isDraggingHeight else { return }
+                        isDraggingHeight = false
+                        context.endHeightDrag()
                     }
             )
             .animation(.easeInOut(duration: 0.2), value: heightTier)
-    }
-
-    /// 1 = as presented, 2 and 3 taller. Clamped at both ends; a flick that
-    /// cannot change anything does not reach UIKit at all.
-    func setHeightTier(_ tier: Int) {
-        let clamped = min(max(tier, 1), 3)
-        guard clamped != heightTier else { return }
-        heightTier = clamped
-        context.applyHeightTier(clamped)
     }
 
     struct ModelHandler: Codable, Identifiable, Equatable {
