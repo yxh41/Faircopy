@@ -75,6 +75,22 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// toggle on does not visibly change the card.
     private static let cornerRadius: CGFloat = 13
     private static let screenMargin: CGFloat = 20
+    private static let shadowOpacity: Float = 0.3
+
+    /// 3.0.115: hides the shadow for the duration of a drag.
+    ///
+    /// An explicit `shadowPath` is what keeps the shadow from being recomputed
+    /// from the alpha channel, but a path that keeps changing has to be
+    /// rasterised again every time — and at radius 26 with a 12pt offset on a
+    /// 754pt card that is the single most expensive thing a resize frame does.
+    /// With the opacity at zero the path is left alone, the rasterisation is
+    /// reused, and the drag stops paying for a soft edge nobody is looking at.
+    var shadowSuppressed = false {
+        didSet {
+            guard shadowSuppressed != oldValue, animatedCard != nil else { return }
+            cardView.layer.shadowOpacity = shadowSuppressed ? 0 : Self.shadowOpacity
+        }
+    }
 
     override var frameOfPresentedViewInContainerView: CGRect {
         guard let container = containerView else { return .zero }
@@ -115,7 +131,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         cardView.frame = frameOfPresentedViewInContainerView
         cardView.backgroundColor = .clear
         cardView.layer.shadowColor = UIColor.black.cgColor
-        cardView.layer.shadowOpacity = 0.3
+        cardView.layer.shadowOpacity = Self.shadowOpacity
         cardView.layer.shadowRadius = 26
         cardView.layer.shadowOffset = CGSize(width: 0, height: 12)
         // An explicit path keeps the shadow from being recomputed from the
@@ -187,7 +203,14 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // the part below it was left unshadowed and the corner radius no longer
         // lined up. Redrawn only when the size actually changed, since this runs
         // on every container layout and on every touch frame of a drag.
-        if card.layer.shadowPath == nil || card.layer.shadowPath?.boundingBox.size != card.bounds.size {
+        //
+        // 3.0.115: skipped entirely while the shadow is hidden for a drag — see
+        // `shadowSuppressed`. Touching the path there would force the
+        // rasterisation the suppression exists to avoid.
+        if !shadowSuppressed,
+           (card.layer.shadowPath == nil
+               || card.layer.shadowPath?.boundingBox.size != card.bounds.size)
+        {
             card.layer.shadowPath = UIBezierPath(
                 roundedRect: card.bounds,
                 cornerRadius: Self.cornerRadius

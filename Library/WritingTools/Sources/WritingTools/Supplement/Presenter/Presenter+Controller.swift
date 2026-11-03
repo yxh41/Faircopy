@@ -221,6 +221,11 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         let link = CADisplayLink(target: self, selector: #selector(handleDragFrame(_:)))
         link.add(to: .main, forMode: .common)
         dragLink = link
+        // 3.0.115: the soft edge is the most expensive part of a resize frame and
+        // nobody is looking at it while the card is moving. Hiding it keeps the
+        // shadow path untouched, so Core Animation can reuse the rasterisation.
+        (presentationController as? FaircopySpringPresentationController)?
+            .shadowSuppressed = true
         fcPanelLog(
             "drag begin anchor=\(Int(dragAnchor)) base=\(Int(baseHeight)) "
                 + "style=\(modalPresentationStyle.rawValue)")
@@ -348,7 +353,19 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         ))
 
         let tier = settlingHeightTier()
-        fcPanelLog("drag settle tier=\(tier) at=\(Int(preferredContentSize.height)) start=\(dragStartTier)")
+        // `dir` says which branch the settle rule took, which is the one thing
+        // the log could not answer in 3.0.114: a drag that ends in the dead band
+        // looks identical whether it was never promoted or promoted and pulled
+        // back.
+        let direction = tier > dragStartTier ? "up" : (tier < dragStartTier ? "down" : "same")
+        fcPanelLog(String(
+            format: "drag settle tier=%d at=%d start=%d dir=%@",
+            tier, Int(preferredContentSize.height), dragStartTier, direction))
+        // Restored before the snap so the layout pass it triggers redraws the
+        // path at the tier's size instead of leaving the drag's corner radius
+        // behind.
+        (presentationController as? FaircopySpringPresentationController)?
+            .shadowSuppressed = false
         // The card snaps to a tier, exactly as the flick version did, so the
         // three sizes stay the defined states. `applyHeightTier` animates it.
         context.commitHeightTier(tier)
@@ -369,15 +386,26 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         let factors: [CGFloat] = [1, 1, 1.55, 2.05]
         let height = preferredContentSize.height
         var tier = min(max(dragStartTier, 1), factors.count - 1)
-        while tier < factors.count - 1,
-              height >= base * (factors[tier] + (factors[tier + 1] - factors[tier]) * 0.4)
-        {
-            tier += 1
-        }
-        while tier > 1,
-              height < base * (factors[tier] - (factors[tier] - factors[tier - 1]) * 0.4)
-        {
-            tier -= 1
+        // 3.0.115: one direction only.
+        //
+        // Walking up and then walking down in the same call cancelled itself
+        // out. Stepping up needs 40% of the gap (368 -> 448.96); stepping back
+        // down needs the new tier to fall 40% below its own size (489.44). Every
+        // height in between was raised one tier and lowered again, so the card
+        // settled exactly where it started — the dead band is why a drag to 450
+        // or to 481 snapped all the way back to 368 in the 3.0.114 log.
+        if height > base * factors[tier] {
+            while tier < factors.count - 1,
+                  height >= base * (factors[tier] + (factors[tier + 1] - factors[tier]) * 0.4)
+            {
+                tier += 1
+            }
+        } else if height < base * factors[tier] {
+            while tier > 1,
+                  height <= base * (factors[tier] - (factors[tier] - factors[tier - 1]) * 0.4)
+            {
+                tier -= 1
+            }
         }
         return tier
     }
@@ -553,6 +581,10 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         dragLink?.invalidate()
         dragLink = nil
         dragIsActive = false
+        // 3.0.115: a panel dismissed mid-drag must not take the hidden shadow
+        // with it — this controller can be presented again.
+        (presentationController as? FaircopySpringPresentationController)?
+            .shadowSuppressed = false
 
         // Abort any in-flight stream so a dismissed panel stops burning tokens.
         context.streamCancelled = true
