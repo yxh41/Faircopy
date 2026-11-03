@@ -26,6 +26,16 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// after this object exists.
     private var baseHeight: CGFloat = 0
 
+    /// 3.0.111: state for the defensive natural-height measurement.
+    ///
+    /// `generation` makes a newer request cancel the older one: the reset can be
+    /// asked for twice in quick succession (leave the 分词 panel, come back,
+    /// leave again), and two probe chains fighting over `preferredContentSize`
+    /// is how you get a card that resizes twice.
+    private var naturalProbeGeneration = 0
+    private var naturalProbeAttempt = 0
+    private var naturalProbeSamples: [CGFloat] = []
+
     init(context: Presenter.Context) {
         self.context = context
         super.init(rootView: .init(context: context))
@@ -115,45 +125,103 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// Deferred one runloop because it is called from `onChange`: at that moment
     /// SwiftUI has decided to show the grid but has not laid it out yet, and a
     /// fitting pass taken now would still measure the outgoing 分词 view.
+    ///
+    /// 3.0.111: one pass is not evidence. `systemLayoutSizeFitting` answers from
+    /// whatever tree is attached *right now* — mid-swap it answers for an empty
+    /// tree, and an empty tree still has a minimum height (the panel's chrome:
+    /// measured at 219 on a card that really wanted 368). 3.0.110 took that at
+    /// face value once and froze the card at 219, and because `showsHeightGrip`
+    /// was already false there was no second call to correct it. So: only
+    /// measure while the card is on a window, keep sampling until two passes
+    /// agree, take the largest reading of the run, and refuse anything that has
+    /// collapsed well below the height this card was presented at.
     func resetHeightToNatural() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+        naturalProbeGeneration &+= 1
+        let generation = naturalProbeGeneration
+        naturalProbeAttempt = 0
+        naturalProbeSamples = []
+        probeNaturalHeight(generation: generation)
+    }
+
+    private func probeNaturalHeight(generation: Int) {
+        // First pass on the next runloop, later passes spaced out so a slow
+        // content swap has time to land.
+        let delay: TimeInterval = naturalProbeAttempt == 0 ? 0 : 0.14
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self = self, self.naturalProbeGeneration == generation else { return }
+            // Off window there is no content to measure; the fitting pass would
+            // answer with the empty tree again. There is nothing to resize here
+            // either (the card is not on screen), so stop instead of guessing.
+            guard self.view.window != nil else {
+                fcPanelLog("panel height probe skipped: card is not on a window")
+                return
+            }
             self.view.setNeedsLayout()
             self.view.layoutIfNeeded()
             let width = self.preferredContentSize.width > 1
                 ? self.preferredContentSize.width
                 : self.view.bounds.width
-            let natural = self.view.systemLayoutSizeFitting(
+            let fitting = self.view.systemLayoutSizeFitting(
                 CGSize(width: width, height: .greatestFiniteMagnitude))
-            let container = self.presentationController?.containerView ?? self.view.window
-            let available = (container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40
-            let target = max(1, min(floor(natural.height), floor(max(CGFloat(1), available))))
-            let previous = self.preferredContentSize.height
-            guard abs(target - previous) > 0.5 else {
-                fcPanelLog("panel height reset: natural=\(Int(natural.height)) already fits")
-                return
-            }
+            let sample = floor(fitting.height)
+            let last = self.naturalProbeSamples.last
+            self.naturalProbeSamples.append(sample)
+            self.naturalProbeAttempt += 1
 
-            self.preferredContentSize = CGSize(
-                width: self.preferredContentSize.width, height: target)
-            UIView.animate(
-                withDuration: 0.28,
-                delay: 0,
-                options: [.curveEaseInOut, .beginFromCurrentState]
-            ) {
-                self.presentationController?.containerView?.setNeedsLayout()
-                self.presentationController?.containerView?.layoutIfNeeded()
-                self.view.superview?.setNeedsLayout()
+            let settled = last.map { abs($0 - sample) <= 2 } ?? false
+            if settled || self.naturalProbeAttempt >= 6 {
+                let best = self.naturalProbeSamples.max() ?? sample
+                self.applyNaturalHeight(best, settled: settled)
+            } else {
+                fcPanelLog(
+                    "panel height probe #\(self.naturalProbeAttempt) "
+                        + "natural=\(Int(sample)) waiting for a stable reading")
+                self.probeNaturalHeight(generation: generation)
             }
+        }
+    }
+
+    private func applyNaturalHeight(_ natural: CGFloat, settled: Bool) {
+        let samples = naturalProbeSamples.map { String(Int($0)) }.joined(separator: "/")
+        // A card never legitimately collapses to under 60% of the height it was
+        // presented at: the title, the divider and the grid are always there.
+        // Something that far below `baseHeight` is the empty tree answering, so
+        // keep the current size — a card that is a little too tall is a cosmetic
+        // nuisance, a card squeezed to 219 is a broken panel.
+        if baseHeight > 1, natural < baseHeight * 0.6 {
             fcPanelLog(
-                "panel height reset natural=\(Int(natural.height)) "
-                    + "\(Int(previous))->\(Int(target))")
-            // One runloop later, record what the card actually ended up at.
-            DispatchQueue.main.async {
-                let spring = self.presentationController as? FaircopySpringPresentationController
-                let applied = spring?.laidOutCardHeight ?? self.view.bounds.height
-                fcPanelLog("panel height applied card=\(Int(applied)) want=\(Int(target))")
-            }
+                "panel height reset rejected: natural=\(Int(natural)) samples=\(samples) "
+                    + "below base=\(Int(baseHeight))")
+            return
+        }
+        let container = presentationController?.containerView ?? view.window
+        let available = (container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40
+        let target = max(1, min(natural, floor(max(CGFloat(1), available))))
+        let previous = preferredContentSize.height
+        guard abs(target - previous) > 0.5 else {
+            fcPanelLog(
+                "panel height reset: natural=\(Int(natural)) samples=\(samples) already fits")
+            return
+        }
+
+        preferredContentSize = CGSize(width: preferredContentSize.width, height: target)
+        UIView.animate(
+            withDuration: 0.28,
+            delay: 0,
+            options: [.curveEaseInOut, .beginFromCurrentState]
+        ) {
+            self.presentationController?.containerView?.setNeedsLayout()
+            self.presentationController?.containerView?.layoutIfNeeded()
+            self.view.superview?.setNeedsLayout()
+        }
+        fcPanelLog(
+            "panel height reset natural=\(Int(natural)) samples=\(samples) "
+                + "settled=\(settled) \(Int(previous))->\(Int(target))")
+        // One runloop later, record what the card actually ended up at.
+        DispatchQueue.main.async {
+            let spring = self.presentationController as? FaircopySpringPresentationController
+            let applied = spring?.laidOutCardHeight ?? self.view.bounds.height
+            fcPanelLog("panel height applied card=\(Int(applied)) want=\(Int(target))")
         }
     }
 
