@@ -20,6 +20,9 @@
 // open(O_CREAT|O_EXCL), which needs <fcntl.h>, and arbitrated on errno.
 #import <errno.h>
 #import <fcntl.h>
+// 3.0.119: the presentation trace appends with stdio so a failed open stays a
+// single cheap syscall instead of an NSFileHandle + NSError on every trigger.
+#include <stdio.h>
 
 // NOTE: no <notify/notify.h> here — the iOS SDK does not ship it, and the
 // Darwin notification observer below only needs CoreFoundation
@@ -37,6 +40,81 @@ UIResponder *FC_LastEditingResponder(void) {
 
 void FC_SetLastEditingResponder(UIResponder *responder) {
     __fc_lastEditingResponder = responder;
+}
+
+// MARK: - Presentation trace (3.0.119)
+
+/// One line per presentation decision, written to the same file the height log
+/// used (`faircopy_panel.log`) and gated on the same `faircopy_debug` marker.
+///
+/// It exists because the height log turned out to be the wrong place to ask any
+/// of the questions worth asking: 3.0.117 silenced it, and even before that it
+/// only ever fired from the height/drag path, so "no log" could not be told
+/// apart from "cannot write here". This one fires on the path a panel actually
+/// takes, so an empty file finally means something: this process could not
+/// write into the shared directory at all.
+///
+/// The marker is read once per process — dropping or removing it while an app
+/// is already running changes nothing until that app is relaunched.
+static BOOL __fc_traceDecided = NO;
+static BOOL __fc_traceEnabled = NO;
+static NSString *const kFCTraceFilePath =
+    @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_panel.log";
+
+static void FC_TraceLine(NSString *line) {
+    if (!__fc_traceDecided) {
+        __fc_traceDecided = YES;
+        __fc_traceEnabled = [[NSFileManager defaultManager] fileExistsAtPath:
+            @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_debug"];
+    }
+    if (!__fc_traceEnabled || line.length == 0) { return; }
+    NSString *bundle = [NSBundle mainBundle].bundleIdentifier ?: @"?";
+    NSString *text = [NSString stringWithFormat:@"%lld %d %@ %@\n",
+                      (long long)[[NSDate date] timeIntervalSince1970],
+                      (int)getpid(), bundle, line];
+    const char *path = [kFCTraceFilePath fileSystemRepresentation];
+    FILE *handle = fopen(path, "a");
+    if (!handle) { return; }
+    fputs(text.UTF8String, handle);
+    fclose(handle);
+}
+
+// MARK: - Cross-process "a card is up" handshake (3.0.119)
+
+/// Set when ANOTHER process announces that it put a card on screen. Only ever
+/// read by SpringBoard's deferred pass (see FC_PresentPanelInPlace).
+static CFAbsoluteTime __fc_foreignPanelPresentedAt = 0;
+/// How long an announcement stays actionable. The deferred pass runs 0.8 s
+/// after the trigger it belongs to, and the announcing process answers within
+/// ~0.1 s of the same trigger, so 1.5 s is generous without letting a stale
+/// announcement from an older trigger silence a genuinely new one.
+static const NSTimeInterval kFCForeignPresentedFreshness = 1.5;
+
+/// A process that already holds a panel ignores the announcement — which also
+/// excludes the echo of its own post, since the announcement is sent after the
+/// presentation count has been incremented.
+static void FC_PanelPresentedCallback(CFNotificationCenterRef center, void *observer,
+                                      CFStringRef name, const void *object,
+                                      CFDictionaryRef userInfo) {
+    if (FC_PanelPresentationIsLocked()) { return; }
+    __fc_foreignPanelPresentedAt = CFAbsoluteTimeGetCurrent();
+}
+
+/// Called once per 0 → 1 transition of the presentation count, i.e. exactly
+/// when a card really reached the screen — whatever path put it there (edit
+/// menu, `faircopy://panel`, broadcast, or a third-party tweak calling the
+/// presenter directly).
+static void FC_AnnouncePanelPresented(void) {
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+                                        CFSTR(kFCPanelPresentedNotification),
+                                        NULL, NULL, true);
+}
+
+/// True when some other process announced a card within the freshness window.
+static BOOL FC_ForeignPanelWasJustPresented(void) {
+    if (__fc_foreignPanelPresentedAt <= 0) { return NO; }
+    return (CFAbsoluteTimeGetCurrent() - __fc_foreignPanelPresentedAt)
+        < kFCForeignPresentedFreshness;
 }
 
 // MARK: - Presentation bookkeeping
@@ -99,6 +177,11 @@ void FC_LockPanelPresentation(void) {
         FC_TicketHeartbeatStart();
     }
     __fc_panelPresentationCount++;
+    // 3.0.119: announce only AFTER the count is up, so the echo of this very
+    // post is ignored by FC_PanelPresentedCallback in this process.
+    FC_TraceLine([NSString stringWithFormat:@"presented count=%ld",
+                  (long)__fc_panelPresentationCount]);
+    FC_AnnouncePanelPresented();
 }
 
 void FC_UnlockPanelPresentation(void) {
@@ -610,6 +693,12 @@ static BOOL FC_TryClaimPanelTicket(void) {
                 return NO;
             }
             NSLog(@"[Faircopy] panel claim: open failed (errno %d), presenting unguarded", errno);
+            // 3.0.119: this line is the direct evidence for "the app sandbox
+            // refuses the shared directory". Seeing it in the trace means the
+            // process could not create the ticket — and because it is written
+            // into that same directory, seeing it at all also means the write
+            // path works, i.e. the failure was the ticket file, not the folder.
+            FC_TraceLine([NSString stringWithFormat:@"claim open failed errno=%d", errno]);
             return YES;
         }
         NSDictionary *claim = FC_ReadPanelClaimRaw();
@@ -781,6 +870,9 @@ static void FC_TicketHeartbeatStopAndDrop(void) {
 /// flag has to be re-armed (and therefore cannot be re-armed at the wrong time).
 static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, NSString *mode) {
     dispatch_async(dispatch_get_main_queue(), ^{
+        FC_TraceLine([NSString stringWithFormat:@"trigger kw=%lu mode=%@ deferred=%d sb=%d",
+                      (unsigned long)keyword.length, mode ?: @"",
+                      (int)deferred, (int)FC_IsSpringBoard()]);
         if (FC_IsSpringBoard() && !deferred) {
             NSLog(@"[Faircopy] SpringBoard defers the panel by %.0f ms so the caller claims it first",
                   kFCSpringBoardPresentationDelay * 1000.0);
@@ -790,6 +882,22 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, NSString *m
                 dispatch_get_main_queue(), ^{
                     FC_PresentPanelInPlace(keyword, YES, mode);
                 });
+            return;
+        }
+        // 3.0.119: the deferral above assumed the caller wins the cross-process
+        // ticket, and that assumption is the whole bug. A third-party caller
+        // posts the bare broadcast, so SpringBoard is a legitimate recipient and
+        // the foreground app is not "the" answer — only the first one to claim
+        // is. Whenever the ticket is missing, unreadable (app sandbox refusing
+        // the shared preferences directory) or still carries `fg = false` from
+        // the caller's presentation transition, this pass found nothing to defer
+        // to and stacked a second card ~0.8 s later.
+        //
+        // The announcement is the answer that does not need the file: if any
+        // process has a card up, it said so, and this pass stands down.
+        if (FC_IsSpringBoard() && deferred && FC_ForeignPanelWasJustPresented()) {
+            NSLog(@"[Faircopy] SpringBoard stands down: another process already presented");
+            FC_TraceLine(@"SpringBoard stands down, a card is already up elsewhere");
             return;
         }
         // 3.0.25: the home screen is now allowed. The tweak's filter is
@@ -806,6 +914,7 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, NSString *m
         FC_SweepIdleStandaloneAnchors();
         if (FC_PanelPresentationIsLocked()) {
             NSLog(@"[Faircopy] external trigger ignored: a panel is already on screen");
+            FC_TraceLine(@"stand down, this process already has a card up");
             return;
         }
         // 3.0.35: another PROCESS may own the panel. A payload-less broadcast
@@ -816,8 +925,14 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, NSString *m
         // down here instead of stacking a second panel on top.
         if (!FC_TryClaimPanelTicket()) {
             NSLog(@"[Faircopy] external trigger ignored: another process owns the panel");
+            FC_TraceLine(@"stand down, the ticket belongs to another process");
             return;
         }
+        // Reaching here means this process believes it may present. If it then
+        // waits 0.8 s (SpringBoard) the caller has already announced its card
+        // and the check above caught it — so this line is the other half of
+        // that evidence: "X claimed the ticket and is about to present".
+        FC_TraceLine(@"ticket won, presenting");
 
         WritingToolsPresenter *presenter = [WritingToolsPresenter sharedInstance];
         BOOL presented = NO;
@@ -1401,6 +1516,17 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
         NULL,
         FC_DarwinNotifyCallback,
         CFSTR(kFCExternalPresentNotification),
+        NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
+
+    // 3.0.119: the other half of that handshake. Every process listens; only
+    // SpringBoard's deferred pass acts on it. See kFCPanelPresentedNotification.
+    CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        NULL,
+        FC_PanelPresentedCallback,
+        CFSTR(kFCPanelPresentedNotification),
         NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately
     );

@@ -25,6 +25,21 @@
 /// URL inside the calling app and calls FC_PresentPanelInPlace() directly.
 #define kFCExternalPresentNotification "wiki.qaq.faircopy.present"
 
+/// 3.0.119: posted by whichever process actually put a card on screen.
+///
+/// The external trigger above is a bare broadcast: it reaches EVERY injected
+/// process, SpringBoard included, and nobody in that set is the "right" one by
+/// construction. A third-party caller (VCamX's drawer posts the name verbatim,
+/// Kayoko posts it for text over 1000 characters) therefore produces two cards:
+/// the foreground app answers immediately, and SpringBoard — which defers 0.8 s
+/// so the caller can claim the cross-process ticket first — answers too whenever
+/// that ticket is missing, unreadable, or still marked `fg = false`.
+///
+/// This notification is the missing half of that handshake. It carries no file
+/// dependency at all, which is the point: `notify_post` needs no sandbox
+/// permission, so it works even when the shared preferences directory does not.
+#define kFCPanelPresentedNotification "wiki.qaq.faircopy.presented"
+
 NS_ASSUME_NONNULL_BEGIN
 
 __attribute__((visibility("hidden")))
