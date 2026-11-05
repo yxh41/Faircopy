@@ -596,6 +596,19 @@ static BOOL FC_TryClaimPanelTicket(void) {
             return YES;
         }
         if (errno != EEXIST) {
+            // 3.0.118: a write-denied shared directory (an app sandbox that
+            // refuses /var/mobile/Library/Preferences) used to mean "present
+            // unguarded". With the guard gone, the app's card and the one
+            // SpringBoard shows ~0.8 s later both reached the screen — two
+            // panels, one after the other. Fall back to READ-ONLY arbitration:
+            // a live owner's ticket is still readable even when this process
+            // cannot create the file.
+            NSDictionary *existing = FC_ReadPanelClaimRaw();
+            if (FC_PanelClaimIsFresh(existing) &&
+                !FC_PanelClaimBelongsToThisProcess(existing)) {
+                NSLog(@"[Faircopy] panel claim: unwritable, but another process owns the panel, standing down");
+                return NO;
+            }
             NSLog(@"[Faircopy] panel claim: open failed (errno %d), presenting unguarded", errno);
             return YES;
         }
@@ -604,6 +617,15 @@ static BOOL FC_TryClaimPanelTicket(void) {
         BOOL mine = FC_PanelClaimBelongsToThisProcess(claim);
         BOOL ownerForeground =
             [claim[@"fg"] isKindOfClass:[NSNumber class]] && [claim[@"fg"] boolValue];
+        if (fresh && mine) {
+            // 3.0.118: our own LIVE ticket means this process is already showing
+            // the panel. Treating it as an "own leftover", deleting it and racing
+            // again is how a same-process second trigger won a fresh ticket and
+            // presented a second card. The heartbeat drops the ticket when the
+            // panel count returns to zero, so this cannot silence the next one.
+            NSLog(@"[Faircopy] panel claim: this process already owns the panel, standing down");
+            return NO;
+        }
         if (fresh && !mine) {
             if (ownerForeground) {
                 NSString *owner = [claim[@"bundle"] isKindOfClass:[NSString class]]
@@ -620,7 +642,7 @@ static BOOL FC_TryClaimPanelTicket(void) {
             NSLog(@"[Faircopy] panel claim: took the ticket over from a backgrounded owner");
             return YES;
         }
-        // Stale, malformed, or our own leftover: clear it and race again.
+        // Stale or malformed (a crashed owner): clear it and race again.
         [[NSFileManager defaultManager] removeItemAtPath:kFCPanelClaimPath error:nil];
     }
     // Two rounds lost to a racing process — present rather than swallow the
@@ -858,11 +880,15 @@ static void FC_PresentPanelInPlace(NSString *keyword, BOOL deferred, NSString *m
                 }
             }
         }
-        // Only lock on success — a failed attempt must leave the next trigger
-        // free to try again.
-        if (presented) {
-            FC_LockPanelPresentation();
-        } else {
+        // 3.0.118: the presentation lock is taken inside the presenter now
+        // (`Presenter+Open.swift`, one card = one count). It used to be taken
+        // here, after the fact, which twice broke: a step that presented and
+        // reported `false` left the count at zero with a card on screen, and a
+        // step that reported "already on screen" counted the same card again.
+        // A failed attempt still must leave the next trigger free to try again,
+        // so the ticket goes back — the presenter's own hierarchy check is what
+        // prevents a second card, not this flag.
+        if (!presented) {
             // Nothing reached the screen: hand the arbitration ticket back so
             // another process can still show the panel for this trigger.
             FC_RelinquishPanelClaim();

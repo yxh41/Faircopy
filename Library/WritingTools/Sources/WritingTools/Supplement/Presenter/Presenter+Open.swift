@@ -12,6 +12,42 @@ import UIKit
 import WritingToolsInjector
 
 public extension Presenter {
+    /// True when a Faircopy card is already somewhere in the view hierarchy.
+    ///
+    /// 3.0.118: the presentation lock is a *count* that is only incremented
+    /// once a presentation has been verified, so any path that presents and
+    /// then reports `false` leaves the count at zero while a card is on
+    /// screen. The injector's fallback ladder (`mode:` → `autoSegment:` →
+    /// plain, three steps since 3.0.96) then takes the next step and builds a
+    /// SECOND card on a *different* parent — the "two panels, one after the
+    /// other" regression. Ask the hierarchy instead of trusting bookkeeping.
+    ///
+    /// Only `WritingToolController` counts, so a host app's own modal (WeChat
+    /// sheets, Safari page sheets) can never suppress a legitimate trigger.
+    private static func faircopyPanelOnScreen() -> Bool {
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                guard let root = window.rootViewController else { continue }
+                if containsFaircopyPanel(root, depth: 0) { return true }
+            }
+        }
+        return false
+    }
+
+    private static func containsFaircopyPanel(_ controller: UIViewController, depth: Int) -> Bool {
+        // A present/presented chain plus child controllers is all a card can
+        // hang off; the depth cap only guards against a malformed hierarchy.
+        if depth > 12 { return false }
+        if controller is WritingToolController { return true }
+        if let presented = controller.presentedViewController,
+           containsFaircopyPanel(presented, depth: depth + 1) { return true }
+        for child in controller.children {
+            if containsFaircopyPanel(child, depth: depth + 1) { return true }
+        }
+        return false
+    }
+
     @objc(presentToolController:)
     func presentToolController(_ responder: UIResponder) {
         guard let respondingView = responder as? UIView else { return }
@@ -22,6 +58,10 @@ public extension Presenter {
         // own parent controller. One panel at a time, globally.
         if FC_PanelPresentationIsLocked() {
             NSLog("[Faircopy] menu trigger ignored: a panel is already on screen")
+            return
+        }
+        if Self.faircopyPanelOnScreen() {
+            NSLog("[Faircopy] menu trigger ignored: a Faircopy card is already in the hierarchy")
             return
         }
 
@@ -130,6 +170,13 @@ public extension Presenter {
             // (standalone).
             return false
         }
+        // 3.0.118: a Faircopy card already in the hierarchy means this trigger
+        // has been served — report success so the injector's fallback ladder
+        // stops here instead of building a second card on another parent.
+        if Self.faircopyPanelOnScreen() {
+            NSLog("[Faircopy] panel already on screen: trigger served, not stacking a second card")
+            return true
+        }
         // Do not stack panels: check this controller AND globally. The external
         // source path hangs the card off the text field's controller while the
         // standalone path hangs it off the window's root controller, so the
@@ -139,8 +186,12 @@ public extension Presenter {
         // leak if we bail out here.
         guard parentController.presentedViewController == nil else { return false }
         if FC_PanelPresentationIsLocked() {
+            // 3.0.118: report "served", not "failed". A count > 0 means a panel
+            // is on screen, so the caller must neither fall back to another
+            // parent nor hand the cross-process ticket back — doing either is
+            // exactly how a second card got built while the first was up.
             NSLog("[Faircopy] panel suppressed: another panel is already on screen")
-            return false
+            return true
         }
 
         // Build the context, retrying once after a select-all. External triggers
@@ -228,7 +279,20 @@ public extension Presenter {
         // trace at all. Verify the relationship actually formed.
         let didPresent = context.parentController.presentedViewController === toolController
             || toolController.presentingViewController != nil
+            // 3.0.118: a `.custom` transition (Q-bounce entrance) attaches the
+            // card to a window before UIKit finishes recording the present
+            // relationship, and a card that is already on screen must never be
+            // reported as failed — that is what sent the injector's fallback
+            // ladder on to build a second card.
+            || toolController.view.window != nil
         guard didPresent else { return false }
+        // 3.0.118: the lock is taken HERE, once, at the single funnel every
+        // external presentation goes through. The injector used to take it
+        // after this returned, which meant a step that presented-and-reported-
+        // false left the count at zero while a card was up, and a step that
+        // reported "already on screen" would have counted the same card twice.
+        // One card, one count, one place.
+        FC_LockPanelPresentation()
         return true
     }
 
