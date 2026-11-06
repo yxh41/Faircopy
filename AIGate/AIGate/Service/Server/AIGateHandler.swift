@@ -93,6 +93,20 @@ class AIGateHandler: ChannelDuplexHandler {
         } else if checkForServerCommandIfIsGettingUsage() {
             context.responseWithHTTP(code: 200, json: UsageStatistics.shared.current())
             return
+        } else if checkForServerCommandIfIsGettingPanelSettings() {
+            // 3.0.120: the panel runs inside a sandboxed app, where roothide
+            // redirects /var/mobile/Library/Preferences to that app's OWN
+            // container. Every setting the panel read from a file in there was
+            // therefore silently the default — the animation switch above all.
+            // The gateway is the one channel that survives that, because the
+            // panel already reaches it for every single model request.
+            //
+            // Answering here keeps a single source of truth: this process reads
+            // the file it wrote, and the panel asks this process.
+            context.responseWithHTTP(code: 200, json: [
+                "spring_entrance": PanelAnimationSettingsStore.load().springEntrance,
+            ])
+            return
         } else if let modelID = checkForServerCommandSetModel() {
             guard Configuration.shared.hasEndpointWithID(modelID) else {
                 context.terminateChannel(reason: .modelNotFound)
@@ -364,6 +378,15 @@ extension AIGateHandler {
     func checkForServerCommandIfIsGettingUsage() -> Bool {
         let headerLines = parseHeaderLines().head
         if headerLines.hasPrefix("GET /metrics?query=usage ") {
+            return true
+        }
+        return false
+    }
+
+    /// 3.0.120: presentation settings for the panel (see the handler above).
+    func checkForServerCommandIfIsGettingPanelSettings() -> Bool {
+        let headerLines = parseHeaderLines().head
+        if headerLines.hasPrefix("GET /metrics?query=panel_settings ") {
             return true
         }
         return false

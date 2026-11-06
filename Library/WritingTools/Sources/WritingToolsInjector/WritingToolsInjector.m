@@ -79,6 +79,71 @@ static void FC_TraceLine(NSString *line) {
     fclose(handle);
 }
 
+// MARK: - Panel settings over the gateway (3.0.120)
+
+/// Why this exists at all: roothide redirects `/var/mobile/Library/Preferences`
+/// per process, so the panel rendered inside WeChat/QQ read its OWN container's
+/// empty copy of `faircopy_panel_animation.json` and fell back to `false`. The
+/// animation switch was on in Settings and did nothing in the apps.
+///
+/// The gateway at 127.0.0.1:5540 is reached from this process for every model
+/// request, so it is the one channel already proven to work inside a sandboxed
+/// app. AIGate owns the file and answers from it; the panel asks AIGate.
+///
+/// Fetched in the background at load with a few retries — the daemon may still
+/// be starting when the host app launches — because the presentation path that
+/// consumes this is synchronous and must never wait on a network round trip.
+/// Until an answer lands `known` stays NO and the caller reads the file as
+/// before, so this can only add a working channel, never remove one.
+static BOOL __fc_springEntranceKnown = NO;
+static BOOL __fc_springEntranceValue = NO;
+/// Seconds after load to (re)try. The first is short because the daemon is
+/// usually already up; the later ones cover a cold boot where it is not.
+static const NSTimeInterval kFCPanelSettingsRetryDelays[] = {3.0, 10.0, 30.0};
+
+BOOL FC_PanelSpringEntrance(BOOL *known) {
+    if (known) { *known = __fc_springEntranceKnown; }
+    return __fc_springEntranceValue;
+}
+
+static void FC_FetchPanelSettings(NSUInteger attempt) {
+    if (__fc_springEntranceKnown) { return; }
+    NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:5540/metrics?query=panel_settings"];
+    if (!url) { return; }
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    request.HTTPMethod = @"GET";
+    request.timeoutInterval = 2.0;
+    request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    [[[NSURLSession sharedSession] dataTaskWithRequest:request
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+            if (data.length > 0) {
+                NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data
+                                                                    options:0
+                                                                      error:nil];
+                id value = [json isKindOfClass:[NSDictionary class]]
+                    ? json[@"spring_entrance"] : nil;
+                if ([value isKindOfClass:[NSNumber class]]) {
+                    __fc_springEntranceValue = [value boolValue];
+                    __fc_springEntranceKnown = YES;
+                    FC_TraceLine([NSString stringWithFormat:
+                        @"panel settings from gateway: spring=%d",
+                        (int)__fc_springEntranceValue]);
+                    return;
+                }
+            }
+            NSUInteger next = attempt + 1;
+            NSUInteger count = sizeof(kFCPanelSettingsRetryDelays) / sizeof(kFCPanelSettingsRetryDelays[0]);
+            if (next < count) {
+                dispatch_after(
+                    dispatch_time(DISPATCH_TIME_NOW,
+                                  (int64_t)(kFCPanelSettingsRetryDelays[next] * NSEC_PER_SEC)),
+                    dispatch_get_main_queue(), ^{ FC_FetchPanelSettings(next); });
+            } else {
+                FC_TraceLine(@"panel settings: gateway never answered, reading the file as before");
+            }
+        }] resume];
+}
+
 // MARK: - Cross-process "a card is up" handshake (3.0.119)
 
 /// Set when ANOTHER process announces that it put a card on screen. Only ever
@@ -1530,6 +1595,12 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
         NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately
     );
+
+    // 3.0.120: presentation settings come from the gateway, not from a file this
+    // process cannot read. Kicked off here (off the presentation path, which is
+    // synchronous) so the answer is already cached by the time a panel opens.
+    // See FC_PanelSpringEntrance.
+    FC_FetchPanelSettings(0);
 
     // Suppress the re-broadcast of a trigger to apps that resume later; see
     // FC_PresentPanelWhenUsable.

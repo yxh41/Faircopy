@@ -80,6 +80,19 @@ BOOL FC_PanelPresentationIsLocked(void);
 void FC_LockPanelPresentation(void);
 void FC_UnlockPanelPresentation(void);
 
+/// 3.0.120: the "Q bounce" entrance flag, as last reported by AIGate.
+///
+/// roothide redirects `/var/mobile/Library/Preferences` per process, so a panel
+/// running inside a sandboxed app read its own empty copy of
+/// `faircopy_panel_animation.json` and silently fell back to `false` — no
+/// animation in WeChat/QQ while Settings showed one. The gateway at
+/// 127.0.0.1:5540 is reached from this very process for every model request, so
+/// it is the one channel known to survive; AIGate owns the file and answers.
+///
+/// `known` is set to NO until a background fetch lands, so the caller can fall
+/// back to reading the file exactly as before.
+BOOL FC_PanelSpringEntrance(BOOL *_Nullable known);
+
 #ifdef __cplusplus
 }
 #endif

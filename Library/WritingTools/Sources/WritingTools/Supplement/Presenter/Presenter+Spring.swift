@@ -15,6 +15,8 @@
 //
 
 import UIKit
+// 3.0.120: FC_PanelSpringEntrance — the injector holds the gateway answer.
+import WritingToolsInjector
 
 // MARK: - 设置
 
@@ -34,7 +36,20 @@ enum FaircopyPanelAnimationStore {
     /// dozen processes and the toggle is flipped in the settings app, which is a
     /// different process entirely. A cached read would ignore the toggle until
     /// the host app relaunched.
+    ///
+    /// 3.0.120: the file is no longer the first answer. roothide redirects
+    /// `/var/mobile/Library/Preferences` per process, so inside WeChat/QQ this
+    /// read landed on that app's own container — an empty copy — and every panel
+    /// there came up without the entrance while Settings showed one. The injector
+    /// asks the gateway instead (the channel every model request already uses)
+    /// and hands the answer back here; the file stays as the fallback for the
+    /// first presentation, before that answer has landed.
     static func load() -> FaircopyPanelAnimationSettings {
+        var known: ObjCBool = false
+        let spring = FC_PanelSpringEntrance(&known)
+        if known.boolValue {
+            return FaircopyPanelAnimationSettings(springEntrance: spring)
+        }
         guard
             let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
             let settings = try? JSONDecoder().decode(FaircopyPanelAnimationSettings.self, from: data)
