@@ -97,9 +97,12 @@ static void FC_TraceLine(NSString *line) {
 /// before, so this can only add a working channel, never remove one.
 static BOOL __fc_springEntranceKnown = NO;
 static BOOL __fc_springEntranceValue = NO;
-/// Seconds after load to (re)try. The first is short because the daemon is
-/// usually already up; the later ones cover a cold boot where it is not.
-static const NSTimeInterval kFCPanelSettingsRetryDelays[] = {3.0, 10.0, 30.0};
+/// Guards against two attempts in flight (the deferred one and the one the
+/// presentation path kicks off when it finds nothing cached yet).
+static BOOL __fc_panelSettingsFetchInFlight = NO;
+/// Seconds after load to (re)try. The first wait is the important one: see
+/// FC_SchedulePanelSettingsFetch.
+static const NSTimeInterval kFCPanelSettingsRetryDelays[] = {5.0, 10.0, 25.0};
 
 BOOL FC_PanelSpringEntrance(BOOL *known) {
     if (known) { *known = __fc_springEntranceKnown; }
@@ -107,41 +110,68 @@ BOOL FC_PanelSpringEntrance(BOOL *known) {
 }
 
 static void FC_FetchPanelSettings(NSUInteger attempt) {
-    if (__fc_springEntranceKnown) { return; }
+    if (__fc_springEntranceKnown || __fc_panelSettingsFetchInFlight) { return; }
     NSURL *url = [NSURL URLWithString:@"http://127.0.0.1:5540/metrics?query=panel_settings"];
     if (!url) { return; }
+    __fc_panelSettingsFetchInFlight = YES;
+    // An ephemeral configuration on purpose: the shared session persists a disk
+    // cache and starts background machinery this process has no use for.
+    NSURLSessionConfiguration *configuration =
+        [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    configuration.timeoutIntervalForRequest = 2.0;
+    configuration.waitsForConnectivity = NO;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"GET";
     request.timeoutInterval = 2.0;
     request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
-    [[[NSURLSession sharedSession] dataTaskWithRequest:request
-        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-            if (data.length > 0) {
-                NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data
-                                                                    options:0
-                                                                      error:nil];
-                id value = [json isKindOfClass:[NSDictionary class]]
-                    ? json[@"spring_entrance"] : nil;
-                if ([value isKindOfClass:[NSNumber class]]) {
-                    __fc_springEntranceValue = [value boolValue];
-                    __fc_springEntranceKnown = YES;
-                    FC_TraceLine([NSString stringWithFormat:
-                        @"panel settings from gateway: spring=%d",
-                        (int)__fc_springEntranceValue]);
-                    return;
-                }
+    [[session dataTaskWithRequest:request
+               completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        __fc_panelSettingsFetchInFlight = NO;
+        if (data.length > 0) {
+            NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data
+                                                                options:0
+                                                                  error:nil];
+            id value = [json isKindOfClass:[NSDictionary class]]
+                ? json[@"spring_entrance"] : nil;
+            if ([value isKindOfClass:[NSNumber class]]) {
+                __fc_springEntranceValue = [value boolValue];
+                __fc_springEntranceKnown = YES;
+                FC_TraceLine([NSString stringWithFormat:
+                    @"panel settings from gateway: spring=%d",
+                    (int)__fc_springEntranceValue]);
+                [session finishTasksAndInvalidate];
+                return;
             }
-            NSUInteger next = attempt + 1;
-            NSUInteger count = sizeof(kFCPanelSettingsRetryDelays) / sizeof(kFCPanelSettingsRetryDelays[0]);
-            if (next < count) {
-                dispatch_after(
-                    dispatch_time(DISPATCH_TIME_NOW,
-                                  (int64_t)(kFCPanelSettingsRetryDelays[next] * NSEC_PER_SEC)),
-                    dispatch_get_main_queue(), ^{ FC_FetchPanelSettings(next); });
-            } else {
-                FC_TraceLine(@"panel settings: gateway never answered, reading the file as before");
-            }
-        }] resume];
+        }
+        [session finishTasksAndInvalidate];
+        NSUInteger next = attempt + 1;
+        NSUInteger count = sizeof(kFCPanelSettingsRetryDelays) / sizeof(kFCPanelSettingsRetryDelays[0]);
+        if (next < count) {
+            dispatch_after(
+                dispatch_time(DISPATCH_TIME_NOW,
+                              (int64_t)(kFCPanelSettingsRetryDelays[next] * NSEC_PER_SEC)),
+                dispatch_get_main_queue(), ^{ FC_FetchPanelSettings(next); });
+        } else {
+            FC_TraceLine(@"panel settings: gateway never answered, reading the file as before");
+        }
+    }] resume];
+}
+
+/// Schedules the first attempt OFF the dyld initialiser.
+///
+/// 3.0.121: 3.0.120 called FC_FetchPanelSettings(0) straight from `+load` and
+/// WeChat died on launch with EXC_BAD_ACCESS reading nil + 0x90, inside its own
+/// `dispatch_once`, while this dylib was still being initialised. Starting
+/// NSURLSession there pulls up CFNetwork during `load_images` — before the host
+/// app has had a single runloop turn, and exactly when the kernel was already
+/// logging `pmap_enter retried due to resource shortage`. QQ survived it; that
+/// is luck, not safety.
+static void FC_SchedulePanelSettingsFetch(void) {
+    dispatch_after(
+        dispatch_time(DISPATCH_TIME_NOW,
+                      (int64_t)(kFCPanelSettingsRetryDelays[0] * NSEC_PER_SEC)),
+        dispatch_get_main_queue(), ^{ FC_FetchPanelSettings(0); });
 }
 
 // MARK: - Cross-process "a card is up" handshake (3.0.119)
@@ -1597,10 +1627,10 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
     );
 
     // 3.0.120: presentation settings come from the gateway, not from a file this
-    // process cannot read. Kicked off here (off the presentation path, which is
-    // synchronous) so the answer is already cached by the time a panel opens.
-    // See FC_PanelSpringEntrance.
-    FC_FetchPanelSettings(0);
+    // process cannot read. 3.0.121: merely SCHEDULED here — never fetched from
+    // inside this initialiser, which runs before the host app's first runloop
+    // turn and crashed WeChat when 3.0.120 tried. See FC_SchedulePanelSettingsFetch.
+    FC_SchedulePanelSettingsFetch();
 
     // Suppress the re-broadcast of a trigger to apps that resume later; see
     // FC_PresentPanelWhenUsable.
