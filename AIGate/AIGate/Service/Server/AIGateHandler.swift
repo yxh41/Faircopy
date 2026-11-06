@@ -121,7 +121,7 @@ class AIGateHandler: ChannelDuplexHandler {
             // that a sandboxed app has already been proven to reach: this one.
             // Empty answer means "nothing pending", which is exactly what a
             // third-party `notify_post` needs to distinguish itself.
-            context.responseWithHTTP(code: 200, json: PanelPendingStore.current() ?? [:])
+            context.responseWithHTTP(code: 200, json: PanelPendingStore.reply())
             return
         } else if let modelID = checkForServerCommandSetModel() {
             guard Configuration.shared.hasEndpointWithID(modelID) else {

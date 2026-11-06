@@ -558,6 +558,30 @@ struct PanelPendingStore {
         return object
     }
 
+    /// The same content shaped for the wire.
+    ///
+    /// `responseWithHTTP(json:)` takes an `Encodable`, and `[String: Any]` is
+    /// not one — so the answer is a typed shape rather than a dictionary. Every
+    /// field stays optional because "nothing pending" must serialise as `{}`
+    /// (an empty dictionary is exactly how the injector recognises a
+    /// third-party broadcast), and a non-optional `at` could not express it.
+    struct Reply: Codable {
+        var keyword: String?
+        var target: String?
+        var at: Double?
+        var mode: String?
+    }
+
+    static func reply() -> Reply {
+        guard let object = current() else { return Reply() }
+        return Reply(
+            keyword: object["keyword"] as? String,
+            target: object["target"] as? String,
+            at: object["at"] as? Double,
+            mode: object["mode"] as? String
+        )
+    }
+
     /// 3.0.122: one invocation, one panel.
     ///
     /// The injector's de-duplication was a plain static inside each process, so
