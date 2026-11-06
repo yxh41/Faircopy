@@ -1312,6 +1312,94 @@ static void FC_PresentPanelWhenUsable(NSInteger attempt, NSString *keyword, BOOL
     });
 }
 
+// MARK: - The hand-off over the gateway (3.0.122)
+
+/// One short GET against AIGate's local gateway, on the calling thread.
+///
+/// `reachable` is the whole point of the out-parameter: an unreachable gateway
+/// (AIGate not running) and a gateway that answered "nothing pending" are
+/// different facts, and only the first one justifies skipping the next few
+/// attempts. Every model request this panel makes already travels this channel,
+/// which is what makes it the one a sandboxed app has been proven to reach.
+static NSDictionary *FC_GatewayJSON(NSString *query, NSTimeInterval timeout, BOOL *reachable) {
+    if (reachable) { *reachable = NO; }
+    NSString *address = [@"http://127.0.0.1:5540/metrics?query=" stringByAppendingString:query];
+    NSURL *url = [NSURL URLWithString:address];
+    if (!url) { return nil; }
+
+    NSURLSessionConfiguration *configuration =
+        [NSURLSessionConfiguration ephemeralSessionConfiguration];
+    configuration.timeoutIntervalForRequest = timeout;
+    configuration.waitsForConnectivity = NO;
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    request.HTTPMethod = @"GET";
+    request.timeoutInterval = timeout;
+    request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+
+    __block NSDictionary *answer = nil;
+    __block BOOL answered = NO;
+    dispatch_semaphore_t gate = dispatch_semaphore_create(0);
+    [[session dataTaskWithRequest:request
+               completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (data.length > 0) {
+            id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([json isKindOfClass:[NSDictionary class]]) {
+                answer = json;
+                answered = YES;
+            }
+        }
+        dispatch_semaphore_signal(gate);
+    }] resume];
+    dispatch_semaphore_wait(gate,
+                            dispatch_time(DISPATCH_TIME_NOW,
+                                          (int64_t)((timeout + 0.5) * NSEC_PER_SEC)));
+    [session finishTasksAndInvalidate];
+    if (reachable) { *reachable = answered; }
+    return answer;
+}
+
+/// Set after a failed attempt so a third-party `notify_post` (a drawer click,
+/// say) does not pay a timeout on every tap while AIGate is down.
+static CFAbsoluteTime __fc_gatewayPendingUnreachableAt = 0;
+static const NSTimeInterval kFCGatewayPendingCooldown = 30.0;
+
+/// The pending invocation as the gateway knows it, or nil when there is none.
+///
+/// Everything the file road checks is checked here too — the same freshness
+/// window and the same "must carry a keyword" rule — so a sandboxed process and
+/// an unsandboxed one cannot disagree about whether an invocation is worth
+/// acting on.
+static NSDictionary *FC_UsableGatewayPending(NSDictionary *answer) {
+    if (![answer isKindOfClass:[NSDictionary class]] || answer.count == 0) { return nil; }
+    if (![answer[@"at"] isKindOfClass:[NSNumber class]]) { return nil; }
+    NSString *keyword = [answer[@"keyword"] isKindOfClass:[NSString class]]
+        ? answer[@"keyword"] : nil;
+    if (keyword.length == 0) { return nil; }
+    NSTimeInterval age = [[NSDate date] timeIntervalSince1970] - [answer[@"at"] doubleValue];
+    if (age > kFCPendingInvocationFreshness) { return nil; }
+    return answer;
+}
+
+/// Asks AIGate off the main thread, answers back on it. The presentation path
+/// that consumes this is main-thread bound and the caller is a Darwin callback,
+/// so nothing here may block the run loop.
+static void FC_FetchGatewayPending(void (^completion)(NSDictionary *pending)) {
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        BOOL reachable = NO;
+        NSDictionary *answer = FC_GatewayJSON(@"panel_pending", 1.2, &reachable);
+        if (!reachable) {
+            __fc_gatewayPendingUnreachableAt = CFAbsoluteTimeGetCurrent();
+        } else {
+            __fc_gatewayPendingUnreachableAt = 0;
+        }
+        NSDictionary *pending = FC_UsableGatewayPending(answer);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion(pending);
+        });
+    });
+}
+
 static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observer, CFStringRef name,
                                      const void *object, CFDictionaryRef userInfo)
 {
@@ -1348,11 +1436,49 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
         return;
     }
 
-    // No pending invocation — either a third-party tweak's plain notify_post,
-    // or AIGate's 3.0.33 handoff-failure fallback broadcast. Original
-    // broadcast semantics: context-driven path, no keyword.
-    NSLog(@"[Faircopy] external trigger: bare broadcast, no pending invocation");
-    FC_PresentPanelWhenUsable(0, nil, NO, @"");
+    // 3.0.122: the file is not readable from inside a sandboxed app — the same
+    // redirection that hid the animation setting. Reading nil here used to mean
+    // "no invocation", which is why WeChat/QQ fell through to the payload-less
+    // branch below and drew a panel holding whatever the clipboard still had
+    // from the previous recognition.
+    //
+    // Ask the process that CAN see the file. Only an unreachable gateway falls
+    // back to the old semantics immediately; a gateway that answers "nothing
+    // pending" is a real answer and lands in the same branch.
+    if (__fc_gatewayPendingUnreachableAt > 0 &&
+        (CFAbsoluteTimeGetCurrent() - __fc_gatewayPendingUnreachableAt) < kFCGatewayPendingCooldown) {
+        NSLog(@"[Faircopy] external trigger: gateway down, bare broadcast");
+        FC_PresentPanelWhenUsable(0, nil, NO, @"");
+        return;
+    }
+    FC_FetchGatewayPending(^(NSDictionary *pending) {
+        if (!pending) {
+            // No pending invocation anywhere — either a third-party tweak's
+            // plain notify_post, or AIGate's handoff-failure fallback
+            // broadcast. Original semantics: context-driven path, no keyword.
+            NSLog(@"[Faircopy] external trigger: bare broadcast, no pending invocation");
+            FC_TraceLine(@"trigger: bare broadcast, no pending anywhere");
+            FC_PresentPanelWhenUsable(0, nil, NO, @"");
+            return;
+        }
+        if (!FC_PendingPanelInvocationTargetsMe(pending)) {
+            NSLog(@"[Faircopy] external trigger dropped: not the caller (from gateway)");
+            FC_TraceLine(@"trigger: gateway pending is addressed elsewhere");
+            return;
+        }
+        if ([pending[@"at"] doubleValue] == gFCHandledPendingInvocationAt) {
+            NSLog(@"[Faircopy] external trigger dropped: invocation already handled");
+            return;
+        }
+        if ([UIApplication sharedApplication].applicationState == UIApplicationStateBackground) {
+            NSLog(@"[Faircopy] external trigger dropped: app is in background");
+            return;
+        }
+        NSString *keyword = FC_ClaimPendingPanelInvocation(pending);
+        FC_TraceLine([NSString stringWithFormat:@"trigger: pending came from the gateway, mode=%@",
+                      FC_ModeFromInvocation(pending)]);
+        FC_PresentPanelWhenUsable(0, keyword, YES, FC_ModeFromInvocation(pending));
+    });
 }
 
 // MARK: - In-place faircopy://panel interception

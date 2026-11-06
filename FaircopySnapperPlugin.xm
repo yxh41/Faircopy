@@ -851,6 +851,18 @@ static NSString *FCFrontmostBundleIdentifier(void)
         }
     }
 
+    // 3.0.122: one line, not five. The five per-probe `front app via …` traces
+    // were removed in 3.0.105 because they answered their question — "none of
+    // them" — but that answer is now the reason the panel lands on the home
+    // screen instead of the app the user was reading. This records which of the
+    // five avenues even EXISTS in this process, so the next attempt can target
+    // the one that survived instead of guessing again.
+    FCLog(@"front app probes: SBApplication=%d controller=%d workspace=%d ui=%d",
+          NSClassFromString(@"SBApplication") != nil,
+          controller != nil,
+          workspace != nil,
+          [UIApplication.sharedApplication respondsToSelector:@selector(frontmostApplication)]);
+
     FCLog(@"front app: no probe answered, the panel will arbitrate");
     return nil;
 }

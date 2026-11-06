@@ -107,6 +107,22 @@ class AIGateHandler: ChannelDuplexHandler {
                 "spring_entrance": PanelAnimationSettingsStore.load().springEntrance,
             ])
             return
+        } else if checkForServerCommandIfIsGettingPanelPending() {
+            // 3.0.122: the same redirection that hid the animation setting also
+            // hid the hand-off. `faircopy_panel_pending.json` is written here
+            // (this process is unsandboxed) and read inside WeChat, where the
+            // directory resolves to that app's own empty copy — so the read came
+            // back nil and the injector fell through to the payload-less
+            // broadcast branch. What the user saw was a panel holding the
+            // PREVIOUS recognition, taken from the clipboard, while the real
+            // words sat unread on disk.
+            //
+            // The words, the target and the mode therefore travel the channel
+            // that a sandboxed app has already been proven to reach: this one.
+            // Empty answer means "nothing pending", which is exactly what a
+            // third-party `notify_post` needs to distinguish itself.
+            context.responseWithHTTP(code: 200, json: PanelPendingStore.current() ?? [:])
+            return
         } else if let modelID = checkForServerCommandSetModel() {
             guard Configuration.shared.hasEndpointWithID(modelID) else {
                 context.terminateChannel(reason: .modelNotFound)
@@ -387,6 +403,16 @@ extension AIGateHandler {
     func checkForServerCommandIfIsGettingPanelSettings() -> Bool {
         let headerLines = parseHeaderLines().head
         if headerLines.hasPrefix("GET /metrics?query=panel_settings ") {
+            return true
+        }
+        return false
+    }
+
+    /// 3.0.122: the pending panel invocation, for panels that cannot read the
+    /// shared directory (see the handler above).
+    func checkForServerCommandIfIsGettingPanelPending() -> Bool {
+        let headerLines = parseHeaderLines().head
+        if headerLines.hasPrefix("GET /metrics?query=panel_pending ") {
             return true
         }
         return false

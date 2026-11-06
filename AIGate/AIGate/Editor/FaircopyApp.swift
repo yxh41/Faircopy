@@ -33,6 +33,11 @@ private func fc_notify_post(_ name: UnsafePointer<CChar>?) -> UInt32
 /// that bounce straight back to the caller.
 private let kFCInvisibleHosts: Set<String> = ["panel", "ocr"]
 
+/// 3.0.122: KEEP IN SYNC with `kFCPanelPresentedNotification` in
+/// WritingToolsInjector.h. Posted by whichever injected process just locked a
+/// presentation; this app answers by retiring the pending invocation.
+private let kFCPanelPresentedNotification = "wiki.qaq.faircopy.presented"
+
 struct FaircopyApp: App {
     @StateObject var vm = FaircopyAppModel.shared
 
@@ -153,6 +158,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // launch, because iOS may resurrect the process in the background and
         // never show a window.
         FaircopyImageOCR.installBackgroundRequestObserver()
+        // 3.0.122: retire a hand-off the moment somebody answers it, so the
+        // next app to come frontmost finds nothing to claim.
+        FaircopyImageOCR.installPanelPresentedConsumer()
         // 3.0.86: an observer in a suspended process never runs. Hold the
         // process in the background from the moment it launches — including a
         // silent launch, which is exactly the case that has to stay resident.
@@ -536,6 +544,52 @@ struct PanelPendingStore {
             return false
         }
     }
+
+    /// 3.0.122: the file as the gateway hands it out, read here because this
+    /// process is the only one that can see it reliably. Returned as a plain
+    /// dictionary rather than `PanelPending` so the injector's own freshness
+    /// check stays the single judge of staleness — the two sides must never
+    /// disagree about what "too old" means.
+    static func current() -> [String: Any]? {
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return object
+    }
+
+    /// 3.0.122: one invocation, one panel.
+    ///
+    /// The injector's de-duplication was a plain static inside each process, so
+    /// every app that became frontmost within the 15 s freshness window read the
+    /// same pending file, found nothing that said "already handled", and drew a
+    /// panel of its own — which is how switching apps produced a second card and
+    /// how a few attempts filled memory until SpringBoard was jetsammed. The
+    /// first process to present announces it on the Darwin centre; this side
+    /// answers by consuming the invocation, so the next app finds nothing to
+    /// claim.
+    ///
+    /// Delayed by a second on purpose: the announcement carries no payload, and
+    /// a process that heard the broadcast but is still reading the file (or
+    /// fetching it over the gateway) would lose the invocation underneath its
+    /// hands. Comparing `at` before and after also means a newer hand-off that
+    /// arrived in the meantime is left alone.
+    static func retire() {
+        guard let object = current(), let at = object["at"] as? Double else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard
+                let now = current(),
+                let stillThere = now["at"] as? Double,
+                stillThere == at
+            else { return }
+            clear()
+        }
+    }
+
+    /// Unconditional removal — used by `retire` once the identity check passed.
+    static func clear() {
+        try? FileManager.default.removeItem(atPath: path)
+    }
 }
 
 /// Recognises the text in a picture handed over by Kayoko.
@@ -840,6 +894,22 @@ enum FaircopyImageOCR {
         appendLog("boot: silent ocr observer installed")
     }
 
+    /// 3.0.122: retires a hand-off as soon as any process has answered it.
+    ///
+    /// Separate from the observer above because they answer different
+    /// notification names and one of them must keep running even in a process
+    /// that never touches a picture.
+    static func installPanelPresentedConsumer() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            fc_panel_presented_callback,
+            kFCPanelPresentedNotification as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
     /// The app the caller named for this picture, or nil when it named nothing
     /// usable — nil means "let the injector arbitrate" (see `handleBackgroundRequest`).
     static func requestedDisplayTarget() -> String? {
@@ -1122,6 +1192,23 @@ private func fc_ocr_request_callback(
     DispatchQueue.main.async {
         FaircopyImageOCR.handleBackgroundRequest()
     }
+}
+
+/// 3.0.122: somebody put a card on screen — retire the invocation.
+///
+/// The injector posts this the moment it locks a presentation (3.0.119, where it
+/// existed so SpringBoard could stand down). Consuming here gives the hand-off
+/// the semantics it never had: an invocation is answered exactly once, no matter
+/// how many processes read the same file. Without it, every app that came to the
+/// front inside the freshness window drew its own panel.
+private func fc_panel_presented_callback(
+    _: CFNotificationCenter?,
+    _: UnsafeMutableRawPointer?,
+    _: CFNotificationName?,
+    _: UnsafeRawPointer?,
+    _: CFDictionary?
+) {
+    PanelPendingStore.retire()
 }
 
 /// Keeps this process alive in the background so the silent OCR hand-off can
