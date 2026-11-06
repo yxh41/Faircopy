@@ -1445,6 +1445,22 @@ static void FC_DarwinNotifyCallback(CFNotificationCenterRef center, void *observ
     // Ask the process that CAN see the file. Only an unreachable gateway falls
     // back to the old semantics immediately; a gateway that answers "nothing
     // pending" is a real answer and lands in the same branch.
+    // 3.0.123: ask only in a process that could actually answer.
+    //
+    // The state check used to live inside the completion handler, so every
+    // injected process paid for the round trip and then threw the answer away.
+    // A broadcast reaches dozens of them, and nearly all are background — that
+    // was dozens of NSURLSession objects created and invalidated per trigger for
+    // one usable answer. Filtering here costs one message send instead.
+    //
+    // `Inactive` is deliberately allowed through: it is the transient state a
+    // bounce target passes through on its way to becoming active, and
+    // FC_PresentPanelWhenUsable already retries for it.
+    if ([UIApplication sharedApplication].applicationState == UIApplicationStateBackground) {
+        NSLog(@"[Faircopy] external trigger dropped: app is in background before the gateway");
+        return;
+    }
+
     if (__fc_gatewayPendingUnreachableAt > 0 &&
         (CFAbsoluteTimeGetCurrent() - __fc_gatewayPendingUnreachableAt) < kFCGatewayPendingCooldown) {
         NSLog(@"[Faircopy] external trigger: gateway down, bare broadcast");
