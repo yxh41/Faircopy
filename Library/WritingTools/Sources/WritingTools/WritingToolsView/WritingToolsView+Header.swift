@@ -47,11 +47,20 @@ extension WritingToolsView {
     /// non-zero minimum — which is why the name survived until 3.0.123 and
     /// everything after it read as "the mark is not there".
     ///
-    /// A filled `Path` inside a fixed 20 pt frame can neither be compressed to
-    /// nothing nor miss a symbol on some OS version. It stops depending on the
-    /// system glyph table altogether.
+    /// A stroked `Path` inside a fixed 20 pt frame can neither be compressed to
+    /// nothing nor miss a symbol on some OS version, and because it is a line
+    /// rather than a filled block it sits at the same visual weight as the ✕ on
+    /// the other end of the row. It stops depending on the system glyph table
+    /// altogether.
+    ///
+    /// 3.0.127: the shape itself is a sheet with a pen across its corner — the
+    /// same silhouette as the system's square-and-pencil mark, so the header
+    /// reads as one family with the close button. The filled nib that shipped
+    /// in 3.0.126 arrived (the blank was a squeeze, not a symbol), but at 20 pt
+    /// a solid shape that size reads as a blade.
     var brandMark: some View {
-        BrandPencil()
+        BrandMark()
+            .stroke(style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
             .frame(width: 20, height: 20)
             // Belt and braces: the frame already pins the size, but this stops
             // the marquee beside it from re-negotiating that size on layout.
@@ -89,7 +98,7 @@ extension WritingToolsView {
             // view is not the one on screen"; this settles it in one look.
             // NSLog rather than print: the panel runs inside another app's
             // process, and only NSLog reliably reaches the device syslog.
-            NSLog("[Faircopy] header mark: pencil drawn from path")
+            NSLog("[Faircopy] header mark: rounded sheet and pen drawn from path")
             checkModelName()
             fetchUsage()
             reloadHeaderDescription()
@@ -333,35 +342,47 @@ private extension String {
     }
 }
 
-/// The panel's brand mark: a pencil pointing up and to the right.
+/// The panel's brand mark: a sheet with a pen laid across its corner.
 ///
-/// 3.0.126: built from points instead of `Image(systemName:)`. The symbol route
-/// failed twice for two different reasons — a name the OS does not have draws
-/// nothing at all (3.0.124), and an `Image` handed to an `HStack` beside a
-/// flexible marquee can be laid out at zero width (3.0.125). A filled path in a
-/// fixed frame has neither failure mode, and it looks the same on every OS this
-/// panel supports.
-struct BrandPencil: Shape {
+/// Drawn from points rather than loaded from the symbol table, for the two
+/// failures documented on `brandMark` (a name the OS does not have draws
+/// nothing; an `Image` beside a flexible marquee is laid out at zero width).
+/// Stroked, not filled — at 20 pt a solid silhouette this size reads as a blade.
+///
+/// Geometry is authored in a 24 unit box (`unit` scales it to whatever frame the
+/// shape is given) and mirrors the system square-and-pencil mark: the sheet
+/// loses its top-right corner, the pen runs through it.
+struct BrandMark: Shape {
     func path(in rect: CGRect) -> Path {
-        let unit = min(rect.width, rect.height) / 20
+        let unit = min(rect.width, rect.height) / 24
+        let origin = CGPoint(
+            x: rect.minX + (rect.width - 24 * unit) / 2,
+            y: rect.minY + (rect.height - 24 * unit) / 2
+        )
 
         func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit)
+            CGPoint(x: origin.x + x * unit, y: origin.y + y * unit)
         }
 
         var path = Path()
 
-        // Barrel: the slab that runs from the shoulder down to the nib.
-        path.move(to: point(5.4, 12.4))
-        path.addLine(to: point(12.6, 5.2))
-        path.addLine(to: point(15.4, 8.0))
-        path.addLine(to: point(8.2, 15.2))
-        path.closeSubpath()
+        // Sheet: three full corners, then the top edge stops short of the
+        // corner the pen comes through.
+        path.move(to: point(12, 3))
+        path.addLine(to: point(7, 3))
+        path.addQuadCurve(to: point(3, 7), control: point(3, 3))
+        path.addLine(to: point(3, 17))
+        path.addQuadCurve(to: point(7, 21), control: point(3, 21))
+        path.addLine(to: point(17, 21))
+        path.addQuadCurve(to: point(21, 17), control: point(21, 21))
+        path.addLine(to: point(21, 12))
 
-        // Nib: the wedge that meets the paper at the bottom left.
-        path.move(to: point(2.2, 17.8))
-        path.addLine(to: point(5.4, 12.4))
-        path.addLine(to: point(8.2, 15.2))
+        // Pen: rounded cap, shaft, and the two short edges of the nib.
+        path.move(to: point(18.4, 2.6))
+        path.addQuadCurve(to: point(21.4, 5.6), control: point(21.4, 2.6))
+        path.addLine(to: point(12, 15))
+        path.addLine(to: point(8, 16))
+        path.addLine(to: point(9, 12))
         path.closeSubpath()
 
         return path
