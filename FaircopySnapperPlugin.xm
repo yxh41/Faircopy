@@ -157,7 +157,9 @@ static void FCLog(NSString *format, ...)
             NSData *tail = [existing subdataWithRange:NSMakeRange(existing.length - keep, keep)];
             // Resume on a line boundary: a cut inside a multi-byte character
             // would make the first line of the file unreadable.
-            const char *bytes = tail.bytes;
+            // `NSData.bytes` is `const void *`, so the cast is required even
+            // though the bytes are obviously characters to us.
+            const char *bytes = (const char *)tail.bytes;
             NSUInteger offset = 0;
             while (offset < tail.length && bytes[offset] != '\n') { offset++; }
             if (offset < tail.length) { offset++; }
