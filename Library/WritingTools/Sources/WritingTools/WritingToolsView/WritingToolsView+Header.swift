@@ -32,45 +32,35 @@ extension WritingToolsView {
     ///
     /// 「清稿」/「Faircopy」 cost about 40 pt at title3-bold, and the
     /// description beside it (character count + model name) is the thing that
-    /// actually gets truncated first. A 22 pt symbol gives that space back.
+    /// actually gets truncated first. A symbol gives that space back.
     ///
-    /// 3.0.125: and it must never render blank. `Image(systemName:)` draws
-    /// nothing at all when the name is unknown to this OS — no placeholder, no
-    /// warning, no log line. 3.0.124 shipped `pencil.and.scribble` (SF Symbols
-    /// 4, iOS 16) into a panel that also has to run on 15.x, so on a device
-    /// without it the header silently became an empty gap. Ask the symbol table
-    /// first, then keep degrading — a different symbol, and finally plain text,
-    /// which no OS version can fail to draw.
+    /// 3.0.126: drawn from points, not looked up in the symbol table.
+    ///
+    /// Two attempts went into the bin first. 3.0.124 shipped
+    /// `pencil.and.scribble` (SF Symbols 4, iOS 16) into a panel that also has
+    /// to run on 15.x, and `Image(systemName:)` draws *nothing* for a name the
+    /// OS does not know — no placeholder, no warning, no log. 3.0.125 then
+    /// asked `UIImage(systemName:)` first and fell back to the app name, and
+    /// the header was STILL an empty gap on 16.4.1. So the failure was never
+    /// the symbol table: an `Image` left to the `HStack` can be compressed to
+    /// zero width by the flexible marquee next to it, while `Text` keeps a
+    /// non-zero minimum — which is why the name survived until 3.0.123 and
+    /// everything after it read as "the mark is not there".
+    ///
+    /// A filled `Path` inside a fixed 20 pt frame can neither be compressed to
+    /// nothing nor miss a symbol on some OS version. It stops depending on the
+    /// system glyph table altogether.
     var brandMark: some View {
-        Group {
-            if let name = availableBrandSymbolName {
-                Image(systemName: name)
-                    .font(.title3.bold())
-                    // Without this the HStack is free to squeeze a fixed-size
-                    // sibling to nothing in favour of the flexible marquee in
-                    // the middle — which reads as "the icon is not there".
-                    .layoutPriority(1)
-            } else {
-                Text("Faircopy".localized)
-                    .lineLimit(1)
-                    .font(.title3.bold())
-                    .layoutPriority(1)
-            }
-        }
-        // A glyph carries no text, so without a label VoiceOver stops
-        // announcing which app this panel belongs to — the one piece of
-        // information the app name was carrying. Kept localized on purpose.
-        .accessibilityLabel("Faircopy".localized)
-    }
-
-    /// First name this OS actually knows, in preference order.
-    ///
-    /// `pencil.and.scribble` is the one we want (誊清 / 改稿, and it is not the
-    /// wand every assistant app uses). `square.and.pencil` has existed since
-    /// iOS 13 and is the safety net.
-    private var availableBrandSymbolName: String? {
-        ["pencil.and.scribble", "square.and.pencil", "pencil"]
-            .first { UIImage(systemName: $0) != nil }
+        BrandPencil()
+            .frame(width: 20, height: 20)
+            // Belt and braces: the frame already pins the size, but this stops
+            // the marquee beside it from re-negotiating that size on layout.
+            .fixedSize()
+            .layoutPriority(1)
+            // A glyph carries no text, so without a label VoiceOver stops
+            // announcing which app this panel belongs to — the one piece of
+            // information the app name was carrying. Kept localized on purpose.
+            .accessibilityLabel("Faircopy".localized)
     }
 
     var title: some View {
@@ -93,6 +83,13 @@ extension WritingToolsView {
         .animation(.spring, value: model)
         .animation(.spring, value: selectedTextCount)
         .onAppear {
+            // 3.0.126: one line so a log can prove which build drew this
+            // header. Three releases of "the mark is not there" were spent
+            // guessing between "wrong symbol", "compressed to zero" and "this
+            // view is not the one on screen"; this settles it in one look.
+            // NSLog rather than print: the panel runs inside another app's
+            // process, and only NSLog reliably reaches the device syslog.
+            NSLog("[Faircopy] header mark: pencil drawn from path")
             checkModelName()
             fetchUsage()
             reloadHeaderDescription()
@@ -333,5 +330,40 @@ extension WritingToolsView {
 private extension String {
     var urlHost: String {
         URL(string: self)?.host ?? self
+    }
+}
+
+/// The panel's brand mark: a pencil pointing up and to the right.
+///
+/// 3.0.126: built from points instead of `Image(systemName:)`. The symbol route
+/// failed twice for two different reasons — a name the OS does not have draws
+/// nothing at all (3.0.124), and an `Image` handed to an `HStack` beside a
+/// flexible marquee can be laid out at zero width (3.0.125). A filled path in a
+/// fixed frame has neither failure mode, and it looks the same on every OS this
+/// panel supports.
+struct BrandPencil: Shape {
+    func path(in rect: CGRect) -> Path {
+        let unit = min(rect.width, rect.height) / 20
+
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit)
+        }
+
+        var path = Path()
+
+        // Barrel: the slab that runs from the shoulder down to the nib.
+        path.move(to: point(5.4, 12.4))
+        path.addLine(to: point(12.6, 5.2))
+        path.addLine(to: point(15.4, 8.0))
+        path.addLine(to: point(8.2, 15.2))
+        path.closeSubpath()
+
+        // Nib: the wedge that meets the paper at the bottom left.
+        path.move(to: point(2.2, 17.8))
+        path.addLine(to: point(5.4, 12.4))
+        path.addLine(to: point(8.2, 15.2))
+        path.closeSubpath()
+
+        return path
     }
 }
