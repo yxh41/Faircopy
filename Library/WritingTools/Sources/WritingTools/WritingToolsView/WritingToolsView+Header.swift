@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 extension WritingToolsView {
     var selectedTextCount: Int {
@@ -27,24 +28,54 @@ extension WritingToolsView {
             ?? ""
     }
 
+    /// 3.0.124: brand mark instead of the app name.
+    ///
+    /// 「清稿」/「Faircopy」 cost about 40 pt at title3-bold, and the
+    /// description beside it (character count + model name) is the thing that
+    /// actually gets truncated first. A 22 pt symbol gives that space back.
+    ///
+    /// 3.0.125: and it must never render blank. `Image(systemName:)` draws
+    /// nothing at all when the name is unknown to this OS — no placeholder, no
+    /// warning, no log line. 3.0.124 shipped `pencil.and.scribble` (SF Symbols
+    /// 4, iOS 16) into a panel that also has to run on 15.x, so on a device
+    /// without it the header silently became an empty gap. Ask the symbol table
+    /// first, then keep degrading — a different symbol, and finally plain text,
+    /// which no OS version can fail to draw.
+    var brandMark: some View {
+        Group {
+            if let name = availableBrandSymbolName {
+                Image(systemName: name)
+                    .font(.title3.bold())
+                    // Without this the HStack is free to squeeze a fixed-size
+                    // sibling to nothing in favour of the flexible marquee in
+                    // the middle — which reads as "the icon is not there".
+                    .layoutPriority(1)
+            } else {
+                Text("Faircopy".localized)
+                    .lineLimit(1)
+                    .font(.title3.bold())
+                    .layoutPriority(1)
+            }
+        }
+        // A glyph carries no text, so without a label VoiceOver stops
+        // announcing which app this panel belongs to — the one piece of
+        // information the app name was carrying. Kept localized on purpose.
+        .accessibilityLabel("Faircopy".localized)
+    }
+
+    /// First name this OS actually knows, in preference order.
+    ///
+    /// `pencil.and.scribble` is the one we want (誊清 / 改稿, and it is not the
+    /// wand every assistant app uses). `square.and.pencil` has existed since
+    /// iOS 13 and is the safety net.
+    private var availableBrandSymbolName: String? {
+        ["pencil.and.scribble", "square.and.pencil", "pencil"]
+            .first { UIImage(systemName: $0) != nil }
+    }
+
     var title: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            // 3.0.124: brand mark instead of the app name.
-            //
-            // 「清稿」/「Faircopy」 cost about 40 pt at title3-bold, and the
-            // description beside it (character count + model name) is the thing
-            // that actually gets truncated first. A 22 pt symbol buys that space
-            // back. `pencil.and.scribble` was picked over `wand.and.stars`
-            // because the panel is a 誊清 / 改稿 tool, not a chat toy — and
-            // because wand-and-stars is what every assistant app already uses.
-            //
-            // The accessibility label is not optional: a glyph has no text, so
-            // without it VoiceOver stops announcing which app this panel is.
-            // KEEP the localized name in the label, not a hard-coded English
-            // string — `Faircopy` is what the strings tables translate.
-            Image(systemName: "pencil.and.scribble")
-                .font(.title3.bold())
-                .accessibilityLabel("Faircopy".localized)
+            brandMark
             MarqueeText(
                 text: $headerDescription,
                 isAnimated: $isHeaderDescriptionAnimated,
