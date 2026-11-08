@@ -421,15 +421,15 @@ enum FaircopyDaemon {
     static let heartbeatPath = FaircopyImageOCR.directory + "/faircopy_ocr_daemon.json"
 
     /// Posted the moment a request is taken, before the picture is read
-    /// (3.0.128). KEEP IN SYNC with `kFCAcceptedNotification` in
-    /// FaircopySnapperPlugin.xm.
+    /// (3.0.128). The constant lives on `FaircopyImageOCR` so this file and the
+    /// app's own silent road cannot drift apart; KEEP IN SYNC with
+    /// `kFCAcceptedNotification` in FaircopySnapperPlugin.xm.
     ///
     /// The caller's fallback is a clock — 2 s, then 8 s, then launch AIGate —
     /// and the only thing that used to stop it was the result, i.e. the END of
     /// the work. A cold accurate Chinese pass can outlast 8 s, so the visible
     /// road started reading the same picture while this process was still on
     /// it. Saying "I have it" first closes that window.
-    static let acceptedNotification = "wiki.qaq.faircopy.ocr.accepted"
 
     private static func startHeartbeat() {
         beat()
@@ -491,8 +491,8 @@ enum FaircopyDaemon {
         busy = true
         beat()
         // Before the read, not after: this is the call that tells the caller's
-        // fallback clock to stop. See acceptedNotification.
-        fc_daemon_notify_post(acceptedNotification)
+        // fallback clock to stop. See FaircopyImageOCR.acceptedNotification.
+        fc_daemon_notify_post(FaircopyImageOCR.acceptedNotification)
 
         // An empty target means "let the injector arbitrate": its claim ticket
         // plus SpringBoard's 0.8 s deferral let the app the user is actually

@@ -646,6 +646,18 @@ enum FaircopyImageOCR {
     /// from whatever state this process is in — no app switch, no window.
     static let requestNotification = "wiki.qaq.faircopy.ocr.request"
 
+    /// Posted by whichever process TAKES a request, before it reads the picture
+    /// (3.0.128). KEEP IN SYNC with `kFCAcceptedNotification` in
+    /// FaircopySnapperPlugin.xm.
+    ///
+    /// The caller's fallback is a clock — 2 s, then 8 s, then launch AIGate —
+    /// and only the RESULT used to stop it, i.e. the END of the work. A cold
+    /// accurate Chinese pass can outlast 8 s, so the visible road started
+    /// reading the same picture while this side was still on it. Both taker
+    /// processes post this: the daemon, and this app's own silent road when no
+    /// daemon is up.
+    static let acceptedNotification = "wiki.qaq.faircopy.ocr.accepted"
+
     /// 3.0.84: the app the panel belongs on, written by the caller.
     ///
     /// Kayoko's list is a SpringBoard window drawn over the app the user is
@@ -1015,6 +1027,11 @@ enum FaircopyImageOCR {
                 return
             }
             backgroundBusy = true
+            // 3.0.128: tell the caller this picture is being read, so its
+            // fallback clock stops instead of launching AIGate on top of a
+            // recognition that is already running. The daemon posts the same
+            // notification; whichever process takes the request answers.
+            fc_notify_post(acceptedNotification)
             // 3.0.85: an empty target is not "nowhere" — the injector treats it
             // as a plain broadcast, and its arbitration ticket plus SpringBoard's
             // 0.8 s deferral let the app the user is looking at claim the panel
