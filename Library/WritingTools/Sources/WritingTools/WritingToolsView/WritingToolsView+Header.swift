@@ -29,9 +29,22 @@ extension WritingToolsView {
 
     var title: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            Text("Faircopy".localized)
-                .lineLimit(1)
+            // 3.0.124: brand mark instead of the app name.
+            //
+            // 「清稿」/「Faircopy」 cost about 40 pt at title3-bold, and the
+            // description beside it (character count + model name) is the thing
+            // that actually gets truncated first. A 22 pt symbol buys that space
+            // back. `pencil.and.scribble` was picked over `wand.and.stars`
+            // because the panel is a 誊清 / 改稿 tool, not a chat toy — and
+            // because wand-and-stars is what every assistant app already uses.
+            //
+            // The accessibility label is not optional: a glyph has no text, so
+            // without it VoiceOver stops announcing which app this panel is.
+            // KEEP the localized name in the label, not a hard-coded English
+            // string — `Faircopy` is what the strings tables translate.
+            Image(systemName: "pencil.and.scribble")
                 .font(.title3.bold())
+                .accessibilityLabel("Faircopy".localized)
             MarqueeText(
                 text: $headerDescription,
                 isAnimated: $isHeaderDescriptionAnimated,
