@@ -16,4 +16,9 @@ killall -9 AIGate > /dev/null 2>&1
 # never comes.
 rm -f /var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_daemon.json
 
+# 3.0.128: the same argument for the hand-off stamp. It says "this picture was
+# already read", and a leftover one would make the next visible launch skip a
+# picture nobody read, i.e. a tap that does nothing.
+rm -f /var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_finished.json
+
 exit 0

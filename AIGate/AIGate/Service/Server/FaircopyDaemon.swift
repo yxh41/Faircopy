@@ -80,7 +80,16 @@ enum FaircopyDaemon {
         let entry = "\(formatter.string(from: Date())) [\(getpid())] \(line)\n"
         let url = URL(fileURLWithPath: logPath)
         var existing = (try? Data(contentsOf: url)) ?? Data()
-        if existing.count > 16 * 1024 { existing = Data() }
+        if existing.count > 128 * 1024 {
+            // 3.0.128: keep the tail. This used to reset to an empty Data, which
+            // threw away the lines that led up to whatever went wrong and left
+            // only what happened after it.
+            var tail = Data(existing.suffix(64 * 1024))
+            if let newline = tail.firstIndex(of: 0x0A) {
+                tail = Data(tail.suffix(from: tail.index(after: newline)))
+            }
+            existing = tail
+        }
         existing.append(Data(entry.utf8))
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
                                                  withIntermediateDirectories: true)
@@ -98,6 +107,11 @@ enum FaircopyDaemon {
         // bytes across every restart), so the only way to learn *where* it dies
         // is to catch the signal inside the process and print the stack.
         installFaultHandlers()
+
+        // 3.0.128: and keep the two files launchd owns from growing without a
+        // bound. They stay empty while the worker is healthy; a worker in a
+        // restart loop appends a backtrace per boot instead.
+        trimRunawayOutputs()
 
         // 🔴 3.0.103: the gateway the panel actually dials.
         //
@@ -219,6 +233,37 @@ enum FaircopyDaemon {
         // pointer cannot be formed from anything that captures context — so the
         // body lives at file scope as a plain function.
         NSSetUncaughtExceptionHandler(fc_daemon_exception_handler)
+    }
+
+    /// Keeps launchd's two output files bounded (3.0.128).
+    ///
+    /// They are empty while the worker is healthy, which is why nobody noticed
+    /// they had no limit: `StandardErrorPath` / `StandardOutPath` are opened by
+    /// launchd and appended to for the life of the job. A worker that faults on
+    /// every boot writes a backtrace per boot, forever, and `KeepAlive` with a
+    /// 5 s throttle means "every 5 seconds" rather than "once".
+    ///
+    /// Truncates instead of deleting — launchd still holds the descriptor, so
+    /// unlinking would leave the file growing invisibly — and keeps the last
+    /// 128 KB so the newest crash is still readable.
+    private static func trimRunawayOutputs() {
+        let manager = FileManager.default
+        for name in ["faircopy_daemon.err", "faircopy_daemon.out"] {
+            let path = FaircopyImageOCR.directory + "/" + name
+            guard let attributes = try? manager.attributesOfItem(atPath: path),
+                  let size = attributes[.size] as? NSNumber,
+                  size.intValue > 256 * 1024,
+                  let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                  let handle = FileHandle(forWritingAtPath: path)
+            else { continue }
+            var tail = Data(data.suffix(128 * 1024))
+            if let newline = tail.firstIndex(of: 0x0A) {
+                tail = Data(tail.suffix(from: tail.index(after: newline)))
+            }
+            try? handle.truncate(atOffset: 0)
+            try? handle.write(contentsOf: tail)
+            try? handle.close()
+        }
     }
 
     private static let bootPath = FaircopyImageOCR.directory + "/faircopy_daemon_boot.json"
@@ -375,6 +420,17 @@ enum FaircopyDaemon {
     /// and both would hand off a panel.
     static let heartbeatPath = FaircopyImageOCR.directory + "/faircopy_ocr_daemon.json"
 
+    /// Posted the moment a request is taken, before the picture is read
+    /// (3.0.128). KEEP IN SYNC with `kFCAcceptedNotification` in
+    /// FaircopySnapperPlugin.xm.
+    ///
+    /// The caller's fallback is a clock — 2 s, then 8 s, then launch AIGate —
+    /// and the only thing that used to stop it was the result, i.e. the END of
+    /// the work. A cold accurate Chinese pass can outlast 8 s, so the visible
+    /// road started reading the same picture while this process was still on
+    /// it. Saying "I have it" first closes that window.
+    static let acceptedNotification = "wiki.qaq.faircopy.ocr.accepted"
+
     private static func startHeartbeat() {
         beat()
         let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
@@ -434,6 +490,9 @@ enum FaircopyDaemon {
         }
         busy = true
         beat()
+        // Before the read, not after: this is the call that tells the caller's
+        // fallback clock to stop. See acceptedNotification.
+        fc_daemon_notify_post(acceptedNotification)
 
         // An empty target means "let the injector arbitrate": its claim ticket
         // plus SpringBoard's 0.8 s deferral let the app the user is actually
@@ -460,6 +519,12 @@ enum FaircopyDaemon {
             fc_daemon_notify_post(FaircopyImageOCR.resultNotification)
 
             if handedOff {
+                // 3.0.128: the stamp the visible road consults before deciding
+                // to read the picture again. Written only on SUCCESS on purpose:
+                // a picture with no words must still be able to take the visible
+                // road, and marking that as "handled" would leave the caller
+                // waiting for a panel that was never going to come.
+                FaircopyImageOCR.markFinished()
                 FaircopyImageOCR.discardHandoffFiles()
                 // Nothing was switched, so the app the user is looking at is
                 // still in front: its injector presents the panel in place. The

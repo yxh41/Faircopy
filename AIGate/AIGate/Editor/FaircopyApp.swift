@@ -337,7 +337,14 @@ final class SceneDelegate: NSObject, UIWindowSceneDelegate {
             // brought the app forward. Reading the same picture a second time
             // costs another second and races the panel that is already on its
             // way. The bounce is still owed, though: this launch is visible.
-            if FaircopyImageOCR.finishedWithin(4.0) {
+            //
+            // 3.0.128: 8 s, not 4. The window has to cover the launch itself —
+            // the fallback fires at 8 s, the app then takes a second or two to
+            // come up — so a 4 s window expired while the app was still
+            // starting and the check could never fire. 8 s matches the point at
+            // which the fallback gave up, i.e. "the worker finished around the
+            // time this launch was decided".
+            if FaircopyImageOCR.finishedWithin(8.0) {
                 FaircopyImageOCR.appendLog("ocr: url road stands down, silent road already answered")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     LSApplicationWorkspace.default().openApplication(withBundleID: landTarget)
@@ -791,13 +798,47 @@ enum FaircopyImageOCR {
     /// limit itself to the bounce it still owes the user.
     private static var lastFinishedAt: Date?
 
+    /// 3.0.128: the stamp has to be readable from the OTHER process.
+    ///
+    /// `lastFinishedAt` is a `private static var`, i.e. one copy per process.
+    /// That was correct in 3.0.86, when the silent road WAS this app and both
+    /// sides of the comparison lived in the same address space. 3.0.97 moved
+    /// the silent road into the launch daemon and nobody moved the stamp with
+    /// it: `markFinished` is called from the app only, so `finishedWithin`
+    /// inside a fallback launch compared against nil, always answered NO, and
+    /// the visible road re-read a picture the worker was already reading. That
+    /// is the second `ocr.result` on one tap.
+    ///
+    /// The file is the same hand-off directory both processes already share, so
+    /// this is the smallest possible repair — it restores the 3.0.86 intent
+    /// without adding a new notification or a new protocol.
+    static let finishedPath = directory + "/faircopy_ocr_finished.json"
+
+    /// Kept in memory as well: the common case (app finishes, app launches the
+    /// URL road) must not pay for a disk read.
     static func markFinished() {
-        lastFinishedAt = Date()
+        let now = Date()
+        lastFinishedAt = now
+        let payload: [String: Any] = [
+            "at": now.timeIntervalSince1970,
+            "pid": Int(getpid()),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        try? data.write(to: URL(fileURLWithPath: finishedPath), options: .atomic)
     }
 
     static func finishedWithin(_ seconds: TimeInterval) -> Bool {
-        guard let last = lastFinishedAt else { return false }
-        return Date().timeIntervalSince(last) < seconds
+        if let last = lastFinishedAt, Date().timeIntervalSince(last) < seconds {
+            return true
+        }
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: finishedPath)),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let at = object["at"] as? Double
+        else { return false }
+        let age = Date().timeIntervalSince1970 - at
+        // A negative age means the worker's clock ran ahead of ours, which is
+        // still "just now": trusting it beats reading the picture a second time.
+        return age < seconds
     }
 
     struct Outcome {
@@ -1192,8 +1233,16 @@ enum FaircopyImageOCR {
         let entry = "\(formatter.string(from: Date())) \(line)\n"
         let url = URL(fileURLWithPath: logPath)
         var existing = (try? Data(contentsOf: url)) ?? Data()
-        if existing.count > 8 * 1024 {
-            existing = Data()
+        if existing.count > 128 * 1024 {
+            // 3.0.128: keep the tail instead of starting over. 8 KB was about
+            // two hundred lines here, which is fewer taps than a debugging
+            // session — and the lines before the reset are the ones that say
+            // how the failure was reached.
+            var tail = Data(existing.suffix(64 * 1024))
+            if let newline = tail.firstIndex(of: 0x0A) {
+                tail = Data(tail.suffix(from: tail.index(after: newline)))
+            }
+            existing = tail
         }
         existing.append(Data(entry.utf8))
         try? existing.write(to: url, options: .atomic)

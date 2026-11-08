@@ -60,6 +60,21 @@ static NSString *const kFCResultNotification = @"wiki.qaq.faircopy.ocr.result";
 /// KEEP IN SYNC with FaircopyDaemon.heartbeatPath.
 static NSString *const kFCDaemonHeartbeatPath = @"/var/mobile/Library/Preferences/wiki.qaq.ai.gate/faircopy_ocr_daemon.json";
 
+/// Posted by the resident worker the instant it takes a request (3.0.128).
+///
+/// The fallback below is a blind clock: 2 s, then 8 s, then launch AIGate. Only
+/// the RESULT used to cancel it, and the result arrives at the END of the work —
+/// so any accurate Chinese recognition slower than 8 s (a cold model takes
+/// about that long) got the visible road started on top of a recognition that
+/// was about to succeed. One picture, read twice: two result files, two panels'
+/// worth of work, and the black flash plus the drop to the home screen the
+/// daemon exists to remove.
+///
+/// The worker now says "I have it" BEFORE it starts reading. That is the one
+/// moment when waiting is still the right answer, and the clock stops there.
+/// KEEP IN SYNC with FaircopyDaemon.acceptedNotification.
+static NSString *const kFCAcceptedNotification = @"wiki.qaq.faircopy.ocr.accepted";
+
 // Our own diagnostics.  A plugin either appears in somebody's menu or it does
 // not, and there is no way to tell from the outside which of the three
 // managers was involved — so every step writes one line here.
@@ -128,9 +143,28 @@ static void FCLog(NSString *format, ...)
     }
     // Self-trimming, exactly like faircopy_ocr.log: the file can never grow
     // past this, so leaving it installed costs nothing.
+    //
+    // 3.0.128: keep the tail instead of throwing the whole file away. 8 KB was
+    // about 124 lines — six to ten taps — and one view-tree dump spends that in
+    // a single go; clearing it deleted exactly the part that explains the
+    // failure. 128 KB with the last 64 KB kept holds several sessions and is
+    // still bounded.
     NSDictionary *attributes = [manager attributesOfItemAtPath:kFCLogPath error:NULL];
-    if ([attributes fileSize] > 8192)
-        [@"" writeToFile:kFCLogPath atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+    if ([attributes fileSize] > 128 * 1024) {
+        NSData *existing = [NSData dataWithContentsOfFile:kFCLogPath];
+        NSUInteger keep = 64 * 1024;
+        if (existing.length > keep) {
+            NSData *tail = [existing subdataWithRange:NSMakeRange(existing.length - keep, keep)];
+            // Resume on a line boundary: a cut inside a multi-byte character
+            // would make the first line of the file unreadable.
+            const char *bytes = tail.bytes;
+            NSUInteger offset = 0;
+            while (offset < tail.length && bytes[offset] != '\n') { offset++; }
+            if (offset < tail.length) { offset++; }
+            NSData *kept = [tail subdataWithRange:NSMakeRange(offset, tail.length - offset)];
+            [kept writeToFile:kFCLogPath atomically:YES];
+        }
+    }
 
     NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:kFCLogPath];
     @try {
@@ -693,6 +727,30 @@ static void FCWatchForResult(void)
     });
     if (status != NOTIFY_STATUS_OK)
         FCLog(@"could not watch %@: %u", kFCResultNotification, status);
+}
+
+static int fcAcceptedToken = 0;
+
+/// Registered once at load, not when a fallback starts (3.0.128).
+///
+/// A late registration would miss the very answer it exists for: the worker
+/// posts this within milliseconds of receiving the request, and
+/// `notify_register_dispatch` has no memory of what it did not hear.
+static void FCWatchForAcceptance(void)
+{
+    if (fcAcceptedToken != 0)
+        return;
+    uint32_t status = notify_register_dispatch(kFCAcceptedNotification.UTF8String,
+                                               &fcAcceptedToken,
+                                               dispatch_get_main_queue(),
+                                               ^(int token) {
+        // Same cancellation the result uses: the `mine` snapshot taken in
+        // FCArmFallback stops matching, so its clock expires into nothing.
+        fcInvocationSequence++;
+        FCLog(@"resident worker took the request, fallback cancelled");
+    });
+    if (status != NOTIFY_STATUS_OK)
+        FCLog(@"could not watch %@: %u", kFCAcceptedNotification, status);
 }
 
 /// The resident worker's last heart beat, or nil when there is none readable.
@@ -1363,6 +1421,11 @@ static void FCScheduleShellXHookRetry(int remaining)
             FCLog(@"loaded: v%s snapper=%d shellx=%d metadata folder=%d recognize log=%d",
                   PACKAGE_VERSION, snapperInstalled, shellxInstalled, pluginsFolder,
                   [manager fileExistsAtPath:kFCRecognizeLogPath]);
+            // Only a process that can actually show this plugin ever runs the
+            // fallback clock, so only that process needs the listener. Registering
+            // it in the hundreds of other injected apps would be a dispatch source
+            // each for a notification they can do nothing with.
+            FCWatchForAcceptance();
         }
         %init(FaircopySnapper);
         FCInstallShellXHooks();
