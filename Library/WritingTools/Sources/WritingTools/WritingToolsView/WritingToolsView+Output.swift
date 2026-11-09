@@ -340,15 +340,37 @@ extension WritingToolsView {
     }
 }
 
-/// 3.0.133 (plan A): the full-panel 原文 page. Isolated from `outputPanel` so the
-/// (possibly huge) source is laid out only here. Scrolls the entire source; a back
-/// control (caller-supplied) returns to the answer, and copy flips to a ✓ for 1.2s
-/// so the tap is obviously acknowledged. The page is shown by swapping the whole
-/// panel content, so there is no inline height to fight.
+/// 3.0.134: 原文 page with lazy chunked rendering. Only the first `chunkSize`
+/// characters are laid out on entry, so even a 25k-char OCR dump opens instantly;
+/// a bottom sentinel appends the next chunk (via `onAppear`) as the user scrolls
+/// down. The back control returns to the answer; copy flips to a ✓ for 1.2s.
 private struct OriginalPageView: View {
     let source: String
     var onBack: () -> Void
     @State private var copied: Bool = false
+    @State private var renderedCount: Int
+    @State private var isLoadingMore: Bool = false
+
+    private let chunkSize = 8000
+
+    init(source: String, onBack: @escaping () -> Void) {
+        self.source = source
+        self.onBack = onBack
+        _renderedCount = .init(initialValue: min(source.count, chunkSize))
+    }
+
+    /// Appends one chunk when the bottom sentinel scrolls into view. Guarded so a
+    /// single appearance cannot re-entrantly stack several appends, and deferred a
+    /// beat so the new chunk is measured on its own frame rather than mid-gesture.
+    private func loadMore() {
+        guard !isLoadingMore, renderedCount < source.count else { return }
+        isLoadingMore = true
+        let next = min(source.count, renderedCount + chunkSize)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            renderedCount = next
+            isLoadingMore = false
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -386,12 +408,27 @@ private struct OriginalPageView: View {
             .padding(.vertical, 9)
             Divider().opacity(0.15)
             ScrollView {
-                Text(source)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(source.prefix(renderedCount))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                    if renderedCount < source.count {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .tint(.white.opacity(0.6))
+                                .controlSize(.small)
+                            Text("Load More".localized)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.bottom, 16)
+                        .onAppear { loadMore() }
+                    }
+                }
             }
         }
     }
