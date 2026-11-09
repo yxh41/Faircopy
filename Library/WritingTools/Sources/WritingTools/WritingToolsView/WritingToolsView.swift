@@ -73,10 +73,12 @@ struct WritingToolsView: View {
     /// a handful of translated ones. The comparison must use what was actually
     /// sent, so `executeTask` records it here at submit time.
     @State var translatedSource: String = ""
-    /// 3.0.131: 原文 is now a toggle pill beside 对照 (the 3.0.130 popup was
-    /// laggy and visually off), and its expansion flag is no longer needed — the
-    /// inline card is shown directly off this remembered toggle.
-    @State var originalMode: Bool = OriginalMode.remembered
+    /// 3.0.133: 原文 is now a full-panel page swap (plan A). This flag is a
+    /// navigation state, NOT a persisted preference — the panel opens on the
+    /// answer every time, and tapping 原文 swaps the whole content area to the
+    /// source page; the page's back control clears it. Defaulting to false keeps
+    /// the result as the landing view.
+    @State var originalMode: Bool = false
 
     /// 3.0.129: 原文对照 (bilingual comparison) for Translate results. Off by
     /// default so the panel looks as before; once flipped on it persists per host
@@ -232,18 +234,27 @@ struct WritingToolsView: View {
 
     public var body: some View {
         VStack(spacing: 16) {
-            if showsHeightGrip {
-                heightGrip
-            }
-            title
-            if shouldShowError {
-                errorView
-            } else if shouldShowOutput {
-                outputPanel
+            if originalMode, showsSourceExcerpt {
+                // 3.0.133 (plan A): the whole content area becomes the 原文 page —
+                // the answer is hidden and the panel scrolls the source. The back
+                // control on the page clears `originalMode`.
+                originalPage
+                    .transition(.opacity.combined(with: .scale(scale: 0.98)))
             } else {
-                selectiveButtonPanels
+                if showsHeightGrip {
+                    heightGrip
+                }
+                title
+                if shouldShowError {
+                    errorView
+                } else if shouldShowOutput {
+                    outputPanel
+                } else {
+                    selectiveButtonPanels
+                }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: originalMode)
         // The task-takeover swap (button grid -> output panel) is the ONLY
         // animation this VStack owns, and it must NOT share the modifier chain
         // with any `.spring`. A stacked `.animation(.spring, value: output)` (or

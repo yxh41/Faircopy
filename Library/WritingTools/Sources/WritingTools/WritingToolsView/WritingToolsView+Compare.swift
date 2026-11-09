@@ -32,22 +32,8 @@ enum CompareMode {
     }
 }
 
-/// Whether the full 原文 (sourceSubject) is shown inline above the answer.
-///
-/// 3.0.131: demoted from the 3.0.130 popup (laggy, visually off) to a toggle
-/// pill beside `compareToggle`. Persisted per host app like `CompareMode`.
-enum OriginalMode {
-    case off
-    case on
-
-    static let defaultsKey = "faircopy.source.shown"
-
-    static var remembered: Bool {
-        get { UserDefaults.standard.bool(forKey: defaultsKey) }
-        set { UserDefaults.standard.set(newValue, forKey: defaultsKey) }
-    }
-}
-
+/// 3.0.133 (plan A): the full 原文 is shown as a full-panel page swap, driven by
+/// `originalMode` (a navigation state on `WritingToolsView`), not an enum.
 extension WritingToolsView {
     /// Toggle pill shown under the language chips in Translate mode. Flips the
     /// comparison on/off and persists the choice.
@@ -75,14 +61,13 @@ extension WritingToolsView {
         .opacity(output.isEmpty ? 0.4 : 1)
     }
 
-    /// 3.0.131: 原文 toggle pill. Sits beside `compareToggle` in the translate
-    /// footer; flips the inline 原文 card on/off and persists the choice per host
-    /// app. Replaces the laggy 3.0.130 popup.
+    /// 3.0.133 (plan A): 原文 toggle pill. Sits beside `compareToggle` in the
+    /// translate footer; flips `originalMode`, which swaps the whole panel to the
+    /// source page. No longer a persisted inline card (the 3.0.131 split).
     @ViewBuilder
     var originalToggle: some View {
         Button {
             originalMode.toggle()
-            OriginalMode.remembered = originalMode
             NSLog("[Faircopy] original mode toggled, on=\(originalMode) chars=\(sourceSubject.count)")
         } label: {
             HStack(spacing: 4) {

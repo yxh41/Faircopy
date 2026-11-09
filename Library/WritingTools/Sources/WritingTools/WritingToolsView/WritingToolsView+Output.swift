@@ -27,19 +27,17 @@ extension WritingToolsView {
         return !sourceSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// 3.0.131: 原文 shown inline when the 原文 toggle is on. Replaces the
-    /// 3.0.130 popup. 3.0.132: collapsed by default (only a short preview is
-    /// laid out) so toggling 原文 on with a huge source no longer janks — the
-    /// full scrollable text is built only on an explicit "展开全文" tap.
-    var originalCard: some View {
-        OriginalCardView(source: sourceSubject)
+    /// 3.0.133 (plan A): the whole panel swaps to this view when `originalMode`
+    /// is true. The answer is hidden; the panel scrolls the full source with a
+    /// back control and a copy button. Not a persisted split — a navigation.
+    var originalPage: some View {
+        OriginalPageView(source: sourceSubject) {
+            withAnimation(.easeInOut(duration: 0.2)) { originalMode = false }
+        }
     }
 
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
-            if showsSourceExcerpt, originalMode {
-                originalCard
-            }
             if taskPrompt == .segment {
                 segmentOutputArea
             } else if output.isEmpty {
@@ -342,85 +340,59 @@ extension WritingToolsView {
     }
 }
 
-/// 3.0.132: isolated from `outputPanel` so the (possibly huge) source text is
-/// laid out only here, not on every streaming re-render of the panel. Collapsed
-/// by default: just a short, cheap preview; the full scrollable text is built
-/// only when the user taps "展开全文". Copy gives a brief ✓ so the tap is
-/// obviously acknowledged.
-private struct OriginalCardView: View {
+/// 3.0.133 (plan A): the full-panel 原文 page. Isolated from `outputPanel` so the
+/// (possibly huge) source is laid out only here. Scrolls the entire source; a back
+/// control (caller-supplied) returns to the answer, and copy flips to a ✓ for 1.2s
+/// so the tap is obviously acknowledged. The page is shown by swapping the whole
+/// panel content, so there is no inline height to fight.
+private struct OriginalPageView: View {
     let source: String
-    @State private var full: Bool = false
+    var onBack: () -> Void
     @State private var copied: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 6) {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button {
+                    onBack()
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "chevron.left")
+                        Text("Back".localized)
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.9))
+                }
+                .buttonStyle(.plain)
                 Text("Source".localized)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.55))
-                Text(String(format: (source.count == 1 ? "%d character" : "%d characters").localized, source.count))
-                    .font(.system(size: 10))
-                    .foregroundStyle(.white.opacity(0.4))
-                Spacer(minLength: 0)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
                 Button {
                     UIPasteboard.general.string = source
                     copied = true
-                    // Proves the inline 原文 (and its copy) shipped.
+                    // Proves the 原文 page (and its copy) shipped.
                     NSLog("[Faircopy] original copied, chars=\(source.count)")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
                 } label: {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundStyle(copied ? Color.green : Color.white.opacity(0.6))
-                        .frame(width: 22, height: 22)
+                        .font(.system(size: 14))
+                        .foregroundStyle(copied ? Color.green : Color.white.opacity(0.85))
+                        .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            if full {
-                ScrollView {
-                    Text(source)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.7))
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.bottom, 8)
-                }
-                .frame(maxHeight: 200)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { full = false }
-                } label: {
-                    Text("Hide".localized)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.bottom, 8)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Text(source.prefix(360))
-                    .font(.system(size: 12))
-                    .foregroundStyle(.white.opacity(0.7))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            Divider().opacity(0.15)
+            ScrollView {
+                Text(source)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(6)
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { full = true }
-                } label: {
-                    Text("Show Full".localized)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.bottom, 8)
-                }
-                .buttonStyle(.plain)
+                    .padding(14)
             }
         }
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.white.opacity(0.07)))
-        .transition(.opacity)
     }
 }
