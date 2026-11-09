@@ -350,6 +350,10 @@ private struct OriginalPageView: View {
     @State private var copied: Bool = false
     @State private var renderedCount: Int
     @State private var isLoadingMore: Bool = false
+    /// Set the instant the user leaves the page, so a chunk load scheduled 80ms
+    /// earlier by a sentinel `onAppear` drops its append instead of mutating a view
+    /// that is already being torn down. (3.0.135)
+    @State private var loadCancelled: Bool = false
 
     private let chunkSize = 8000
 
@@ -362,21 +366,33 @@ private struct OriginalPageView: View {
     /// Appends one chunk when the bottom sentinel scrolls into view. Guarded so a
     /// single appearance cannot re-entrantly stack several appends, and deferred a
     /// beat so the new chunk is measured on its own frame rather than mid-gesture.
+    /// Bails out if the user already left the page (3.0.135): the 80ms timer then
+    /// fires against a view being discarded and must not append a chunk.
     private func loadMore() {
-        guard !isLoadingMore, renderedCount < source.count else { return }
+        guard !loadCancelled, !isLoadingMore, renderedCount < source.count else { return }
         isLoadingMore = true
         let next = min(source.count, renderedCount + chunkSize)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in
+            if loadCancelled {
+                isLoadingMore = false
+                return
+            }
             renderedCount = next
             isLoadingMore = false
         }
+    }
+
+    /// 3.0.135: leaving the page cancels any in-flight chunk load, then returns.
+    private func triggerBack() {
+        loadCancelled = true
+        onBack()
     }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Button {
-                    onBack()
+                    triggerBack()
                 } label: {
                     HStack(spacing: 3) {
                         Image(systemName: "chevron.left")
