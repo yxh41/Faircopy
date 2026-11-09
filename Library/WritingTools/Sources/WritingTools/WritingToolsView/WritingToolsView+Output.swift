@@ -88,7 +88,7 @@ extension WritingToolsView {
 
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
-            if showsSourceExcerpt {
+            if showsSourceExcerpt, !showsBilingualComparison {
                 sourceExcerpt
             }
             if taskPrompt == .segment {
@@ -99,6 +99,8 @@ extension WritingToolsView {
                     .progressViewStyle(.circular)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .transition(.opacity.combined(with: .scale(scale: 0.85)))
+            } else if showsBilingualComparison {
+                bilingualComparison
             } else {
                 StickToBottomScrollView {
                     VStack(spacing: 8) {
@@ -128,6 +130,7 @@ extension WritingToolsView {
             }
             if taskPrompt == .translate {
                 translateLanguagePicker(target: translateTarget, rerunOnSelect: true)
+                compareToggle
             }
             if taskPrompt == .segment {
                 segmentStatsLine

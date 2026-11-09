@@ -50,6 +50,10 @@ extension WritingToolsLocalizable {
             "Source": "原文",
             "Show": "展开",
             "Hide": "收起",
+            /* 3.0.129: 翻译结果的双语逐句对照开关 */
+            "Translation": "译文",
+            "Compare: On": "对照：开",
+            "Compare: Off": "对照：关",
             "Copy in Source Order": "按原文顺序复制",
             "Copy in Selection Order": "按选择顺序复制",
             "Order: Source": "顺序：原文",

@@ -68,6 +68,11 @@ struct WritingToolsView: View {
     /// its height is the scarce resource, not its information density.
     @State var showsSource: Bool = false
 
+    /// 3.0.129: 原文对照 (bilingual comparison) for Translate results. Off by
+    /// default so the panel looks as before; once flipped on it persists per host
+    /// app and pairs each source sentence with its translation.
+    @State var compareMode: Bool = CompareMode.remembered
+
     /// 3.0.108: which height tier the handle has been flicked to. 1 is the size
     /// the presenter measured, so a panel nobody touches looks exactly as before.
     @State var heightTier: Int = 1
