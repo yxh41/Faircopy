@@ -54,6 +54,9 @@ extension WritingToolsLocalizable {
             "Translation": "译文",
             "Compare: On": "对照：开",
             "Compare: Off": "对照：关",
+            /* 3.0.131: 原文内联卡开关（与对照开关并排） */
+            "Source: On": "原文：开",
+            "Source: Off": "原文：关",
             "Copy in Source Order": "按原文顺序复制",
             "Copy in Selection Order": "按选择顺序复制",
             "Order: Source": "顺序：原文",

@@ -27,89 +27,53 @@ extension WritingToolsView {
         return !sourceSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// 3.0.130: the full 原文 no longer takes an inline card. It is a compact
-    /// pill that pops a panel-internal sheet (`sourceSheetOverlay`) — the source
-    /// can be long (a whole OCR'd screen), and an always-collapsed one-line card
-    /// still ate a row while hiding the only thing it is for: reading the words
-    /// this panel started from.
-    var sourceButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.18)) {
-                showsSourceSheet.toggle()
-            }
-            // Tracked so the release check can prove the popup shipped.
-            NSLog("[Faircopy] source sheet toggled, open=\(showsSourceSheet) chars=\(sourceSubject.count)")
-        } label: {
+    /// 3.0.131: 原文 shown inline (capped + internal scroll) when the 原文 toggle
+    /// is on. Replaces the 3.0.130 popup, which was laggy and visually off. Keeps
+    /// a one-tap copy so verifying the OCR / copying an untranslated passage is
+    /// still possible without the modal.
+    var originalCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Image(systemName: "doc.plaintext")
                 Text("Source".localized)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.55))
                 Text(String(format: (sourceSubject.count == 1 ? "%d character" : "%d characters").localized, sourceSubject.count))
-                    .opacity(0.55)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.white.opacity(0.4))
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.up.right")
-                    .font(.caption2)
-                    .opacity(0.5)
-            }
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.white.opacity(0.8))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(.white.opacity(0.07)))
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// Popup layered over the panel while `showsSourceSheet` is true. Shows the
-    /// full source (the whole selection / OCR screen, not just the translated
-    /// part) with a copy action, so the user can still verify the OCR or copy an
-    /// untranslated passage after the 对照 view narrowed to the submitted text.
-    var sourceSheetOverlay: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text("Source".localized)
-                    .font(.system(size: 13, weight: .semibold))
-                Spacer(minLength: 0)
-                BeautifulButton(title: "Copy".localized) {
-                    UIPasteboard.general.string = sourceSubject
-                }
                 Button {
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        showsSourceSheet = false
-                    }
+                    UIPasteboard.general.string = sourceSubject
+                    // Proves the inline 原文 (and its copy) shipped.
+                    NSLog("[Faircopy] original copied, chars=\(sourceSubject.count)")
                 } label: {
-                    Image(systemName: "xmark")
-                        .font(.footnote.bold())
-                        .foregroundStyle(.white)
-                        .padding(8)
-                        .background(Circle().fill(.white.opacity(0.1)))
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .frame(width: 22, height: 22)
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            Divider().opacity(0.15)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             ScrollView {
                 Text(sourceSubject)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.7))
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
             }
+            .frame(maxHeight: 84)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.92))
-        )
-        .padding(12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(.white.opacity(0.07)))
+        .transition(.opacity)
     }
 
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
-            if showsSourceExcerpt {
-                sourceButton
+            if showsSourceExcerpt, originalMode {
+                originalCard
             }
             if taskPrompt == .segment {
                 segmentOutputArea
@@ -150,7 +114,13 @@ extension WritingToolsView {
             }
             if taskPrompt == .translate {
                 translateLanguagePicker(target: translateTarget, rerunOnSelect: true)
-                compareToggle
+            }
+            if showsSourceExcerpt || taskPrompt == .translate {
+                HStack(spacing: 8) {
+                    if showsSourceExcerpt { originalToggle }
+                    if taskPrompt == .translate { compareToggle }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if taskPrompt == .segment {
                 segmentStatsLine
