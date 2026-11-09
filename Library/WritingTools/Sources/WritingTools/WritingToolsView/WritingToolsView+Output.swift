@@ -27,69 +27,89 @@ extension WritingToolsView {
         return !sourceSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    var sourceExcerpt: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) {
-                    showsSource.toggle()
-                }
-                // The one in-binary trace this feature has: the strings above
-                // ("Source" / "Show" / "Hide") are far too short to survive
-                // Swift's small-literal inlining, so the release check needs a
-                // line long enough to land in __cstring to prove this shipped.
-                print("[Faircopy] source excerpt toggled, expanded=\(showsSource) chars=\(sourceSubject.count)")
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Source".localized)
-                        .font(.system(size: 11, weight: .medium))
-                    Text(String(format: (sourceSubject.count == 1 ? "%d character" : "%d characters").localized, sourceSubject.count))
-                        .font(.system(size: 10))
-                        .opacity(0.55)
-                    Spacer(minLength: 0)
-                    Text((showsSource ? "Hide" : "Show").localized)
-                        .font(.system(size: 11))
-                        .opacity(0.55)
-                }
-                .foregroundStyle(.white.opacity(0.8))
-                .contentShape(Rectangle())
+    /// 3.0.130: the full 原文 no longer takes an inline card. It is a compact
+    /// pill that pops a panel-internal sheet (`sourceSheetOverlay`) — the source
+    /// can be long (a whole OCR'd screen), and an always-collapsed one-line card
+    /// still ate a row while hiding the only thing it is for: reading the words
+    /// this panel started from.
+    var sourceButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                showsSourceSheet.toggle()
             }
-            .buttonStyle(.plain)
+            // Tracked so the release check can prove the popup shipped.
+            NSLog("[Faircopy] source sheet toggled, open=\(showsSourceSheet) chars=\(sourceSubject.count)")
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "doc.plaintext")
+                Text("Source".localized)
+                Text(String(format: (sourceSubject.count == 1 ? "%d character" : "%d characters").localized, sourceSubject.count))
+                    .opacity(0.55)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.right")
+                    .font(.caption2)
+                    .opacity(0.5)
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.white.opacity(0.8))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(.white.opacity(0.07)))
+        }
+        .buttonStyle(.plain)
+    }
 
-            if showsSource {
-                // Capped, and scrolling inside the cap. This card floats over
-                // another app's screen; letting a long source push the answer
-                // off the bottom would trade the thing the user asked for
-                // against a reference they only glance at.
-                ScrollView {
-                    Text(sourceSubject)
-                        .font(.system(size: 11.5))
-                        .foregroundStyle(.white.opacity(0.72))
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+    /// Popup layered over the panel while `showsSourceSheet` is true. Shows the
+    /// full source (the whole selection / OCR screen, not just the translated
+    /// part) with a copy action, so the user can still verify the OCR or copy an
+    /// untranslated passage after the 对照 view narrowed to the submitted text.
+    var sourceSheetOverlay: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Source".localized)
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer(minLength: 0)
+                BeautifulButton(title: "Copy".localized) {
+                    UIPasteboard.general.string = sourceSubject
                 }
-                .frame(maxHeight: 76)
-            } else {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showsSourceSheet = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.footnote.bold())
+                        .foregroundStyle(.white)
+                        .padding(8)
+                        .background(Circle().fill(.white.opacity(0.1)))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            Divider().opacity(0.15)
+            ScrollView {
                 Text(sourceSubject)
-                    .font(.system(size: 11.5))
-                    .foregroundStyle(.white.opacity(0.62))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.white.opacity(0.07))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.black.opacity(0.92))
         )
-        .transition(.opacity)
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
     }
 
     var outputPanel: some View {
         VStack(spacing: innerSpacing) {
-            if showsSourceExcerpt, !showsBilingualComparison {
-                sourceExcerpt
+            if showsSourceExcerpt {
+                sourceButton
             }
             if taskPrompt == .segment {
                 segmentOutputArea

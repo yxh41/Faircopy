@@ -176,6 +176,10 @@ extension WritingToolsView {
         context.streamCancelled = false
 
         let resolvedUserText = userText ?? context.textProxy.selectedText
+        // 3.0.130: remember exactly what we sent, so the 原文对照 view compares
+        // the answer against this — not against the full `sourceSubject` snapshot
+        // (which may be a much larger selection in the 分词→翻译 path).
+        translatedSource = resolvedUserText
         // Few-shot examples first, then the replayed conversation, then the new
         // question — the same order a real transcript would have.
         var messages: [ChatQuery.ChatCompletionMessageParam] = [.system(.init(content: systemPrompt))] + examples + history

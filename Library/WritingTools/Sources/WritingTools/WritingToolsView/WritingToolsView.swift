@@ -64,9 +64,18 @@ struct WritingToolsView: View {
     /// caller already sent, which the presenter put into the text proxy as the
     /// subject. Showing it is purely a UI change.
     @State var sourceSubject: String = ""
-    /// Collapsed by default. This panel floats over someone else's screen and
-    /// its height is the scarce resource, not its information density.
-    @State var showsSource: Bool = false
+    /// 3.0.130: the exact text submitted to the model for the current `output`.
+    ///
+    /// `sourceSubject` is a *snapshot* of the full selection (e.g. the whole
+    /// OCR'd screen, or the entire 分词 source); but a 分词→翻译 action only
+    /// submits the picked words (`segmentActionSubject`). Pairing the answer
+    /// against `sourceSubject` then aligns thousands of untranslated lines with
+    /// a handful of translated ones. The comparison must use what was actually
+    /// sent, so `executeTask` records it here at submit time.
+    @State var translatedSource: String = ""
+    /// 3.0.130: the 原文 card became a button that pops a panel-internal sheet,
+    /// so its expansion flag is no longer needed.
+    @State var showsSourceSheet: Bool = false
 
     /// 3.0.129: 原文对照 (bilingual comparison) for Translate results. Off by
     /// default so the panel looks as before; once flipped on it persists per host
@@ -266,6 +275,15 @@ struct WritingToolsView: View {
                     // animation itself lives in `withAnimation` at the set site —
                     // never a container `.animation(value:)` on this chain.
                     .transition(.opacity.combined(with: .scale(scale: 0.92)))
+            }
+        }
+        // 3.0.130: the 原文 popup. Layered over the whole card so it reads as a
+        // dialog inside the panel rather than an inline expander. Its transition
+        // is driven by `withAnimation` at the toggle site, not a container
+        // `.animation(value:)` — the same rule as the variant menu above.
+        .overlay {
+            if showsSourceSheet {
+                sourceSheetOverlay
             }
         }
         .onAppear {

@@ -42,7 +42,7 @@ extension WritingToolsView {
             CompareMode.remembered = compareMode
             // Long enough to survive Swift's small-literal inlining so the
             // release check can prove this shipped.
-            NSLog("[Faircopy] compare mode toggled, on=\(compareMode) src=\(sourceSubject.count) out=\(output.count)")
+            NSLog("[Faircopy] compare mode toggled, on=\(compareMode) src=\(translatedSource.count) out=\(output.count)")
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: compareMode ? "rectangle.split.2x2.fill" : "rectangle.split.2x2")
@@ -67,7 +67,7 @@ extension WritingToolsView {
               compareMode,
               !isRunning,
               !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !sourceSubject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+              !translatedSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return false }
         return true
     }
@@ -75,7 +75,7 @@ extension WritingToolsView {
     var bilingualComparison: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                let pairs = Self.alignBilingual(source: sourceSubject, translation: output)
+                let pairs = Self.alignBilingual(source: translatedSource, translation: output)
                 ForEach(Array(pairs.enumerated()), id: \.offset) { index, pair in
                     VStack(alignment: .leading, spacing: 4) {
                         if let original = pair.original {
