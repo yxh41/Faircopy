@@ -50,6 +50,7 @@ extension WritingToolsLocalizable {
             "Source": "原文",
             "Show": "展开",
             "Hide": "收起",
+            "Show Full": "展开全文",
             /* 3.0.129: 翻译结果的双语逐句对照开关 */
             "Translation": "译文",
             "Compare: On": "对照：开",
