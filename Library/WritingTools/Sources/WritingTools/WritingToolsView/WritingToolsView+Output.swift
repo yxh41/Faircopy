@@ -63,6 +63,13 @@ extension WritingToolsView {
                         answerText
                             .multilineTextAlignment(.leading)
                             .font(.system(.footnote))
+                            // 3.0.137: StickToBottomScrollView hosts this text in
+                            // its own UIHostingController, which does NOT inherit
+                            // the panel's `.foregroundStyle(.white)`. Without an
+                            // explicit colour the answer renders in the system
+                            // primary colour and disappears into the dark panel —
+                            // the comparison view was the only place it showed.
+                            .foregroundStyle(.white)
                             // Link colour comes from tint, not the run
                             // attributes: the host app's accent is a saturated
                             // blue that clashes with this panel.

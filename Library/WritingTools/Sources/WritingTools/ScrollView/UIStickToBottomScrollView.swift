@@ -10,6 +10,14 @@ import UIKit
 class UIStickToBottomScrollView: UIScrollView {
     weak var arrangedView: UIView?
 
+    /// 3.0.137: `UIViewRepresentable.updateUIView` runs before SwiftUI has given
+    /// this view its final frame, so measuring the hosted view against a zero
+    /// width used to leave it at zero size for good. Re-measure in
+    /// `layoutSubviews` whenever the width actually changed (and whenever the
+    /// hosted content was replaced).
+    private var laidOutWidth: CGFloat = -1
+    private var didLogRelayout = false
+
     init() {
         super.init(frame: .zero)
 
@@ -28,13 +36,30 @@ class UIStickToBottomScrollView: UIScrollView {
             previousView.removeFromSuperview()
         }
         arrangedView = view
-
         addSubview(view)
+
+        // The hosted content is rebuilt on every streamed frame, so a new
+        // measurement is needed even when the width did not change.
+        laidOutWidth = -1
+        setNeedsLayout()
+        layoutIfNeeded()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+
+        guard let view = arrangedView, bounds.width > 0 else { return }
+        guard abs(bounds.width - laidOutWidth) > 0.5 else { return }
+        laidOutWidth = bounds.width
 
         let fittingSize = view.sizeThatFits(.init(width: bounds.width, height: .greatestFiniteMagnitude))
         view.frame = .init(origin: .zero, size: fittingSize)
-
         contentSize = fittingSize
+
+        if !didLogRelayout {
+            didLogRelayout = true
+            NSLog("[Faircopy] output scroll relayout 3.0.137 width=\(bounds.width) height=\(fittingSize.height)")
+        }
 
         let offsetY = max(0, contentSize.height - bounds.height)
         if offsetY > 0 {
