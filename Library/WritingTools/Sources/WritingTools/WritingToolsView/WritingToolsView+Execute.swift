@@ -167,6 +167,7 @@ extension WritingToolsView {
         print("[Faircopy] task start: grid fade-out via withAnimation easeInOut 0.30 (3.0.72)")
         output = ""
         outputCitations = []
+        hasBodyURLs = false
         segmentActive = false
         segmentTokens = []
         selectedSegmentIndexes = []
@@ -272,6 +273,9 @@ extension WritingToolsView {
                     self.liveChars = receivedChars
                     self.liveSpeed = 0
                     outputCitations = references
+                    // 3.0.136: the body-URL verdict from the scan above is reused
+                    // by `showsAskWebHint`, so it must not re-run `urls(in:)`.
+                    self.hasBodyURLs = !bodyURLs.isEmpty
                     self.askUpstreamLive = upstreamLive
                     if !references.isEmpty {
                         print("[Faircopy] answer citations: \(references.count) link(s) attached")

@@ -362,7 +362,8 @@ extension WritingToolsView {
             print("[Faircopy] app search: clipboard copy (protection off)")
         }
         dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+        // 3.0.136: cancellable one-shot (was a bare asyncAfter).
+        scheduleWork(delay: 0.45) {
             UIApplication.shared.open(url) { success in
                 guard !success else {
                     // 跳转成功（搜索模板命中）：记录最近使用，便于菜单把常用应用置顶

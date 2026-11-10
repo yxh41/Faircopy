@@ -96,51 +96,67 @@ extension WritingToolsView {
         return true
     }
 
+    /// 3.0.129 原文/译文 对照. Returns a dedicated sub-view whose only inputs are
+    /// `source` and `translation`; SwiftUI skips re-running its `body` (and thus
+    /// `alignBilingual`) whenever those are unchanged, so a body re-evaluation
+    /// from the 10s timer, a `copied` flag, or a selection change no longer
+    /// re-splits every sentence. (3.0.136)
     var bilingualComparison: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                let pairs = Self.alignBilingual(source: translatedSource, translation: output)
-                ForEach(Array(pairs.enumerated()), id: \.offset) { index, pair in
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let original = pair.original {
-                            comparisonLine(label: "Source".localized, text: original, emphasized: false)
-                        }
-                        if let translation = pair.translation {
-                            comparisonLine(label: "Translation".localized, text: translation, emphasized: true)
-                        }
-                    }
-                    if index < pairs.count - 1 {
-                        Divider().opacity(0.12)
-                    }
-                }
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        BilingualComparisonView(source: translatedSource, translation: output)
     }
 
-    /// One labelled line of the comparison: a muted caption (原文 / 译文)
-    /// followed by the text. The translation reads brighter than the source so
-    /// the eye lands on the answer first and the source second.
-    private func comparisonLine(label: String, text: String, emphasized: Bool) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.white.opacity(0.4))
-                .frame(minWidth: 28, alignment: .leading)
-            Text(text)
-                .font(emphasized ? .system(.footnote) : .system(size: 12))
-                .foregroundStyle(emphasized ? .white : .white.opacity(0.62))
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    /// 3.0.136: extracted from `bilingualComparison` so the sentence alignment is
+    /// only recomputed when `source`/`translation` actually change.
+    private struct BilingualComparisonView: View {
+        let source: String
+        let translation: String
+
+        var body: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    let pairs = WritingToolsView.alignBilingual(source: source, translation: translation)
+                    ForEach(Array(pairs.enumerated()), id: \.offset) { index, pair in
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let original = pair.original {
+                                comparisonLine(label: "Source".localized, text: original, emphasized: false)
+                            }
+                            if let translation = pair.translation {
+                                comparisonLine(label: "Translation".localized, text: translation, emphasized: true)
+                            }
+                        }
+                        if index < pairs.count - 1 {
+                            Divider().opacity(0.12)
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        }
+
+        /// One labelled line of the comparison: a muted caption (原文 / 译文)
+        /// followed by the text. The translation reads brighter than the source so
+        /// the eye lands on the answer first and the source second.
+        private func comparisonLine(label: String, text: String, emphasized: Bool) -> some View {
+            HStack(alignment: .top, spacing: 6) {
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .frame(minWidth: 28, alignment: .leading)
+                Text(text)
+                    .font(emphasized ? .system(.footnote) : .system(size: 12))
+                    .foregroundStyle(emphasized ? .white : .white.opacity(0.62))
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
     // MARK: - Sentence alignment
 
-    private struct AlignedPair {
+    fileprivate struct AlignedPair {
         let original: String?
         let translation: String?
     }
@@ -148,7 +164,7 @@ extension WritingToolsView {
     /// Splits text into non-empty, trimmed sentences. Mirrors the sentence walk
     /// the word segmenter uses (enumerateSubstrings bySentences), which keeps
     /// CJK punctuation attached to its sentence.
-    private static func splitSentences(_ text: String) -> [String] {
+    fileprivate static func splitSentences(_ text: String) -> [String] {
         let ns = text as NSString
         guard ns.length > 0 else { return [] }
         var out: [String] = []
@@ -162,7 +178,7 @@ extension WritingToolsView {
     /// Pairs source sentences with translation sentences by index. When counts
     /// differ, the overflow on either side becomes orphan lines (rendered with
     /// only their own caption) rather than being dropped.
-    private static func alignBilingual(source: String, translation: String) -> [AlignedPair] {
+    fileprivate static func alignBilingual(source: String, translation: String) -> [AlignedPair] {
         let src = splitSentences(source)
         let dst = splitSentences(translation)
         let count = max(src.count, dst.count)

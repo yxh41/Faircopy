@@ -211,7 +211,8 @@ extension WritingToolsView {
         print("[Faircopy] variant picked: \(variant.title) -> confirm beat then run (3.0.73)")
         withAnimation(.easeOut(duration: 0.16)) { variantMenuModeID = nil }
         confirmVariantModeID = modeID
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
+        // 3.0.136: cancellable one-shot (was a bare asyncAfter).
+        scheduleWork(delay: 0.22) {
             confirmVariantModeID = nil
             applyVariant(modeID: modeID, variant: variant)
         }
@@ -225,7 +226,8 @@ extension WritingToolsView {
         if let prefill = variant.askPrefill {
             if variant.askWeb { askWebSearch = true }
             activeVariant = nil
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
+            // 3.0.136: cancellable one-shot (was a bare asyncAfter).
+            scheduleWork(delay: 0.20) {
                 self.presentSegmentAsk(prefill: prefill, followUp: false)
             }
         } else {

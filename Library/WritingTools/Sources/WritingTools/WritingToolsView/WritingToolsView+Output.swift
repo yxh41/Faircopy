@@ -54,8 +54,13 @@ extension WritingToolsView {
                         // While streaming, skip link detection: the text changes
                         // ~20 times a second and re-scanning it every frame costs
                         // more than an inert URL is worth. The finished answer is
-                        // re-rendered with links.
-                        Text(isRunning ? AttributedString(output) : AnswerLinkParser.linkified(output))
+                        // re-rendered with links. 3.0.136: a plain `Text(output)`
+                        // string avoids rebuilding an `AttributedString` on every
+                        // streamed frame — only the settled answer needs attributes.
+                        let answerText: Text = isRunning
+                            ? Text(output)
+                            : Text(AnswerLinkParser.linkified(output))
+                        answerText
                             .multilineTextAlignment(.leading)
                             .font(.system(.footnote))
                             // Link colour comes from tint, not the run
@@ -252,7 +257,10 @@ extension WritingToolsView {
     private var showsAskWebHint: Bool {
         guard segmentAskQuestion != nil else { return false }
         guard outputCitations.isEmpty else { return false }
-        guard AnswerLinkParser.urls(in: output).isEmpty else { return false }
+        // 3.0.136: the stream completion already scanned `output` for body URLs
+        // and stored the verdict in `hasBodyURLs`; reuse it instead of re-running
+        // `AnswerLinkParser.urls(in:)` on every body re-evaluation.
+        guard !hasBodyURLs else { return false }
         if !askWebSearch { return true }
         let haystack = ((segmentAskQuestion ?? "") + "\n" + output).lowercased()
         let needles = ["链接", "地址", "官网", "网址", "下载", "link", "url", "download", "github"]
@@ -354,6 +362,8 @@ private struct OriginalPageView: View {
     /// earlier by a sentinel `onAppear` drops its append instead of mutating a view
     /// that is already being torn down. (3.0.135)
     @State private var loadCancelled: Bool = false
+    /// 3.0.136: cancellable timer that clears the `copied` ✓ after 1.2s.
+    @State private var copyResetWork: DispatchWorkItem? = nil
 
     private let chunkSize = 8000
 
@@ -407,11 +417,17 @@ private struct OriginalPageView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                 Button {
-                    UIPasteboard.general.string = source
-                    copied = true
-                    // Proves the 原文 page (and its copy) shipped.
-                    NSLog("[Faircopy] original copied, chars=\(source.count)")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { copied = false }
+                UIPasteboard.general.string = source
+                copied = true
+                // Proves the 原文 page (and its copy) shipped.
+                NSLog("[Faircopy] original copied, chars=\(source.count)")
+                // 3.0.136: cancellable reset — if the user leaves the 原文 page
+                // before 1.2s elapses, `.onDisappear` cancels this so it never
+                // fires against a torn-down view.
+                copyResetWork?.cancel()
+                let work = DispatchWorkItem { copied = false }
+                copyResetWork = work
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
                 } label: {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .font(.system(size: 14))
@@ -442,10 +458,14 @@ private struct OriginalPageView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.bottom, 16)
-                        .onAppear { loadMore() }
-                    }
+                    .onAppear { loadMore() }
                 }
             }
         }
+        .onDisappear {
+            copyResetWork?.cancel()
+            copyResetWork = nil
+        }
     }
+}
 }

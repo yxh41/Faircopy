@@ -195,6 +195,20 @@ struct WritingToolsView: View {
     /// the answer so "官网：" is never a dead end.
     @State var outputCitations: [AnswerCitation] = []
 
+    /// 3.0.136: cache of "does the finished answer contain a URL written into the
+    /// body". `showsAskWebHint` used to re-run `AnswerLinkParser.urls(in:)` on the
+    /// live `output` on every body re-evaluation (the timer tick, a `copied`
+    /// toggle, a selection change…); the stream's completion already scanned the
+    /// same text, so we keep its verdict here and reuse it.
+    @State var hasBodyURLs: Bool = false
+
+    /// 3.0.136: one-shot `DispatchQueue.main.asyncAfter` timers promoted to
+    /// cancellable `DispatchWorkItem`s. Every timer scheduled through
+    /// `scheduleWork` is tracked here and cancelled on disappear, so a dismissed
+    /// panel never fires a stale closure (mutating a dead view) or keeps a
+    /// model-switch retry loop alive after the user left.
+    @State private var pendingWorkItems: [DispatchWorkItem] = []
+
     @State var isClosePressed: Bool = false
 
     var shouldShowError: Bool {
@@ -212,7 +226,11 @@ struct WritingToolsView: View {
     let spacing: CGFloat = 16
     let innerSpacing: CGFloat = 8
 
-    let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
+    // 3.0.136: poll cadence 5s -> 10s. The header only reads two local daemon
+    // endpoints (model name + usage); halving the frequency halves the background
+    // requests with no user-visible change, and `fetchUsage` is further gated to
+    // skip when `usage` is still nil (see `.onReceive(timer)` in Header).
+    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     init(context: Presenter.Context) {
         _context = .init(wrappedValue: context)
@@ -356,6 +374,38 @@ struct WritingToolsView: View {
                 print("[Faircopy] button grid removed: task takeover, fade-out, local spring removed (3.0.72)")
             }
         }
+        .onDisappear {
+            cancelPendingWork()
+        }
+    }
+}
+
+extension WritingToolsView {
+    // MARK: - 3.0.136 cancellable one-shot timers
+
+    /// 3.0.136: schedule a one-shot closure on the main queue as a cancellable
+    /// `DispatchWorkItem`. Every timer scheduled here is tracked in
+    /// `pendingWorkItems` so `cancelPendingWork()` can stop them all when the
+    /// panel disappears — a dismissed panel must never fire a stale closure or
+    /// keep a model-switch retry loop alive.
+    func scheduleWork(delay: TimeInterval, _ block: @escaping () -> Void) {
+        let item = DispatchWorkItem(block: block)
+        // `pendingWorkItems` is a `@State` array and must be mutated on the main
+        // thread — a caller (`setModel`'s URLSession completion) may invoke this
+        // off the main thread. The scheduled block itself always runs on main via
+        // `asyncAfter`, so only the tracking-array write needs guarding here.
+        if Thread.isMainThread {
+            pendingWorkItems.append(item)
+        } else {
+            DispatchQueue.main.async { self.pendingWorkItems.append(item) }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+    }
+
+    /// 3.0.136: cancel every outstanding one-shot timer. Called from `.onDisappear`.
+    func cancelPendingWork() {
+        for item in pendingWorkItems { item.cancel() }
+        pendingWorkItems.removeAll()
     }
 }
 

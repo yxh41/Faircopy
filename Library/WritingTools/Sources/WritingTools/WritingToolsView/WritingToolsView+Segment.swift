@@ -495,6 +495,20 @@ extension WritingToolsView {
         }
     }
 
+    /// 3.0.136: per-token display-text width cache. `packSegmentRows` runs on
+    /// every body re-evaluation while the segment chips are on screen, and it
+    /// measured every token with `size(withAttributes:)` each time. The width of
+    /// a given `displayText` never changes (the font is constant), so we memoize
+    /// it here and skip the measurement for tokens we have already seen.
+    private static var segmentWidthCache: [String: CGFloat] = [:]
+
+    private static func measuredTokenWidth(_ text: String, font: UIFont) -> CGFloat {
+        if let cached = segmentWidthCache[text] { return cached }
+        let w = ceil((text as NSString).size(withAttributes: [.font: font]).width)
+        segmentWidthCache[text] = w
+        return w
+    }
+
     /// Shared layout pass: packs tokens into rows (greedy, honouring sentence
     /// line breaks) and records each token's content-space frame so swipe
     /// selection can hit-test the finger against chips without runtime geometry.
@@ -522,7 +536,9 @@ extension WritingToolsView {
         for token in tokens {
             // `ceil` keeps every chip width integral: fractional widths would be
             // snapped independently at render time and cost up to 0.5pt per chip.
-            let textWidth = ceil((token.displayText as NSString).size(withAttributes: [.font: font]).width)
+            // 3.0.136: reuse the cached per-token width instead of re-measuring on
+            // every body re-evaluation.
+            let textWidth = Self.measuredTokenWidth(token.displayText, font: font)
             // A space chip now draws a real space, so its natural width is ~4pt.
             // Hold a minimum so it stays a realistic tap target — the chip reads
             // as an empty pill, which is exactly what a space is.

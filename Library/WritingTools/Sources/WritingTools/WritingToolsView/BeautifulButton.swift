@@ -112,6 +112,9 @@ struct PanelModeButton: View {
     /// a timer instead of a freeze — for six releases the only feedback during
     /// those 0.45s was the press dim. (Faircopy 3.0.75)
     @State private var longPressProgress: CGFloat = 0
+    /// 3.0.136: cancellable timer for the bounce settle. Cancelled on disappear
+    /// so a torn-down button never receives the scale reset.
+    @State private var bounceWork: DispatchWorkItem? = nil
 
     var body: some View {
         RoundedRectangle(cornerRadius: 12)
@@ -154,6 +157,8 @@ struct PanelModeButton: View {
                 longPressWork?.cancel()
                 longPressWork = nil
                 longPressProgress = 0
+                bounceWork?.cancel()
+                bounceWork = nil
             }
     }
 
@@ -208,9 +213,13 @@ struct PanelModeButton: View {
     /// B-press animation chosen for 3.0.73 (the previous A-sink only dimmed).
     private func playBounce() {
         withAnimation(.easeOut(duration: 0.10)) { pulseScale = 1.04 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10) {
+        // 3.0.136: cancellable settle timer (was a bare asyncAfter).
+        bounceWork?.cancel()
+        let work = DispatchWorkItem {
             withAnimation(.spring(response: 0.28, dampingFraction: 0.7)) { pulseScale = 1.0 }
         }
+        bounceWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.10, execute: work)
     }
 
     private var label: some View {

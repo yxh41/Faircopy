@@ -105,7 +105,10 @@ extension WritingToolsView {
         }
         .onReceive(timer) { _ in
             checkModelName()
-            fetchUsage()
+            // 3.0.136: only poll usage once we have a previous value — before the
+            // first successful fetch there is nothing to refresh, so skip the
+            // request instead of hammering a daemon that isn't answering.
+            if usage != nil { fetchUsage() }
         }
     }
 
@@ -295,9 +298,10 @@ extension WritingToolsView {
         var request = Configurator.shared.gateModelSetRequest
         request.setValue(model.id.uuidString, forHTTPHeaderField: "X-Faircopy-ModelID")
         URLSession.shared.dataTask(with: request) { _, _, _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                postSetupModel()
-                confirmModelSwitch(model.id)
+            // 3.0.136: cancellable one-shot (was a bare asyncAfter).
+            self.scheduleWork(delay: 0.1) {
+                self.postSetupModel()
+                self.confirmModelSwitch(model.id)
             }
         }.resume()
     }
@@ -311,7 +315,9 @@ extension WritingToolsView {
     /// a recognition, which delays its main queue by up to a second.
     func confirmModelSwitch(_ expected: UUID, attempt: Int = 0) {
         guard attempt < 4 else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+        // 3.0.136: schedule as a cancellable work item (via `scheduleWork`) so a
+        // dismissed panel stops the retry loop instead of firing against a dead view.
+        scheduleWork(delay: 0.45) {
             if self.activeEndpointID.caseInsensitiveCompare(expected.uuidString) == .orderedSame {
                 return
             }
