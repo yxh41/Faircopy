@@ -5,6 +5,7 @@
 //  Created by 秋星桥 on 2024/8/8.
 //
 
+import Foundation
 import SwiftUI
 
 /// One completed Q&A round of a 提问 session, replayed as a `user`/`assistant`
@@ -358,6 +359,14 @@ struct WritingToolsView: View {
             // sets belongs to the card, not to the screen inside it. Leaving an
             // expanded panel for the button grid used to leave a 754pt card
             // holding a 500pt grid, with the remainder empty.
+            //
+            // 3.0.138: this false edge is NOT always "the grid came back".
+            // 分词 -> 提问 switches taskPrompt to .rewrite and drops the grip
+            // while the panel is still on an output screen, so the measurement
+            // here reads the answer view (whose hosted scroll view reports the
+            // card's current height). The grid-return reset below closes the
+            // loop; both edges stay because either can be the last one on other
+            // paths, and the controller's probe generation cancels older chains.
             guard !visible else { return }
             heightTier = 1
             context.requestNaturalHeight()
@@ -372,6 +381,15 @@ struct WritingToolsView: View {
                 variantMenuModeID = nil
                 confirmVariantModeID = nil
                 print("[Faircopy] button grid removed: task takeover, fade-out, local spring removed (3.0.72)")
+            } else {
+                // 3.0.138: the grid is back, so this is the moment the card has
+                // to give up the height the 分词 handle gave it. Watching only
+                // showsHeightGrip missed the 分词 -> 提问 -> Discard path: the
+                // grip had already gone on 提问, so no edge fired on discard and
+                // a 754pt card kept a 500pt grid floating in empty space.
+                heightTier = 1
+                context.requestNaturalHeight()
+                NSLog("[Faircopy] panel height reset on grid return 3.0.138")
             }
         }
         .onDisappear {
