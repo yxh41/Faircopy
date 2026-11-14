@@ -86,6 +86,20 @@ final class FaircopySpringPresentationController: UIPresentationController {
     private let cardView = UIView()
     private let clipView = UIView()
 
+    /// 3.0.143: the frosted card's directional rim, stroked onto `clipView`
+    /// itself.
+    ///
+    /// Drawn in UIKit on purpose: it is the one line whose job is to describe
+    /// the card's edge, and it used to be a SwiftUI `strokeBorder` on the
+    /// content box, which is a few points smaller than the card (see
+    /// `WritingToolsView.frostedGlassBackground`). Here the path *is* the clip
+    /// view's rounded rect, so the rim can never end up inside the edge — which
+    /// is what showed as a slab of plain glass above the bright line once the
+    /// card was pulled to its tallest tier.
+    private let rimLayer = CAGradientLayer()
+    private let rimMask = CAShapeLayer()
+    private var rimBounds: CGSize = .zero
+
     /// 3.0.140: the card presentation is now used for *every* external card, so
     /// the entrance has two modes: the spring pop when 面板动画 → Q 弹入场 is
     /// on, and a plain cross-fade (what the popover used to look like) when it
@@ -184,6 +198,8 @@ final class FaircopySpringPresentationController: UIPresentationController {
         cardView.addSubview(clipView)
         container.addSubview(cardView)
 
+        installRim()
+
         if let presented = presentedViewController.view {
             presented.frame = clipView.bounds
             presented.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -229,6 +245,10 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // layout pass — the same pass a drag cannot wait for. Set them directly
         // so the content is at the new size in this frame, not the next one.
         clipView.frame = card.bounds
+        // 3.0.143: the rim is sized from the clip view, so it has to be told
+        // about the new height in the same breath as the clip view — a drag
+        // cannot wait for a layout pass either.
+        redrawRim()
         if let presented = presentedViewController.view, presented.superview === clipView {
             presented.frame = clipView.bounds
         }
@@ -259,6 +279,68 @@ final class FaircopySpringPresentationController: UIPresentationController {
             roundedRect: card.bounds,
             cornerRadius: Self.cornerRadius
         ).cgPath
+    }
+
+    // MARK: - 3.0.143: the rim belongs to the card, not to the content
+
+    private func installRim() {
+        NSLog("[Faircopy] panel rim: stroked on the clip view itself, so it cannot drift from the card edge 3.0.143")
+        // White at the top-left, gone by the bottom-right — a lens, not a glow.
+        // The same four stops the SwiftUI stroke used, so the look the user
+        // signed off on is unchanged; only where it is drawn moved.
+        rimLayer.colors = [
+            UIColor.white.withAlphaComponent(0.85).cgColor,
+            UIColor.white.withAlphaComponent(0.28).cgColor,
+            UIColor.white.withAlphaComponent(0.06).cgColor,
+            UIColor.clear.cgColor,
+        ]
+        rimLayer.locations = [0.0, 0.22, 0.55, 0.85]
+        rimLayer.startPoint = CGPoint(x: 0, y: 0)
+        rimLayer.endPoint = CGPoint(x: 1, y: 1)
+        // A stroke only shows through its mask's alpha: fill nothing, stroke
+        // white, and the gradient is cut down to the 1pt outline.
+        rimMask.fillColor = nil
+        rimMask.strokeColor = UIColor.white.cgColor
+        rimMask.lineWidth = 1
+        rimLayer.mask = rimMask
+        // Above the presented view: the material inside it is translucent but it
+        // is still drawn after this layer, and a rim underneath it would be
+        // veiled by the very glass it is outlining.
+        rimLayer.zPosition = 1
+        clipView.layer.addSublayer(rimLayer)
+        redrawRim()
+    }
+
+    /// Sizes the rim to the card. Cheap by design — one path, no rasterisation of
+    /// the glass — and skipped when nothing moved, because `applyCardFrameNow`
+    /// runs on every touch frame of a height drag.
+    private func redrawRim() {
+        let bounds = clipView.bounds
+        guard bounds.width > 1, bounds.height > 1, rimBounds != bounds.size else { return }
+        rimBounds = bounds.size
+        // Two very different callers reach this: a height drag (once per touch
+        // frame, no animation in flight) and the tier snap (inside
+        // `UIView.animate`, where UIKit has already published the duration on
+        // the transaction). Snapping is right for the first — the rim must be at
+        // the card's size *this* frame — and wrong for the second, where it would
+        // sit at the final size while the card is still growing. Ride along when
+        // there is a duration to ride, snap when there is not.
+        let inherited = CATransaction.animationDuration()
+        CATransaction.begin()
+        if inherited > 0 {
+            CATransaction.setAnimationDuration(inherited)
+        } else {
+            CATransaction.setDisableActions(true)
+        }
+        rimLayer.frame = bounds
+        rimMask.frame = bounds
+        // Half a point in, so the 1pt stroke lands inside the clip instead of
+        // being sliced in half by it.
+        rimMask.path = UIBezierPath(
+            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
+            cornerRadius: max(0, Self.cornerRadius - 0.5)
+        ).cgPath
+        CATransaction.commit()
     }
 
     /// 3.0.109: the height the card is actually laid out at.

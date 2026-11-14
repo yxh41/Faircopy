@@ -51,11 +51,24 @@ extension WritingToolsView {
     }
 
     /// Frosted glass: a dark system material (so the white panel text stays
-    /// readable in light mode too), a thin white wash to lift it, and a rim
-    /// that is bright at the top-left and gone by the bottom-right — a lens,
-    /// not a glow. The fill bleeds by -64 the same way the gradient does so it
-    /// reaches under the popover chrome; the rim is drawn at the card's real
-    /// bounds (UIKit's arrowless-popover radius is 13).
+    /// readable in light mode too) and a thin white wash to lift it.
+    ///
+    /// The fill bleeds by -64 the same way the gradient does so it reaches under
+    /// the card's chrome.
+    ///
+    /// 3.0.143: the rim is no longer drawn here. It used to be a
+    /// `strokeBorder` on a `RoundedRectangle` in this ZStack, i.e. it followed
+    /// *the SwiftUI content box*. That box is a few points smaller than the card
+    /// the presentation controller actually lays out (the hosting view is asked
+    /// to size itself, then gets that size back and centres its root inside it),
+    /// so the stroke sat 3pt in from the left and 7pt down from the top while
+    /// the material — bleeding -64 and clipped by the card — filled right up to
+    /// the edge. The result was a double edge: a bright line 7pt inside the top
+    /// with a slab of plain glass above it, worst when the card is pulled to its
+    /// tallest tier and that edge lands next to the status bar. The rim is now
+    /// stroked onto the card's own clip view in UIKit
+    /// (`FaircopySpringPresentationController.redrawRim`), where it cannot drift
+    /// from the edge it is supposed to describe.
     private var frostedGlassBackground: some View {
         ZStack {
             Rectangle()
@@ -64,20 +77,6 @@ extension WritingToolsView {
             Rectangle()
                 .fill(Color.white.opacity(0.08))
                 .padding(-64)
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color.white.opacity(0.85), location: 0.0),
-                            .init(color: Color.white.opacity(0.28), location: 0.22),
-                            .init(color: Color.white.opacity(0.06), location: 0.55),
-                            .init(color: Color.clear, location: 0.85),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
         }
         // Force the material dark: the card's text is white, so a light
         // material would wash it out in light mode.
