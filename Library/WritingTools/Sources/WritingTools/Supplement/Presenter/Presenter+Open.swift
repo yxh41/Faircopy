@@ -301,7 +301,13 @@ public extension Presenter {
             // reported as failed — that is what sent the injector's fallback
             // ladder on to build a second card.
             || toolController.view.window != nil
-        guard didPresent else { return false }
+        guard didPresent else {
+            // 3.0.142: a failed presentation must not leave our overlay window
+            // behind — it is key and covers the screen, so the host app would go
+            // deaf to every touch with nothing on top to explain it.
+            FaircopyOverlayWindowHost.release()
+            return false
+        }
         // 3.0.118: the lock is taken HERE, once, at the single funnel every
         // external presentation goes through. The injector used to take it
         // after this returned, which meant a step that presented-and-reported-
