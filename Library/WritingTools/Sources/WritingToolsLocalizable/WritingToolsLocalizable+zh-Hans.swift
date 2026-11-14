@@ -14,6 +14,7 @@ extension WritingToolsLocalizable {
 
             "%d character": "%d 字",
             "%d characters": "%d 字",
+            "From %@": "来自 %@",
 
             "Available Models": "可用模型列表",
             "Proofread": "校对",

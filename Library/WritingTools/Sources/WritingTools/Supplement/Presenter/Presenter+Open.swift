@@ -170,6 +170,14 @@ public extension Presenter {
             // (standalone).
             return false
         }
+        // 3.0.139: external triggers get the frosted-glass skin and a
+        // "来自 X" line. This dylib is injected into the host app that opened
+        // the URL / received the notification, so Bundle.main is the caller.
+        let sourceAppName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)
+            ?? Bundle.main.bundleIdentifier
+        NSLog("[Faircopy] external card: frosted glass + source badge 3.0.139 (caller %@)",
+              sourceAppName ?? "?")
         // 3.0.118: a Faircopy card already in the hierarchy means this trigger
         // has been served — report success so the injector's fallback ladder
         // stops here instead of building a second card on another parent.
@@ -207,7 +215,9 @@ public extension Presenter {
             fromResponder: responder,
             standalone: standalone,
             decoratesSelection: false,
-            autoMode: autoMode
+            autoMode: autoMode,
+            isExternalInvocation: true,
+            sourceAppName: sourceAppName
         )
         if context == nil, let view = responder as? UIView, let proxy = TextProxy(delegatingView: view) {
             proxy.selectAll()
@@ -215,7 +225,9 @@ public extension Presenter {
                 fromResponder: responder,
                 standalone: standalone,
                 decoratesSelection: false,
-                autoMode: autoMode
+                autoMode: autoMode,
+                isExternalInvocation: true,
+                sourceAppName: sourceAppName
             )
         }
         guard let context else {
@@ -242,7 +254,10 @@ public extension Presenter {
             ))
             NSLog("[Faircopy] panel transition: spring pop, damping 0.36 (3.0.76)")
             toolController.usesSpringEntrance = true
-            toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
+            // 3.0.139: external cards are frosted glass, so the controller's
+            // own black backdrop must go — it would block the material from
+            // sampling the host content behind the popover.
+            toolController.view.backgroundColor = .clear
             toolController.modalPresentationStyle = .custom
             toolController.preferredContentSize = CGSize(
                 width: measureWidth,
@@ -255,7 +270,10 @@ public extension Presenter {
                 width: 400,
                 height: CGFloat.greatestFiniteMagnitude
             ))
-            toolController.view.backgroundColor = .black.withAlphaComponent(0.85)
+            // 3.0.139: external cards are frosted glass, so the controller's
+            // own black backdrop must go — it would block the material from
+            // sampling the host content behind the popover.
+            toolController.view.backgroundColor = .clear
             toolController.modalPresentationStyle = .popover
             toolController.preferredContentSize = contentSize
             toolController.popoverPresentationController?.delegate = context

@@ -73,21 +73,28 @@ extension WritingToolsView {
     }
 
     var title: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            brandMark
-            MarqueeText(
-                text: $headerDescription,
-                isAnimated: $isHeaderDescriptionAnimated,
-                font: UIFont.preferredFont(forTextStyle: .footnote),
-                leftFade: 8,
-                rightFade: 8,
-                startDelay: 2
-            )
-            .opacity(0.25)
-            .overlay {
-                modelSelectionMenu.padding(-4)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .bottom, spacing: 8) {
+                brandMark
+                MarqueeText(
+                    text: $headerDescription,
+                    isAnimated: $isHeaderDescriptionAnimated,
+                    font: UIFont.preferredFont(forTextStyle: .footnote),
+                    leftFade: 8,
+                    rightFade: 8,
+                    startDelay: 2
+                )
+                .opacity(0.25)
+                .overlay {
+                    modelSelectionMenu.padding(-4)
+                }
+                closeButton
             }
-            closeButton
+            // 3.0.139: an externally summoned card says who summoned it. The
+            // frosted-glass skin already sets it apart; this names the caller.
+            if context.isExternalInvocation {
+                externalSourceBadge
+            }
         }
         .animation(.spring, value: model)
         .animation(.spring, value: selectedTextCount)
@@ -110,6 +117,28 @@ extension WritingToolsView {
             // request instead of hammering a daemon that isn't answering.
             if usage != nil { fetchUsage() }
         }
+    }
+
+    /// 3.0.139: "来自 X" under the title on an externally summoned card.
+    ///
+    /// A tiny dot rather than an SF Symbol: a symbol the OS does not know
+    /// renders as nothing, and this row must never become an empty gap (see
+    /// the brandMark note above).
+    var externalSourceBadge: some View {
+        let rawName = context.sourceAppName ?? ""
+        let name = rawName.isEmpty ? "Faircopy".localized : rawName
+        let label = String(format: "From %@".localized, name)
+        return HStack(spacing: 4) {
+            Circle()
+                .fill(Color.white.opacity(0.5))
+                .frame(width: 3, height: 3)
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(Color.white.opacity(0.55))
+                .lineLimit(1)
+        }
+        .padding(.leading, 2)
+        .accessibilityLabel(label)
     }
 
     var modelSelectionMenu: some View {

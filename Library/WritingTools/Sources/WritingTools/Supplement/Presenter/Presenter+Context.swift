@@ -44,6 +44,19 @@ extension Presenter {
         var autoSegment: Bool { autoMode == "segment" }
         var autoTranslate: Bool { autoMode == "translate" }
 
+        /// 3.0.139: true when the card was opened by an external trigger
+        /// (`faircopy://panel`, the Darwin notification, or a Shortcut) rather
+        /// than an in-app text selection. The panel paints itself differently
+        /// for this case — a frosted-glass card instead of the animated
+        /// multicolour gradient — so the user can tell at a glance that another
+        /// app summoned it.
+        let isExternalInvocation: Bool
+
+        /// 3.0.139: display name of the host app that summoned the card, shown
+        /// as "来自 X" under the title on external invocations. `nil` on the
+        /// in-app selection path, where the source is obvious.
+        let sourceAppName: String?
+
         @Published var scenePhase: ScenePhase = .active
 
         /// Set when the active stream must stop (panel dismissed, cancelled).
@@ -126,7 +139,9 @@ extension Presenter {
             decorationViews: [UIView],
             textProxy: TextProxy,
             isStandalone: Bool = false,
-            autoMode: String = ""
+            autoMode: String = "",
+            isExternalInvocation: Bool = false,
+            sourceAppName: String? = nil
         ) {
             self.parentView = parentView
             self.parentController = parentController
@@ -137,6 +152,8 @@ extension Presenter {
             self.textProxy = textProxy
             self.isStandalone = isStandalone
             self.autoMode = autoMode
+            self.isExternalInvocation = isExternalInvocation
+            self.sourceAppName = sourceAppName
 
             super.init()
 
@@ -199,7 +216,9 @@ extension Presenter {
         fromResponder responder: UIResponder,
         standalone: Bool = false,
         decoratesSelection: Bool = true,
-        autoMode: String = ""
+        autoMode: String = "",
+        isExternalInvocation: Bool = false,
+        sourceAppName: String? = nil
     ) -> Context? {
         guard let fatherView = responder as? UIView else { return nil }
         guard let parentView = fatherView.superview else { return nil }
@@ -255,7 +274,9 @@ extension Presenter {
             decorationViews: decorationViews,
             textProxy: textProxy,
             isStandalone: standalone,
-            autoMode: autoMode
+            autoMode: autoMode,
+            isExternalInvocation: isExternalInvocation,
+            sourceAppName: sourceAppName
         )
     }
 
