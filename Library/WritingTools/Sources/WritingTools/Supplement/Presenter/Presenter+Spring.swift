@@ -352,15 +352,18 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 context.completeTransition(!context.transitionWasCancelled)
             }
         } else {
+            // 3.0.140: the shrink belongs to the spring; the cross-fade mode
+            // leaves the geometry alone so it reads as a dissolve. Hoisted into
+            // a local because a view-animation closure is escaping, and reading
+            // an instance property in one needs an explicit `self`.
+            let shrink = bounces
             UIView.animate(
                 withDuration: 0.18,
                 delay: 0,
                 options: [.curveEaseIn, .allowUserInteraction]
             ) {
                 card.alpha = 0
-                // 3.0.140: the shrink belongs to the spring; the cross-fade
-                // mode leaves the geometry alone so it reads as a dissolve.
-                if bounces {
+                if shrink {
                     card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
                 }
             } completion: { _ in
