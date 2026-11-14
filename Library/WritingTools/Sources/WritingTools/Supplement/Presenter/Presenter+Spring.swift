@@ -86,6 +86,13 @@ final class FaircopySpringPresentationController: UIPresentationController {
     private let cardView = UIView()
     private let clipView = UIView()
 
+    /// 3.0.140: the card presentation is now used for *every* external card, so
+    /// the entrance has two modes: the spring pop when 面板动画 → Q 弹入场 is
+    /// on, and a plain cross-fade (what the popover used to look like) when it
+    /// is off. The animator owns the motion; this flag only decides the state
+    /// the card starts in, which has to be set before the first frame renders.
+    var bouncesOnEntrance = true
+
     /// Matches the radius UIKit uses for an arrowless popover, so switching the
     /// toggle on does not visibly change the card.
     private static let cornerRadius: CGFloat = 13
@@ -187,7 +194,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // here (rather than inside animateTransition:) means the very first
         // frame the system renders is already the shrunken card.
         if !animatorDidStart {
-            cardView.transform = CGAffineTransform(scaleX: 0.72, y: 0.72)
+            if bouncesOnEntrance {
+                cardView.transform = CGAffineTransform(scaleX: 0.72, y: 0.72)
+            }
             cardView.alpha = 0
         }
         animatedCard = cardView
@@ -270,14 +279,20 @@ final class FaircopySpringPresentationController: UIPresentationController {
 
 final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransitioning {
     private let presenting: Bool
+    /// 3.0.140: false cross-fades the card in place — the feel the popover gave
+    /// before this path took over every external card. Never scales, so a card
+    /// that starts at identity cannot pop when the toggle is off.
+    private let bounces: Bool
 
-    init(presenting: Bool) {
+    init(presenting: Bool, bounces: Bool = true) {
         self.presenting = presenting
+        self.bounces = bounces
         super.init()
     }
 
     func transitionDuration(using _: UIViewControllerContextTransitioning?) -> TimeInterval {
-        presenting ? 0.62 : 0.18
+        guard presenting else { return 0.18 }
+        return bounces ? 0.62 : 0.22
     }
 
     func animateTransition(using context: UIViewControllerContextTransitioning) {
@@ -299,6 +314,21 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
         }
 
         if presenting {
+            guard bounces else {
+                // 3.0.140: cross-fade in place. The card starts at identity
+                // (bouncesOnEntrance == false skipped the 0.72 seed), so this
+                // touches alpha only.
+                UIView.animate(
+                    withDuration: 0.22,
+                    delay: 0,
+                    options: [.curveEaseOut, .allowUserInteraction]
+                ) {
+                    card.alpha = 1
+                } completion: { _ in
+                    context.completeTransition(!context.transitionWasCancelled)
+                }
+                return
+            }
             // Opacity settles first so the "pop" is a scale beat on an already
             // solid card — a spring on alpha reads as a slow fade instead.
             UIView.animate(
@@ -328,7 +358,11 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 options: [.curveEaseIn, .allowUserInteraction]
             ) {
                 card.alpha = 0
-                card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+                // 3.0.140: the shrink belongs to the spring; the cross-fade
+                // mode leaves the geometry alone so it reads as a dissolve.
+                if bounces {
+                    card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+                }
             } completion: { _ in
                 context.completeTransition(!context.transitionWasCancelled)
             }
@@ -358,15 +392,15 @@ extension WritingToolController: UIViewControllerTransitioningDelegate {
         presenting _: UIViewController,
         source _: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
-        guard usesSpringEntrance else { return nil }
-        return FaircopySpringAnimator(presenting: true)
+        guard usesCardPresentation else { return nil }
+        return FaircopySpringAnimator(presenting: true, bounces: usesSpringEntrance)
     }
 
     func animationController(
         forDismissed _: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
-        guard usesSpringEntrance else { return nil }
-        return FaircopySpringAnimator(presenting: false)
+        guard usesCardPresentation else { return nil }
+        return FaircopySpringAnimator(presenting: false, bounces: usesSpringEntrance)
     }
 
     func presentationController(
@@ -374,10 +408,14 @@ extension WritingToolController: UIViewControllerTransitioningDelegate {
         presenting: UIViewController?,
         source _: UIViewController
     ) -> UIPresentationController? {
-        guard usesSpringEntrance else { return nil }
-        return FaircopySpringPresentationController(
+        // 3.0.140: unconditional for external cards — see
+        // `usesCardPresentation`. The spring is a separate flag now.
+        guard usesCardPresentation else { return nil }
+        let controller = FaircopySpringPresentationController(
             presentedViewController: presented,
             presenting: presenting
         )
+        controller.bouncesOnEntrance = usesSpringEntrance
+        return controller
     }
 }

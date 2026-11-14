@@ -14,8 +14,19 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     /// 3.0.76: set by the external presentation path when the Q-bounce entrance
     /// is enabled. Drives the transitioning delegate in Presenter+Spring.swift;
-    /// when false this controller is a plain popover exactly as before.
+    /// when false the card shows with a plain cross-fade instead of a spring.
     var usesSpringEntrance = false
+
+    /// 3.0.140: every external card is presented through
+    /// `FaircopySpringPresentationController`, whatever the Q-bounce toggle says.
+    ///
+    /// A popover is hosted in its own window: `.ultraThinMaterial` has no
+    /// backdrop to sample there and renders as a flat grey plate (the 3.0.139
+    /// report), and the area outside the card belongs to whoever owns that
+    /// window. The card presentation keeps the card inside the host window —
+    /// the material samples the real content behind it — and its full-screen
+    /// clear backdrop swallows every touch that lands outside the card.
+    var usesCardPresentation = false
 
     /// 3.0.108: the height this card was presented at.
     ///

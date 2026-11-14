@@ -239,55 +239,40 @@ public extension Presenter {
         }
 
         let toolController = WritingToolController(context: context)
-        if FaircopyPanelAnimationStore.load().springEntrance {
-            // 3.0.76: Q-bounce entrance. A popover's transition is driven inside
-            // UIKit and cannot be swapped for a spring, so this path uses a custom
-            // presentation (card chrome drawn by FaircopySpringPresentationController,
-            // entrance scaled by FaircopySpringAnimator). Width is measured at the
-            // width the card will actually get — the popover path measures at 400
-            // and lets UIKit clamp it, which would clip a narrower centred card.
-            let availableWidth = max(240, context.parentController.view.bounds.width - 40)
-            let measureWidth = min(400, availableWidth)
-            let contentSize = toolController.view.systemLayoutSizeFitting(CGSize(
-                width: measureWidth,
-                height: CGFloat.greatestFiniteMagnitude
-            ))
-            NSLog("[Faircopy] panel transition: spring pop, damping 0.36 (3.0.76)")
-            toolController.usesSpringEntrance = true
-            // 3.0.139: external cards are frosted glass, so the controller's
-            // own black backdrop must go — it would block the material from
-            // sampling the host content behind the popover.
-            toolController.view.backgroundColor = .clear
-            toolController.modalPresentationStyle = .custom
-            toolController.preferredContentSize = CGSize(
-                width: measureWidth,
-                height: contentSize.height
-            )
-            toolController.transitioningDelegate = toolController
-            context.parentController.present(toolController, animated: true)
-        } else {
-            let contentSize = toolController.view.systemLayoutSizeFitting(.init(
-                width: 400,
-                height: CGFloat.greatestFiniteMagnitude
-            ))
-            // 3.0.139: external cards are frosted glass, so the controller's
-            // own black backdrop must go — it would block the material from
-            // sampling the host content behind the popover.
-            toolController.view.backgroundColor = .clear
-            toolController.modalPresentationStyle = .popover
-            toolController.preferredContentSize = contentSize
-            toolController.popoverPresentationController?.delegate = context
-            toolController.popoverPresentationController?.sourceView = context.parentController.view
-            toolController.popoverPresentationController?.sourceRect = CGRect(
-                x: context.parentController.view.bounds.midX,
-                y: context.parentController.view.bounds.midY,
-                width: 0,
-                height: 0
-            )
-            toolController.popoverPresentationController?.canOverlapSourceViewRect = true
-            toolController.popoverPresentationController?.permittedArrowDirections = []
-            context.parentController.present(toolController, animated: true)
-        }
+        // 3.0.140: one presentation for every external card — the popover is
+        // gone from this path. A popover is hosted in its own window, which is
+        // exactly why 3.0.139's `.ultraThinMaterial` came back as a flat grey
+        // plate: there is no backdrop in that window to sample. The card
+        // presentation keeps the card inside the host window (so the material
+        // blurs the real content behind it) and its full-screen clear backdrop
+        // takes every touch that lands outside the card, so nothing a finger
+        // does on the panel can reach the app underneath.
+        let springEntrance = FaircopyPanelAnimationStore.load().springEntrance
+        // Width is measured at the width the card will actually get; the old
+        // popover path measured at 400 and let UIKit clamp it, which clipped a
+        // narrower centred card.
+        let parentWidth = context.parentController.view.bounds.width
+        let availableWidth = parentWidth > 100 ? max(240, parentWidth - 40) : 400
+        let measureWidth = min(400, availableWidth)
+        let contentSize = toolController.view.systemLayoutSizeFitting(CGSize(
+            width: measureWidth,
+            height: CGFloat.greatestFiniteMagnitude
+        ))
+        NSLog("[Faircopy] external card: in-window card presentation, glass samples the host, backdrop swallows outside touches 3.0.140 (spring %@)",
+              springEntrance ? "on" : "off")
+        toolController.usesCardPresentation = true
+        toolController.usesSpringEntrance = springEntrance
+        // The card chrome is drawn by the presentation controller, so the
+        // controller itself must be transparent — an opaque backdrop would
+        // also block the material from sampling the host content.
+        toolController.view.backgroundColor = .clear
+        toolController.modalPresentationStyle = .custom
+        toolController.preferredContentSize = CGSize(
+            width: measureWidth,
+            height: contentSize.height
+        )
+        toolController.transitioningDelegate = toolController
+        context.parentController.present(toolController, animated: true)
 
         // `present(_:animated:)` is synchronous in setting up the relationship but
         // silently gives up when the host controller is no longer in the window
