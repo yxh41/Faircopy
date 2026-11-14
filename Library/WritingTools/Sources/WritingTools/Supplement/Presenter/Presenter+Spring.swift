@@ -100,6 +100,41 @@ final class FaircopySpringPresentationController: UIPresentationController {
     private let rimMask = CAShapeLayer()
     private var rimBounds: CGSize = .zero
 
+    /// 3.0.144: the frosted glass itself, parked at a fixed frame on the
+    /// presentation container.
+    ///
+    /// A `Material` samples the pixels behind its own bounds. When the material
+    /// lived inside the SwiftUI content box, every frame of a height drag changed
+    /// those bounds — and with a centred card, their position too — so the
+    /// backdrop was re-sampled and re-blurred up to 30 times a second. Now the
+    /// `UIVisualEffectView` has one frame for the whole lifetime of the card (the
+    /// largest frame the card can ever take), and the height drag only redraws a
+    /// one-path `CAShapeLayer` mask that cuts the card's rounded shape out of it.
+    /// The blur never sees a size change, so a drag costs a mask update instead
+    /// of a backdrop pass. The mask goes on the *host* view, not on the effect
+    /// view: masking a `UIVisualEffectView` directly is the path that produces a
+    /// flat grey plate.
+    private(set) var glassHost = UIView()
+    private let glassView = UIVisualEffectView(
+        effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
+    )
+    private let glassWash = UIView()
+    private let glassMask = CAShapeLayer()
+    private var glassFrameInHost: CGRect = .zero
+    /// The untransformed frame. `UIView.frame` reports the *transformed* box
+    /// during the entrance pop, so reading it there would offset the mask.
+    private var glassReferenceFrame: CGRect = .zero
+
+    /// 3.0.144: the shadow had to leave `cardView`.
+    ///
+    /// `cardView` used to carry both its shadow and its glass (the glass was a
+    /// subview, so it covered the shadow's dark interior). With the glass now a
+    /// sibling *below* `cardView`, that shadow would sit straight on top of it
+    /// and darken the whole panel. A dedicated shadow layer below the glass
+    /// gives the same soft edge without touching the blur. The animator scales
+    /// and fades it in lockstep with the card.
+    private(set) var shadowHost = UIView()
+
     /// 3.0.140: the card presentation is now used for *every* external card, so
     /// the entrance has two modes: the spring pop when 面板动画 → Q 弹入场 is
     /// on, and a plain cross-fade (what the popover used to look like) when it
@@ -124,7 +159,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
     var shadowSuppressed = false {
         didSet {
             guard shadowSuppressed != oldValue, animatedCard != nil else { return }
-            cardView.layer.shadowOpacity = shadowSuppressed ? 0 : Self.shadowOpacity
+            shadowHost.layer.shadowOpacity = shadowSuppressed ? 0 : Self.shadowOpacity
             // 3.0.116: the path is stale by exactly the drag's travel, and the
             // snap that follows is not guaranteed to lay out — `applyHeightTier`
             // returns early when the drag already ended at the tier's own height,
@@ -137,7 +172,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// 3.0.116: the height the shadow path currently describes. Logged after a
     /// drag so "the shadow kept the old size" is a reading, not a guess.
     var laidOutShadowHeight: CGFloat {
-        animatedCard?.layer.shadowPath?.boundingBox.height ?? -1
+        shadowHost.layer.shadowPath?.boundingBox.height ?? -1
     }
 
     override var frameOfPresentedViewInContainerView: CGRect {
@@ -176,19 +211,11 @@ final class FaircopySpringPresentationController: UIPresentationController {
         ))
         container.addSubview(backdropView)
 
+        installShadow(in: container)
+        installGlass(in: container)
+
         cardView.frame = frameOfPresentedViewInContainerView
         cardView.backgroundColor = .clear
-        cardView.layer.shadowColor = UIColor.black.cgColor
-        cardView.layer.shadowOpacity = Self.shadowOpacity
-        cardView.layer.shadowRadius = 26
-        cardView.layer.shadowOffset = CGSize(width: 0, height: 12)
-        // An explicit path keeps the shadow from being recomputed from the
-        // alpha channel on every frame of the spring (that would composite the
-        // whole card offscreen 60 times a second).
-        cardView.layer.shadowPath = UIBezierPath(
-            roundedRect: cardView.bounds,
-            cornerRadius: Self.cornerRadius
-        ).cgPath
 
         clipView.frame = cardView.bounds
         clipView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -214,6 +241,12 @@ final class FaircopySpringPresentationController: UIPresentationController {
                 cardView.transform = CGAffineTransform(scaleX: 0.72, y: 0.72)
             }
             cardView.alpha = 0
+            // 3.0.144: the shadow is a sibling now, so it needs the same start
+            // state or it would hang at full size behind the popped card.
+            shadowHost.transform = cardView.transform
+            shadowHost.alpha = 0
+            glassHost.transform = cardView.transform
+            glassHost.alpha = 0
         }
         animatedCard = cardView
     }
@@ -235,12 +268,16 @@ final class FaircopySpringPresentationController: UIPresentationController {
         let target = frameOfPresentedViewInContainerView
         if card.transform.isIdentity {
             card.frame = target
+            shadowHost.frame = target
         } else {
             // Setting `frame` on a transformed view is undefined; adjust the
             // untransformed geometry instead and let the transform scale it.
             card.bounds = CGRect(origin: .zero, size: target.size)
             card.center = CGPoint(x: target.midX, y: target.midY)
+            shadowHost.bounds = CGRect(origin: .zero, size: target.size)
+            shadowHost.center = CGPoint(x: target.midX, y: target.midY)
         }
+        shadowHost.transform = card.transform
         // The card's subviews follow by autoresizing, which is applied during a
         // layout pass — the same pass a drag cannot wait for. Set them directly
         // so the content is at the new size in this frame, not the next one.
@@ -249,6 +286,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // about the new height in the same breath as the clip view — a drag
         // cannot wait for a layout pass either.
         redrawRim()
+        // 3.0.144: the glass plate stays put; only the shape cut out of it
+        // changes. One path per frame, in place of a backdrop re-sample.
+        updateGlassMask()
         if let presented = presentedViewController.view, presented.superview === clipView {
             presented.frame = clipView.bounds
         }
@@ -264,8 +304,8 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // `shadowSuppressed`. Touching the path there would force the
         // rasterisation the suppression exists to avoid.
         if !shadowSuppressed,
-           (card.layer.shadowPath == nil
-               || card.layer.shadowPath?.boundingBox.size != card.bounds.size)
+           (shadowHost.layer.shadowPath == nil
+               || shadowHost.layer.shadowPath?.boundingBox.size != shadowHost.bounds.size)
         {
             redrawShadowPath()
         }
@@ -274,11 +314,99 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// 3.0.116: the single place a shadow path is built, so the three callers
     /// (layout, the end of a drag, and the first presentation) cannot drift.
     private func redrawShadowPath() {
-        guard let card = animatedCard else { return }
-        card.layer.shadowPath = UIBezierPath(
-            roundedRect: card.bounds,
+        shadowHost.layer.shadowPath = UIBezierPath(
+            roundedRect: shadowHost.bounds,
             cornerRadius: Self.cornerRadius
         ).cgPath
+    }
+
+    // MARK: - 3.0.144: a shadow that sits below the glass
+
+    private func installShadow(in container: UIView) {
+        shadowHost.frame = frameOfPresentedViewInContainerView
+        shadowHost.backgroundColor = .clear
+        shadowHost.isUserInteractionEnabled = false
+        shadowHost.layer.shadowColor = UIColor.black.cgColor
+        shadowHost.layer.shadowOpacity = Self.shadowOpacity
+        shadowHost.layer.shadowRadius = 26
+        shadowHost.layer.shadowOffset = CGSize(width: 0, height: 12)
+        // An explicit path keeps the shadow from being recomputed from the
+        // alpha channel on every frame of the spring (that would composite the
+        // whole card offscreen 60 times a second).
+        shadowHost.layer.shadowPath = UIBezierPath(
+            roundedRect: shadowHost.bounds,
+            cornerRadius: Self.cornerRadius
+        ).cgPath
+        container.addSubview(shadowHost)
+    }
+
+    // MARK: - 3.0.144: a glass plate that never resizes
+
+    private func installGlass(in container: UIView) {
+        let bounds = container.bounds
+        let wanted = presentedViewController.preferredContentSize.width
+        let width = max(1, floor(min(max(240, wanted), bounds.width - Self.screenMargin * 2)))
+        let height = max(1, floor(bounds.height - Self.screenMargin * 2))
+        // The largest frame the card can ever occupy, centred. Every card the
+        // user drags to fits inside it, so this frame never has to move — the
+        // blur samples the same rectangle of the host for the whole session.
+        glassHost.frame = CGRect(
+            x: floor((bounds.width - width) / 2),
+            y: floor((bounds.height - height) / 2),
+            width: width,
+            height: height
+        )
+        glassReferenceFrame = glassHost.frame
+        glassHost.backgroundColor = .clear
+        glassHost.isUserInteractionEnabled = false
+
+        glassView.frame = glassHost.bounds
+        glassView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        glassHost.addSubview(glassView)
+
+        // The 8% white lift used to live in the SwiftUI ZStack; it belongs to
+        // the glass, so it moves with the blur and stays inside the same mask.
+        glassWash.frame = glassHost.bounds
+        glassWash.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        glassWash.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        glassHost.addSubview(glassWash)
+
+        glassMask.fillColor = UIColor.white.cgColor
+        glassMask.frame = glassHost.bounds
+        glassHost.layer.mask = glassMask
+        container.addSubview(glassHost)
+        updateGlassMask()
+        // Only now is it safe to drop the SwiftUI material: the glass exists,
+        // and a @Published flip rebuilds the background once (not per frame).
+        (presentedViewController as? WritingToolController)?
+            .context.glassIsManagedByUIKit = true
+        NSLog("[Faircopy] frosted glass samples a fixed region, so a height drag never re-blurs the backdrop 3.0.144")
+    }
+
+    /// The only per-frame work the glass does during a drag: one rounded-rect
+    /// path. `rect` is in the container's coordinates, converted to the host's.
+    private func updateGlassMask() {
+        let hostFrame = glassReferenceFrame
+        guard !hostFrame.isEmpty else { return }
+        let local = frameOfPresentedViewInContainerView
+            .offsetBy(dx: -hostFrame.minX, dy: -hostFrame.minY)
+        guard local != glassFrameInHost else { return }
+        glassFrameInHost = local
+        // Same rule as the rim: snap on a drag frame, ride along with the tier
+        // snap's `UIView.animate` so the glass edge grows with the card.
+        let inherited = CATransaction.animationDuration()
+        CATransaction.begin()
+        if inherited > 0 {
+            CATransaction.setAnimationDuration(inherited)
+        } else {
+            CATransaction.setDisableActions(true)
+        }
+        glassMask.frame = glassHost.bounds
+        glassMask.path = UIBezierPath(
+            roundedRect: local,
+            cornerRadius: Self.cornerRadius
+        ).cgPath
+        CATransaction.commit()
     }
 
     // MARK: - 3.0.143: the rim belongs to the card, not to the content
@@ -394,6 +522,10 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
             completeWithoutAnimation(context)
             return
         }
+        // 3.0.144: the shadow is a sibling of the card now, so it has to ride
+        // the same alpha/transform or it would stay full-size behind the pop.
+        let shadow = controller.shadowHost
+        let glass = controller.glassHost
 
         if presenting {
             guard bounces else {
@@ -406,6 +538,8 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                     options: [.curveEaseOut, .allowUserInteraction]
                 ) {
                     card.alpha = 1
+                    shadow.alpha = 1
+                    glass.alpha = 1
                 } completion: { _ in
                     context.completeTransition(!context.transitionWasCancelled)
                 }
@@ -419,6 +553,8 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 options: [.curveEaseOut, .allowUserInteraction]
             ) {
                 card.alpha = 1
+                shadow.alpha = 1
+                glass.alpha = 1
             }
             // damping 0.36 on a 0.72 → 1.0 spring peaks around 1.09, i.e. a
             // touch bouncier than the 1.08 that was signed off on.
@@ -430,6 +566,8 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 options: [.allowUserInteraction, .beginFromCurrentState]
             ) {
                 card.transform = CGAffineTransform.identity
+                shadow.transform = CGAffineTransform.identity
+                glass.transform = CGAffineTransform.identity
             } completion: { _ in
                 context.completeTransition(!context.transitionWasCancelled)
             }
@@ -445,8 +583,12 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 options: [.curveEaseIn, .allowUserInteraction]
             ) {
                 card.alpha = 0
+                shadow.alpha = 0
+                glass.alpha = 0
                 if shrink {
                     card.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+                    shadow.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+                    glass.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
                 }
             } completion: { _ in
                 context.completeTransition(!context.transitionWasCancelled)

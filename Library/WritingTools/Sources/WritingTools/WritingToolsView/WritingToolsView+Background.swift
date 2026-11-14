@@ -50,26 +50,33 @@ extension WritingToolsView {
         .padding(-64)
     }
 
-    /// Frosted glass: a dark system material (so the white panel text stays
-    /// readable in light mode too) and a thin white wash to lift it.
+    /// 3.0.144: the frosted skin is no longer painted here.
     ///
-    /// The fill bleeds by -64 the same way the gradient does so it reaches under
-    /// the card's chrome.
-    ///
-    /// 3.0.143: the rim is no longer drawn here. It used to be a
-    /// `strokeBorder` on a `RoundedRectangle` in this ZStack, i.e. it followed
-    /// *the SwiftUI content box*. That box is a few points smaller than the card
-    /// the presentation controller actually lays out (the hosting view is asked
-    /// to size itself, then gets that size back and centres its root inside it),
-    /// so the stroke sat 3pt in from the left and 7pt down from the top while
-    /// the material — bleeding -64 and clipped by the card — filled right up to
-    /// the edge. The result was a double edge: a bright line 7pt inside the top
-    /// with a slab of plain glass above it, worst when the card is pulled to its
-    /// tallest tier and that edge lands next to the status bar. The rim is now
-    /// stroked onto the card's own clip view in UIKit
-    /// (`FaircopySpringPresentationController.redrawRim`), where it cannot drift
-    /// from the edge it is supposed to describe.
+    /// It used to be two SwiftUI `Rectangle`s (`.ultraThinMaterial` + an 8%
+    /// white lift) in this ZStack, i.e. its bounds followed the content box.
+    /// A `Material` samples the pixels behind its own bounds, so every frame of
+    /// a height drag re-sampled and re-blurred the host — and a centred card
+    /// moved those bounds as well as resizing them, which is what made the new
+    /// glass panel distinctly heavier to stretch than the old gradient one.
+    /// `FaircopySpringPresentationController.installGlass` now owns the blur at
+    /// a fixed frame and cuts the card shape out of it with a mask, so a drag
+    /// costs one path update. The SwiftUI side therefore paints nothing — but
+    /// keeps the old material as a fallback until that install has actually
+    /// happened, so a popover/scene-less fallback never shows a bare card.
     private var frostedGlassBackground: some View {
+        Group {
+            if context.glassIsManagedByUIKit {
+                Color.clear
+            } else {
+                legacyFrostedGlass
+            }
+        }
+    }
+
+    /// The 3.0.139 skin, unchanged. Kept for presentation paths that do not
+    /// build a `FaircopySpringPresentationController` (the glass then has to
+    /// come from SwiftUI, and those paths cannot be stretched by the handle).
+    private var legacyFrostedGlass: some View {
         ZStack {
             Rectangle()
                 .fill(.ultraThinMaterial)
@@ -78,8 +85,6 @@ extension WritingToolsView {
                 .fill(Color.white.opacity(0.08))
                 .padding(-64)
         }
-        // Force the material dark: the card's text is white, so a light
-        // material would wash it out in light mode.
         .environment(\.colorScheme, .dark)
     }
 }

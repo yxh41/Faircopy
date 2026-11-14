@@ -85,21 +85,20 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     /// 3.0.114: how long one resize may take before following is abandoned.
     ///
-    /// A per-frame SwiftUI relayout is the expensive part of this feature and
-    /// the cost depends on what is on screen, so the feature throttles itself
-    /// rather than trusting the estimate: the first frame over this budget
-    /// stops the following for the rest of the drag, and the panel falls back
-    /// to "tap and it snaps" — which is slower than the flick version but never
-    /// jams the UI.
+    /// 3.0.144: a slow frame is no longer a one-way ticket to "no follow for the
+    /// rest of this drag". The apply rate steps down through a small ladder when
+    /// a resize proves expensive, and steps back up after three cheap frames, so
+    /// a transient hitch (a notification arriving, a texture upload) costs a few
+    /// frames of smoothness instead of the whole gesture. Only a genuinely
+    /// pathological frame — three times the budget — still stops the follow.
     private static let dragFollowBudget: TimeInterval = 0.040
+    private static let dragHardBudget: TimeInterval = 0.120
+    private static let dragApplyLadder: [CFTimeInterval] = [
+        1.0 / 30.0, 1.0 / 20.0, 1.0 / 15.0, 1.0 / 12.0,
+    ]
+    private var dragApplyLadderIndex = 0
+    private var dragFastStreak = 0
     private var dragFollowDisabled = false
-
-    /// 3.0.114: at most one resize per 30Hz.
-    ///
-    /// 60Hz commits double the layout work for a difference nobody can see on a
-    /// large flat card, and they leave no headroom for the relayout that SwiftUI
-    /// has to do behind it.
-    private static let dragApplyInterval: CFTimeInterval = 1.0 / 30.0
     private var lastDragApplyStamp: CFTimeInterval = 0
 
     private var dragIntervalSum: TimeInterval = 0
@@ -169,18 +168,38 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         // while the Q-bounce card computes its frame from that value every pass.
         // Poking the container covers both, and costs nothing when the style
         // does not use it.
-        UIView.animate(
-            withDuration: 0.28,
-            delay: 0,
-            options: [.curveEaseInOut, .beginFromCurrentState]
-        ) {
-            self.presentationController?.containerView?.setNeedsLayout()
-            self.presentationController?.containerView?.layoutIfNeeded()
-            self.view.superview?.setNeedsLayout()
+        // 3.0.144: the settle used to be a 0.28s ease curve while the entrance
+        // was a spring, so a drag ended in a different "material" than the card
+        // arrived in. Follow the same Q-bounce switch the entrance follows;
+        // damping is deliberately much firmer than the 0.36 pop — a height
+        // overshoot reads as the card breathing, not bouncing.
+        if usesSpringEntrance {
+            UIView.animate(
+                withDuration: 0.44,
+                delay: 0,
+                usingSpringWithDamping: 0.82,
+                initialSpringVelocity: 0,
+                options: [.beginFromCurrentState, .allowUserInteraction]
+            ) {
+                self.presentationController?.containerView?.setNeedsLayout()
+                self.presentationController?.containerView?.layoutIfNeeded()
+                self.view.superview?.setNeedsLayout()
+            }
+        } else {
+            UIView.animate(
+                withDuration: 0.28,
+                delay: 0,
+                options: [.curveEaseInOut, .beginFromCurrentState]
+            ) {
+                self.presentationController?.containerView?.setNeedsLayout()
+                self.presentationController?.containerView?.layoutIfNeeded()
+                self.view.superview?.setNeedsLayout()
+            }
         }
         fcPanelLog(
             "panel height tier=\(index) base=\(Int(base)) \(Int(previous))->\(Int(target)) "
-                + "limit=\(Int(limit)) style=\(modalPresentationStyle.rawValue)")
+                + "limit=\(Int(limit)) style=\(modalPresentationStyle.rawValue) "
+                + "height snap follows the Q-bounce switch 3.0.144")
         // 3.0.109: `preferredContentSize` is a request, not an outcome — and the
         // 3.0.108 log could only prove the request had been made. Record what the
         // card was actually laid out at once this pass is done, so "accepted but
@@ -228,6 +247,8 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         pendingDragGrowth = 0
         hasPendingDragGrowth = false
         dragFollowDisabled = false
+        dragApplyLadderIndex = 0
+        dragFastStreak = 0
         lastDragApplyStamp = 0
         let link = CADisplayLink(target: self, selector: #selector(handleDragFrame(_:)))
         link.add(to: .main, forMode: .common)
@@ -239,7 +260,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             .shadowSuppressed = true
         fcPanelLog(
             "drag begin anchor=\(Int(dragAnchor)) base=\(Int(baseHeight)) "
-                + "style=\(modalPresentationStyle.rawValue)")
+                + "style=\(modalPresentationStyle.rawValue) drag follow ladder 3.0.144")
     }
 
     /// Every callback that arrives late widens the gap to the previous one, and
@@ -260,11 +281,26 @@ class WritingToolController: UIHostingController<WritingToolsView> {
                 dragFrames += 1
                 dragIntervalSum += interval
                 dragIntervalMax = max(dragIntervalMax, interval)
-                if interval > Self.dragSlowFrame { dragSlowFrames += 1 }
+                if interval > Self.dragSlowFrame {
+                    dragSlowFrames += 1
+                    // 3.0.144: a dropped frame is the only place the frosted
+                    // glass's re-blur actually shows up — it happens at render
+                    // time, not inside the resize we time below. React to it as
+                    // well as to layout cost, or the ladder would stay at 30Hz
+                    // while the compositor is already losing frames.
+                    if dragApplyLadderIndex < Self.dragApplyLadder.count - 1 {
+                        dragApplyLadderIndex += 1
+                        dragFastStreak = 0
+                        fcPanelLog(String(
+                            format: "drag follow reacts to dropped frames 3.0.144 -> %dHz",
+                            Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
+                    }
+                }
             }
         }
         if hasPendingDragGrowth,
-           link.timestamp - lastDragApplyStamp >= Self.dragApplyInterval
+           link.timestamp - lastDragApplyStamp
+            >= Self.dragApplyLadder[dragApplyLadderIndex]
         {
             hasPendingDragGrowth = false
             lastDragApplyStamp = link.timestamp
@@ -325,12 +361,37 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         dragLayoutCount += 1
         dragLayoutSum += spent
         dragLayoutMax = max(dragLayoutMax, spent)
-        if spent > Self.dragFollowBudget {
+        // 3.0.144: adapt instead of giving up. One expensive frame drops the
+        // apply rate one rung; three cheap frames climb back one rung. A frame
+        // beyond the hard budget still stops the follow — that is a main-thread
+        // stall, not a cost we can throttle our way out of.
+        if spent > Self.dragHardBudget {
             dragFollowDisabled = true
             hasPendingDragGrowth = false
             fcPanelLog(String(
-                format: "drag follow off: one frame cost %.1fms at=%d budget=%.0fms",
-                spent * 1000, Int(target), Self.dragFollowBudget * 1000))
+                format: "drag follow off: one frame cost %.1fms at=%d hard=%.0fms",
+                spent * 1000, Int(target), Self.dragHardBudget * 1000))
+            return
+        }
+        if spent > Self.dragFollowBudget {
+            dragFastStreak = 0
+            if dragApplyLadderIndex < Self.dragApplyLadder.count - 1 {
+                dragApplyLadderIndex += 1
+                fcPanelLog(String(
+                    format: "drag follow slowed: %.1fms -> %dHz",
+                    spent * 1000, Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
+            }
+        } else if spent < Self.dragFollowBudget * 0.5 {
+            dragFastStreak += 1
+            if dragFastStreak >= 3, dragApplyLadderIndex > 0 {
+                dragApplyLadderIndex -= 1
+                dragFastStreak = 0
+                fcPanelLog(String(
+                    format: "drag follow restored -> %dHz",
+                    Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
+            }
+        } else {
+            dragFastStreak = 0
         }
     }
 

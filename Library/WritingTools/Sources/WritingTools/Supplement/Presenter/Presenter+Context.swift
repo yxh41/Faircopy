@@ -52,6 +52,12 @@ extension Presenter {
         /// app summoned it.
         let isExternalInvocation: Bool
 
+        /// 3.0.144: true once the card presentation has installed its fixed-frame
+        /// `UIVisualEffectView`. While false (a popover fallback, or the odd
+        /// scene-less host) the SwiftUI view keeps painting its own material, so
+        /// the card can never come up with no glass at all.
+        @Published var glassIsManagedByUIKit = false
+
         /// 3.0.139: display name of the host app that summoned the card, shown
         /// as "来自 X" under the title on external invocations. `nil` on the
         /// in-app selection path, where the source is obvious.
