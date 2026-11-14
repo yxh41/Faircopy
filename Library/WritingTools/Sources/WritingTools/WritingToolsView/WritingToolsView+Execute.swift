@@ -317,17 +317,11 @@ extension WritingToolsView {
             activityItems: [text],
             applicationActivities: nil
         )
-        // Present from the top-most view controller. The writing panel itself
-        // is a popover presented from parentController (i.e. parentController
-        // already has a presentedViewController). Presenting straight from
-        // parentController while its popover is up silently no-ops, so walk
-        // the presented chain first.
-        var presenter: UIViewController = context.parentController
-        while let presented = presenter.presentedViewController,
-              !presented.isBeingDismissed
-        {
-            presenter = presented
-        }
+        // Present from the top-most view controller. Since 3.0.142 an external
+        // card may live in its own window, where `parentController` has nothing
+        // presented at all — presenting from it would put the share sheet behind
+        // the card. The helper starts from the card when one is up.
+        let presenter = FaircopyOverlayWindowHost.topMostPresenter(from: context.parentController)
         if let popover = activityController.popoverPresentationController {
             popover.sourceView = presenter.view
             popover.sourceRect = CGRect(

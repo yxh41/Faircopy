@@ -239,14 +239,14 @@ public extension Presenter {
         }
 
         let toolController = WritingToolController(context: context)
-        // 3.0.140: one presentation for every external card — the popover is
-        // gone from this path. A popover is hosted in its own window, which is
-        // exactly why 3.0.139's `.ultraThinMaterial` came back as a flat grey
-        // plate: there is no backdrop in that window to sample. The card
-        // presentation keeps the card inside the host window (so the material
-        // blurs the real content behind it) and its full-screen clear backdrop
-        // takes every touch that lands outside the card, so nothing a finger
-        // does on the panel can reach the app underneath.
+        // 3.0.142: the card is presented from a transparent window of our own
+        // (see Presenter+OverlayWindow.swift). 3.0.140 had moved it into the
+        // host's presentation container so `.ultraThinMaterial` could sample the
+        // content behind it — which worked, but put the card inside the host's
+        // view hierarchy, and a host long-press gesture on any ancestor of the
+        // card then recognised the same touch: long-pressing a panel button also
+        // raised the host app's own action menu. A window of our own isolates the
+        // touch completely while the material keeps sampling across windows.
         let springEntrance = FaircopyPanelAnimationStore.load().springEntrance
         // Width is measured at the width the card will actually get; the old
         // popover path measured at 400 and let UIKit clamp it, which clipped a
@@ -258,7 +258,7 @@ public extension Presenter {
             width: measureWidth,
             height: CGFloat.greatestFiniteMagnitude
         ))
-        NSLog("[Faircopy] external card: in-window card presentation, glass samples the host, backdrop swallows outside touches 3.0.140 (spring %@)",
+        NSLog("[Faircopy] external card: own-window presentation, host cannot receive the touch, glass samples across windows 3.0.142 (spring %@)",
               springEntrance ? "on" : "off")
         toolController.usesCardPresentation = true
         toolController.usesSpringEntrance = springEntrance
@@ -272,7 +272,20 @@ public extension Presenter {
             height: contentSize.height
         )
         toolController.transitioningDelegate = toolController
-        context.parentController.present(toolController, animated: true)
+        // 3.0.142: our own window when the host has a scene (always, in practice);
+        // the old parent-controller path stays as the fallback so a scene-less
+        // environment behaves exactly as before.
+        let presenter: UIViewController
+        if let overlayHost = FaircopyOverlayWindowHost.host(
+            for: context.parentController.view.window?.windowScene
+        ) {
+            presenter = overlayHost
+            // So the panel's own sheets know which window to present into.
+            FaircopyOverlayWindowHost.adopt(card: toolController)
+        } else {
+            presenter = context.parentController
+        }
+        presenter.present(toolController, animated: true)
 
         // `present(_:animated:)` is synchronous in setting up the relationship but
         // silently gives up when the host controller is no longer in the window
@@ -280,7 +293,7 @@ public extension Presenter {
         // UIKit only logs a warning. Reporting success in that case would make the
         // caller skip its standalone fallback, so the trigger would vanish with no
         // trace at all. Verify the relationship actually formed.
-        let didPresent = context.parentController.presentedViewController === toolController
+        let didPresent = presenter.presentedViewController === toolController
             || toolController.presentingViewController != nil
             // 3.0.118: a `.custom` transition (Q-bounce entrance) attaches the
             // card to a window before UIKit finishes recording the present

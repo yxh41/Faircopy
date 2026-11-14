@@ -628,6 +628,11 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         // again. Failing to do this would make the plugin stop responding after
         // the first dismiss.
         FC_UnlockPanelPresentation()
+        // 3.0.142: a card presented in our own window takes key status from the
+        // host app. Hand it back now — the first-responder restore below cannot
+        // re-open the keyboard while a window we own is still key. No-op when the
+        // panel was presented the old way (in the host's window).
+        FaircopyOverlayWindowHost.release()
         context.anchorView.removeFromSuperview()
         context.decorationViews.forEach { $0.removeFromSuperview() }
         if context.isStandalone {

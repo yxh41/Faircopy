@@ -118,12 +118,9 @@ extension WritingToolsView {
         alert.addAction(UIAlertAction(title: flipTitle, style: .default) { _ in submit(!keepWeb) })
         alert.addAction(UIAlertAction(title: "Cancel".localized, style: .cancel))
 
-        // Present from the top-most controller (the panel is a popover on top of
-        // the host app's controller); mirrors shareText's presenter walk.
-        var presenter: UIViewController = context.parentController
-        while let presented = presenter.presentedViewController, !presented.isBeingDismissed {
-            presenter = presented
-        }
+        // Present from the top-most controller; mirrors shareText's presenter
+        // walk, which since 3.0.142 starts at the card's own window.
+        let presenter = FaircopyOverlayWindowHost.topMostPresenter(from: context.parentController)
         presenter.present(alert, animated: true)
     }
 
