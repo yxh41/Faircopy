@@ -83,16 +83,19 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     private var pendingDragGrowth: CGFloat = 0
     private var hasPendingDragGrowth = false
 
-    /// 3.0.114: how long one resize may take before following is abandoned.
+    /// 3.0.145: one ladder rung per 160ms, shared by both "why" signals.
     ///
-    /// 3.0.144: a slow frame is no longer a one-way ticket to "no follow for the
-    /// rest of this drag". The apply rate steps down through a small ladder when
-    /// a resize proves expensive, and steps back up after three cheap frames, so
-    /// a transient hitch (a notification arriving, a texture upload) costs a few
-    /// frames of smoothness instead of the whole gesture. Only a genuinely
-    /// pathological frame — three times the budget — still stops the follow.
+    /// A resize that costs 42ms *is* the dropped frame that follows it 7ms
+    /// later. 3.0.144 let the layout timer and the display link each take a
+    /// rung for that single event, so a fast flick walked 30 -> 12Hz in three
+    /// frames; combined with a recovery threshold (20ms) below the normal
+    /// layout cost (20-27ms), the ladder only ever went down. Both step-down
+    /// paths now go through `stepDragLadderDown`, which refuses a second step
+    /// inside the cooldown, and recovery was loosened to two frames under 30ms.
     private static let dragFollowBudget: TimeInterval = 0.040
     private static let dragHardBudget: TimeInterval = 0.120
+    private static let dragRecoverBudget: TimeInterval = 0.030
+    private static let dragLadderCooldown: CFTimeInterval = 0.160
     private static let dragApplyLadder: [CFTimeInterval] = [
         1.0 / 30.0, 1.0 / 20.0, 1.0 / 15.0, 1.0 / 12.0,
     ]
@@ -100,6 +103,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     private var dragFastStreak = 0
     private var dragFollowDisabled = false
     private var lastDragApplyStamp: CFTimeInterval = 0
+    private var lastDragLadderStepStamp: CFTimeInterval = 0
 
     private var dragIntervalSum: TimeInterval = 0
     private var dragIntervalMax: TimeInterval = 0
@@ -250,6 +254,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         dragApplyLadderIndex = 0
         dragFastStreak = 0
         lastDragApplyStamp = 0
+        lastDragLadderStepStamp = 0
         let link = CADisplayLink(target: self, selector: #selector(handleDragFrame(_:)))
         link.add(to: .main, forMode: .common)
         dragLink = link
@@ -260,7 +265,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             .shadowSuppressed = true
         fcPanelLog(
             "drag begin anchor=\(Int(dragAnchor)) base=\(Int(baseHeight)) "
-                + "style=\(modalPresentationStyle.rawValue) drag follow ladder 3.0.144")
+                + "style=\(modalPresentationStyle.rawValue) drag follow ladder 3.0.145")
     }
 
     /// Every callback that arrives late widens the gap to the previous one, and
@@ -285,16 +290,14 @@ class WritingToolController: UIHostingController<WritingToolsView> {
                     dragSlowFrames += 1
                     // 3.0.144: a dropped frame is the only place the frosted
                     // glass's re-blur actually shows up — it happens at render
-                    // time, not inside the resize we time below. React to it as
-                    // well as to layout cost, or the ladder would stay at 30Hz
-                    // while the compositor is already losing frames.
-                    if dragApplyLadderIndex < Self.dragApplyLadder.count - 1 {
-                        dragApplyLadderIndex += 1
-                        dragFastStreak = 0
-                        fcPanelLog(String(
-                            format: "drag follow reacts to dropped frames 3.0.144 -> %dHz",
-                            Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
-                    }
+                    // time, not inside the resize we time below. 3.0.145: it
+                    // shares a cooldown with the layout timer, because the
+                    // resize we are about to run usually *caused* this frame.
+                    stepDragLadderDown(
+                        at: link.timestamp,
+                        why: "dropped frame",
+                        cost: interval
+                    )
                 }
             }
         }
@@ -304,8 +307,28 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         {
             hasPendingDragGrowth = false
             lastDragApplyStamp = link.timestamp
-            applyDragGrowth(pendingDragGrowth)
+            applyDragGrowth(pendingDragGrowth, stamp: link.timestamp)
         }
+    }
+
+    /// 3.0.145: the single place a rung is given up. `stamp` is the display
+    /// link's own time, shared with `applyDragGrowth`, so the two signals can
+    /// never be charged twice for one slow frame.
+    private func stepDragLadderDown(
+        at stamp: CFTimeInterval,
+        why: String,
+        cost: TimeInterval
+    ) {
+        guard dragApplyLadderIndex < Self.dragApplyLadder.count - 1,
+              stamp - lastDragLadderStepStamp >= Self.dragLadderCooldown
+        else { return }
+        lastDragLadderStepStamp = stamp
+        dragApplyLadderIndex += 1
+        dragFastStreak = 0
+        fcPanelLog(String(
+            format: "drag follow slowed 3.0.145: %@ %.1fms -> %dHz",
+            why, cost * 1000,
+            Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
     }
 
     /// One call per touch frame. `growth` is how far the finger has travelled,
@@ -325,7 +348,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// edge up by only N/2 — the handle would drift away from the finger at half
     /// speed and read as "not following". Doubling the travel makes the top edge
     /// land exactly under the finger while the card stays centred.
-    private func applyDragGrowth(_ growth: CGFloat) {
+    private func applyDragGrowth(_ growth: CGFloat, stamp: CFTimeInterval) {
         guard dragIsActive, !dragFollowDisabled else { return }
         let container = presentationController?.containerView ?? view.window
         let available = floor((container?.bounds.height ?? UIScreen.main.bounds.height) - 2 * 40)
@@ -361,33 +384,27 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         dragLayoutCount += 1
         dragLayoutSum += spent
         dragLayoutMax = max(dragLayoutMax, spent)
-        // 3.0.144: adapt instead of giving up. One expensive frame drops the
-        // apply rate one rung; three cheap frames climb back one rung. A frame
-        // beyond the hard budget still stops the follow — that is a main-thread
-        // stall, not a cost we can throttle our way out of.
+        // 3.0.145: one rung per slow *event*, not per signal. Recovery needs two
+        // frames under 30ms — 3.0.144 asked for three under 20ms, a threshold
+        // below the normal 20-27ms relayout, so the ladder never climbed back.
         if spent > Self.dragHardBudget {
             dragFollowDisabled = true
             hasPendingDragGrowth = false
             fcPanelLog(String(
-                format: "drag follow off: one frame cost %.1fms at=%d hard=%.0fms",
+                format: "drag follow off 3.0.145: one frame cost %.1fms at=%d hard=%.0fms",
                 spent * 1000, Int(target), Self.dragHardBudget * 1000))
             return
         }
         if spent > Self.dragFollowBudget {
             dragFastStreak = 0
-            if dragApplyLadderIndex < Self.dragApplyLadder.count - 1 {
-                dragApplyLadderIndex += 1
-                fcPanelLog(String(
-                    format: "drag follow slowed: %.1fms -> %dHz",
-                    spent * 1000, Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
-            }
-        } else if spent < Self.dragFollowBudget * 0.5 {
+            stepDragLadderDown(at: stamp, why: "layout", cost: spent)
+        } else if spent < Self.dragRecoverBudget {
             dragFastStreak += 1
-            if dragFastStreak >= 3, dragApplyLadderIndex > 0 {
+            if dragFastStreak >= 2, dragApplyLadderIndex > 0 {
                 dragApplyLadderIndex -= 1
                 dragFastStreak = 0
                 fcPanelLog(String(
-                    format: "drag follow restored -> %dHz",
+                    format: "drag follow restored 3.0.145 -> %dHz",
                     Int(1.0 / Self.dragApplyLadder[dragApplyLadderIndex])))
             }
         } else {
