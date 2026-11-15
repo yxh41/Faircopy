@@ -841,6 +841,7 @@ struct ExternalPanelAppearanceView: View {
     ]
     private static let falloffNames = ["Falloff Sharp", "Falloff Standard", "Falloff Soft"]
     private static let tierNames = ["Tier Compact", "Tier Medium", "Tier Tall"]
+    private static let shadowColorNames = ["Shadow Color Black", "Shadow Color Teal", "Shadow Color Gray"]
 
     var body: some View {
         Form {
@@ -860,6 +861,7 @@ struct ExternalPanelAppearanceView: View {
 
             Section {
                 washSlider
+                glassDarkenSlider
                 rimSlider
             } footer: {
                 Text(NSLocalizedString("Appearance Footer", bundle: Bundle.wrti_support, comment: ""))
@@ -876,6 +878,7 @@ struct ExternalPanelAppearanceView: View {
             Section {
                 shadowStrengthSlider
                 shadowRadiusSlider
+                shadowTintPicker
             } footer: {
                 Text(NSLocalizedString("Shadow Footer", bundle: Bundle.wrti_support, comment: ""))
             }
@@ -884,6 +887,16 @@ struct ExternalPanelAppearanceView: View {
                 cornerRadiusSlider
             } footer: {
                 Text(NSLocalizedString("Corner Radius Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                introSpeedSlider
+                introBounceSlider
+                gripOpacitySlider
+            } header: {
+                Text(NSLocalizedString("Motion And Handle", bundle: Bundle.wrti_support, comment: ""))
+            } footer: {
+                Text(NSLocalizedString("Motion Footer", bundle: Bundle.wrti_support, comment: ""))
             }
 
             Section {
@@ -1030,6 +1043,67 @@ struct ExternalPanelAppearanceView: View {
             }
             Slider(value: $settings.cornerRadius, in: 8...28.0, step: 1)
                 .onChange(of: settings.cornerRadius) { _ in scheduleSave() }
+        }
+    }
+
+    private var glassDarkenSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Glass Darken", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.glassTint)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.glassTint, in: 0...0.40, step: 0.01)
+                .onChange(of: settings.glassTint) { _ in scheduleSave() }
+        }
+    }
+
+    private var shadowTintPicker: some View {
+        Picker(selection: $settings.shadowTint) {
+            ForEach(0..<Self.shadowColorNames.count, id: \.self) { index in
+                Text(NSLocalizedString(Self.shadowColorNames[index], bundle: Bundle.wrti_support, comment: ""))
+                    .tag(index)
+            }
+        } label: {
+            Text(NSLocalizedString("Shadow Color", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .onChange(of: settings.shadowTint) { _ in scheduleSave() }
+    }
+
+    private var introSpeedSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Intro Speed", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(String(format: "%.1fx", settings.introSpeed))
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.introSpeed, in: 0.7...1.4, step: 0.05)
+                .onChange(of: settings.introSpeed) { _ in scheduleSave() }
+        }
+    }
+
+    private var introBounceSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Intro Bounce", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.introBounce)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.introBounce, in: 0...1.0, step: 0.05)
+                .onChange(of: settings.introBounce) { _ in scheduleSave() }
+        }
+    }
+
+    private var gripOpacitySlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Handle Opacity", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.gripOpacity)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.gripOpacity, in: 0...1.0, step: 0.05)
+                .onChange(of: settings.gripOpacity) { _ in scheduleSave() }
         }
     }
 
@@ -1337,12 +1411,21 @@ struct PanelAnimationSettings: Codable {
     var defaultHeightTier: Int
     /// 3.0.148: card corner radius in points (8 ... 28).
     var cornerRadius: Double
+    /// 3.0.149: dark glass tint (0...0.40), shadow colour preset (0...2),
+    /// entrance speed (0.7...1.4), entrance bounce (0...1) and handle opacity
+    /// (0...1). Defaults reproduce 3.0.148 exactly.
+    var glassTint: Double
+    var shadowTint: Int
+    var introSpeed: Double
+    var introBounce: Double
+    var gripOpacity: Double
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
         case rimDirection, rimWidth, rimFalloff
         case shadowStrength, shadowRadius
         case showSourceBadge, defaultHeightTier, cornerRadius
+        case glassTint, shadowTint, introSpeed, introBounce, gripOpacity
     }
 
     init(springEntrance: Bool = false,
@@ -1356,7 +1439,12 @@ struct PanelAnimationSettings: Codable {
          shadowRadius: Double = 26.0,
          showSourceBadge: Bool = true,
          defaultHeightTier: Int = 1,
-         cornerRadius: Double = 13.0) {
+         cornerRadius: Double = 13.0,
+         glassTint: Double = 0.0,
+         shadowTint: Int = 0,
+         introSpeed: Double = 1.0,
+         introBounce: Double = 1.0,
+         gripOpacity: Double = 1.0) {
         self.springEntrance = springEntrance
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
@@ -1369,6 +1457,11 @@ struct PanelAnimationSettings: Codable {
         self.showSourceBadge = showSourceBadge
         self.defaultHeightTier = min(3, max(1, defaultHeightTier))
         self.cornerRadius = min(28.0, max(8.0, cornerRadius))
+        self.glassTint = min(0.40, max(0, glassTint))
+        self.shadowTint = min(2, max(0, shadowTint))
+        self.introSpeed = min(1.4, max(0.7, introSpeed))
+        self.introBounce = min(1.0, max(0, introBounce))
+        self.gripOpacity = min(1.0, max(0, gripOpacity))
     }
 
     /// 3.0.146/147: files written by older builds are missing every new key.
@@ -1388,7 +1481,12 @@ struct PanelAnimationSettings: Codable {
             shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
             showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
             defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1,
-            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0
+            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0,
+            glassTint: (try? container.decode(Double.self, forKey: .glassTint)) ?? 0.0,
+            shadowTint: (try? container.decode(Int.self, forKey: .shadowTint)) ?? 0,
+            introSpeed: (try? container.decode(Double.self, forKey: .introSpeed)) ?? 1.0,
+            introBounce: (try? container.decode(Double.self, forKey: .introBounce)) ?? 1.0,
+            gripOpacity: (try? container.decode(Double.self, forKey: .gripOpacity)) ?? 1.0
         )
     }
 }

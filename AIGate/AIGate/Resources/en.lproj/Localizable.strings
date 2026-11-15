@@ -550,3 +550,13 @@
 "Default Tier Footer" = "Applies to externally summoned panels only; switching panel content still returns to the natural height. Changes take effect the next time the panel opens, without relaunching the app.";
 "Corner Radius" = "Corner Radius";
 "Corner Radius Footer" = "Card corner radius, 8 to 28 points. Applies to the next card; the one on screen is unchanged.";
+"Glass Darken" = "Glass Darken";
+"Shadow Color" = "Shadow Color";
+"Shadow Color Black" = "Black";
+"Shadow Color Teal" = "Deep Teal";
+"Shadow Color Gray" = "Cool Gray";
+"Motion And Handle" = "Motion & Handle";
+"Intro Speed" = "Intro Speed";
+"Intro Bounce" = "Intro Bounce";
+"Handle Opacity" = "Handle Opacity";
+"Motion Footer" = "Scales the entrance and height-settle duration. Bounce 100% matches the original Q-bounce; handle opacity 0 hides the handle while the drag still works.";

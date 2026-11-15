@@ -114,6 +114,13 @@ static BOOL __fc_showSourceBadgeValue = YES;
 static int __fc_defaultHeightTierValue = 1;
 /// 3.0.148: card corner radius (points). 13 reproduces the 3.0.143 popover.
 static double __fc_cornerRadiusValue = 13.0;
+/// 3.0.149: dark glass tint, shadow colour preset, entrance speed & bounce and
+/// the height-handle opacity. Every default reproduces the 3.0.148 look.
+static double __fc_glassTintValue = 0.0;
+static int __fc_shadowTintValue = 0;
+static double __fc_introSpeedValue = 1.0;
+static double __fc_introBounceValue = 1.0;
+static double __fc_gripOpacityValue = 1.0;
 /// Guards against two attempts in flight (the deferred one and the one the
 /// presentation path kicks off when it finds nothing cached yet).
 static BOOL __fc_panelSettingsFetchInFlight = NO;
@@ -138,6 +145,11 @@ double FC_PanelShadowRadius(void) { return __fc_shadowRadiusValue; }
 BOOL FC_PanelShowSourceBadge(void) { return __fc_showSourceBadgeValue; }
 int FC_PanelDefaultHeightTier(void) { return __fc_defaultHeightTierValue; }
 double FC_PanelCornerRadius(void) { return __fc_cornerRadiusValue; }
+double FC_PanelGlassTint(void) { return __fc_glassTintValue; }
+int FC_PanelShadowTint(void) { return __fc_shadowTintValue; }
+double FC_PanelIntroSpeed(void) { return __fc_introSpeedValue; }
+double FC_PanelIntroBounce(void) { return __fc_introBounceValue; }
+double FC_PanelGripOpacity(void) { return __fc_gripOpacityValue; }
 
 static void FC_FetchPanelSettings(NSUInteger attempt) {
     if (__fc_springEntranceKnown || __fc_panelSettingsFetchInFlight) { return; }
@@ -201,6 +213,11 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 NSNumber *badge = dict[@"show_source_badge"];
                 NSNumber *tier = dict[@"default_height_tier"];
                 NSNumber *cr = dict[@"corner_radius"];
+                NSNumber *gTint = dict[@"glass_tint"];
+                NSNumber *sTint = dict[@"shadow_tint"];
+                NSNumber *iSpeed = dict[@"intro_speed"];
+                NSNumber *iBounce = dict[@"intro_bounce"];
+                NSNumber *gOpacity = dict[@"grip_opacity"];
                 if ([rimDir isKindOfClass:[NSNumber class]]) {
                     __fc_rimDirectionValue = (int)MIN(3, MAX(0, [rimDir intValue]));
                 }
@@ -225,13 +242,32 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 if ([cr isKindOfClass:[NSNumber class]]) {
                     __fc_cornerRadiusValue = MIN(28.0, MAX(8.0, [cr doubleValue]));
                 }
+                // 3.0.149: five more keys in the same document; a missing key
+                // leaves the 3.0.148 default, so an older AIGate can answer a
+                // newer dylib without changing a single pixel.
+                if ([gTint isKindOfClass:[NSNumber class]]) {
+                    __fc_glassTintValue = MIN(0.40, MAX(0.0, [gTint doubleValue]));
+                }
+                if ([sTint isKindOfClass:[NSNumber class]]) {
+                    __fc_shadowTintValue = (int)MIN(2, MAX(0, [sTint intValue]));
+                }
+                if ([iSpeed isKindOfClass:[NSNumber class]]) {
+                    __fc_introSpeedValue = MIN(1.4, MAX(0.7, [iSpeed doubleValue]));
+                }
+                if ([iBounce isKindOfClass:[NSNumber class]]) {
+                    __fc_introBounceValue = MIN(1.0, MAX(0.0, [iBounce doubleValue]));
+                }
+                if ([gOpacity isKindOfClass:[NSNumber class]]) {
+                    __fc_gripOpacityValue = MIN(1.0, MAX(0.0, [gOpacity doubleValue]));
+                }
                 FC_TraceLine([NSString stringWithFormat:
-                    @"panel appearance from gateway 3.0.148: blur=%d wash=%.2f rim=%.2f dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f badge=%d tier=%d cr=%.0f",
+                    @"panel appearance from gateway 3.0.149: blur=%d wash=%.2f rim=%.2f dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f badge=%d tier=%d cr=%.0f tint=%.2f sTint=%d speed=%.2f bounce=%.2f grip=%.2f",
                     __fc_glassStyleValue, __fc_glassWashValue, __fc_rimStrengthValue,
                     __fc_rimDirectionValue, __fc_rimWidthValue, __fc_rimFalloffValue,
                     __fc_shadowStrengthValue, __fc_shadowRadiusValue,
                     (int)__fc_showSourceBadgeValue, __fc_defaultHeightTierValue,
-                    __fc_cornerRadiusValue]);
+                    __fc_cornerRadiusValue, __fc_glassTintValue, __fc_shadowTintValue,
+                    __fc_introSpeedValue, __fc_introBounceValue, __fc_gripOpacityValue]);
                 [session finishTasksAndInvalidate];
                 return;
             }

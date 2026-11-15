@@ -636,3 +636,13 @@
 "Default Tier Footer" = "仅对外部调用唤起的面板生效；切换面板内容后仍会回到自然高度。改动在下次唤起面板时生效，无需重启 App。";
 "Corner Radius" = "圆角";
 "Corner Radius Footer" = "卡片圆角半径，8 至 28 点。下次唤起面板生效，已打开的卡片保持原样。";
+"Glass Darken" = "玻璃暗度";
+"Shadow Color" = "阴影颜色";
+"Shadow Color Black" = "黑";
+"Shadow Color Teal" = "深青";
+"Shadow Color Gray" = "冷灰";
+"Motion And Handle" = "动效与把手";
+"Intro Speed" = "入场速度";
+"Intro Bounce" = "入场弹跳";
+"Handle Opacity" = "把手透明度";
+"Motion Footer" = "缩放入场与高度吸附的动画时长；弹跳 100% 与原 Q 弹一致；把手透明度 0 即隐藏，但拖动仍可用。";

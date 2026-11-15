@@ -20,7 +20,7 @@ import WritingToolsInjector
 
 // MARK: - 设置
 
-/// 3.0.146/147/148: the nine knobs the settings app exposes for the external
+/// 3.0.146/147/148/149: the knobs the settings app exposes for the external
 /// frosted card. A plain value type so the presentation controller can own a
 /// copy — a card must keep the look it was opened with even if the setting is
 /// changed while it is on screen. Every value is clamped here, so a stale or
@@ -45,6 +45,19 @@ struct FaircopyPanelAppearance {
     var shadowRadius: Double
     /// 8 ... 28 points; 13 was the original arrowless popover corner.
     var cornerRadius: Double
+    /// 3.0.149: dark tint laid over the blur, the counterpart to the white wash.
+    /// 0 ... 0.40; 0 leaves the glass exactly as 3.0.148 drew it.
+    var glassTint: Double
+    /// 3.0.149: drop-shadow colour preset. 0 black (original), 1 deep teal,
+    /// 2 cool gray.
+    var shadowTint: Int
+    /// 3.0.149: entrance / height-settle duration multiplier, 0.7 ... 1.4.
+    var introSpeed: Double
+    /// 3.0.149: entrance springiness, 0 ... 1. 1 reproduces the 3.0.76 damping
+    /// (0.36); 0 is a fully damped (no-bounce) settle.
+    var introBounce: Double
+    /// 3.0.149: opacity multiplier for the height handle, 0 ... 1.
+    var gripOpacity: Double
 
     init(glassStyle: Int = 0,
          glassWash: Double = 0.08,
@@ -54,7 +67,12 @@ struct FaircopyPanelAppearance {
          rimFalloff: Int = 1,
          shadowStrength: Double = 1.0,
          shadowRadius: Double = 26.0,
-         cornerRadius: Double = 13.0) {
+         cornerRadius: Double = 13.0,
+         glassTint: Double = 0.0,
+         shadowTint: Int = 0,
+         introSpeed: Double = 1.0,
+         introBounce: Double = 1.0,
+         gripOpacity: Double = 1.0) {
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
         self.rimStrength = min(1.0, max(0, rimStrength))
@@ -64,6 +82,11 @@ struct FaircopyPanelAppearance {
         self.shadowStrength = min(1.0, max(0, shadowStrength))
         self.shadowRadius = min(40.0, max(0, shadowRadius))
         self.cornerRadius = min(28.0, max(8.0, cornerRadius))
+        self.glassTint = min(0.40, max(0, glassTint))
+        self.shadowTint = min(2, max(0, shadowTint))
+        self.introSpeed = min(1.4, max(0.7, introSpeed))
+        self.introBounce = min(1.0, max(0, introBounce))
+        self.gripOpacity = min(1.0, max(0, gripOpacity))
     }
 
     var blurEffectStyle: UIBlurEffect.Style {
@@ -80,6 +103,20 @@ struct FaircopyPanelAppearance {
     var rimLineWidth: CGFloat { CGFloat(rimWidth) }
     var shadowBlurRadius: CGFloat { CGFloat(shadowRadius) }
     var cornerRadiusCGFloat: CGFloat { CGFloat(cornerRadius) }
+    /// 3.0.149: dark layer alpha over the blur.
+    var tintAlpha: CGFloat { CGFloat(glassTint) }
+    /// 3.0.149: drop-shadow colour. Black is the original; the two tints keep
+    /// the soft edge in the same family as the card instead of a neutral slab.
+    var shadowUIColor: UIColor {
+        switch shadowTint {
+        case 1: return UIColor(red: 0.09, green: 0.27, blue: 0.29, alpha: 1)
+        case 2: return UIColor(white: 0.62, alpha: 1)
+        default: return .black
+        }
+    }
+    var introSpeedCGFloat: CGFloat { CGFloat(introSpeed) }
+    var introBounceCGFloat: CGFloat { CGFloat(introBounce) }
+    var gripAlphaScale: CGFloat { CGFloat(gripOpacity) }
 
     /// 3.0.147: the gradient only ever describes a diagonal; which diagonal
     /// is a setting now. 0 / standard / 1pt reproduce the 3.0.143 skin.
@@ -123,12 +160,20 @@ struct FaircopyPanelAnimationSettings: Codable {
     var defaultHeightTier: Int
     /// 3.0.148: card corner radius in points (8 ... 28).
     var cornerRadius: Double
+    /// 3.0.149: dark glass tint / shadow colour / entrance speed & bounce and
+    /// the height-handle opacity. Every default reproduces 3.0.148.
+    var glassTint: Double
+    var shadowTint: Int
+    var introSpeed: Double
+    var introBounce: Double
+    var gripOpacity: Double
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
         case rimDirection, rimWidth, rimFalloff
         case shadowStrength, shadowRadius
         case showSourceBadge, defaultHeightTier, cornerRadius
+        case glassTint, shadowTint, introSpeed, introBounce, gripOpacity
     }
 
     init(springEntrance: Bool = false,
@@ -142,7 +187,12 @@ struct FaircopyPanelAnimationSettings: Codable {
          shadowRadius: Double = 26.0,
          showSourceBadge: Bool = true,
          defaultHeightTier: Int = 1,
-         cornerRadius: Double = 13.0) {
+         cornerRadius: Double = 13.0,
+         glassTint: Double = 0.0,
+         shadowTint: Int = 0,
+         introSpeed: Double = 1.0,
+         introBounce: Double = 1.0,
+         gripOpacity: Double = 1.0) {
         self.springEntrance = springEntrance
         let appearance = FaircopyPanelAppearance(
             glassStyle: glassStyle,
@@ -153,7 +203,12 @@ struct FaircopyPanelAnimationSettings: Codable {
             rimFalloff: rimFalloff,
             shadowStrength: shadowStrength,
             shadowRadius: shadowRadius,
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            glassTint: glassTint,
+            shadowTint: shadowTint,
+            introSpeed: introSpeed,
+            introBounce: introBounce,
+            gripOpacity: gripOpacity
         )
         self.glassStyle = appearance.glassStyle
         self.glassWash = appearance.glassWash
@@ -166,6 +221,11 @@ struct FaircopyPanelAnimationSettings: Codable {
         self.showSourceBadge = showSourceBadge
         self.defaultHeightTier = min(3, max(1, defaultHeightTier))
         self.cornerRadius = appearance.cornerRadius
+        self.glassTint = appearance.glassTint
+        self.shadowTint = appearance.shadowTint
+        self.introSpeed = appearance.introSpeed
+        self.introBounce = appearance.introBounce
+        self.gripOpacity = appearance.gripOpacity
     }
 
     /// 3.0.146/147: a file written by an older build is missing every new
@@ -185,7 +245,12 @@ struct FaircopyPanelAnimationSettings: Codable {
             shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
             showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
             defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1,
-            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0
+            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0,
+            glassTint: (try? container.decode(Double.self, forKey: .glassTint)) ?? 0.0,
+            shadowTint: (try? container.decode(Int.self, forKey: .shadowTint)) ?? 0,
+            introSpeed: (try? container.decode(Double.self, forKey: .introSpeed)) ?? 1.0,
+            introBounce: (try? container.decode(Double.self, forKey: .introBounce)) ?? 1.0,
+            gripOpacity: (try? container.decode(Double.self, forKey: .gripOpacity)) ?? 1.0
         )
     }
 
@@ -199,7 +264,12 @@ struct FaircopyPanelAnimationSettings: Codable {
             rimFalloff: rimFalloff,
             shadowStrength: shadowStrength,
             shadowRadius: shadowRadius,
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            glassTint: glassTint,
+            shadowTint: shadowTint,
+            introSpeed: introSpeed,
+            introBounce: introBounce,
+            gripOpacity: gripOpacity
         )
     }
 }
@@ -240,7 +310,12 @@ enum FaircopyPanelAnimationStore {
                 shadowRadius: FC_PanelShadowRadius(),
                 showSourceBadge: FC_PanelShowSourceBadge(),
                 defaultHeightTier: Int(FC_PanelDefaultHeightTier()),
-                cornerRadius: FC_PanelCornerRadius()
+                cornerRadius: FC_PanelCornerRadius(),
+                glassTint: FC_PanelGlassTint(),
+                shadowTint: Int(FC_PanelShadowTint()),
+                introSpeed: FC_PanelIntroSpeed(),
+                introBounce: FC_PanelIntroBounce(),
+                gripOpacity: FC_PanelGripOpacity()
             )
         }
         guard
@@ -312,6 +387,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
         effect: UIBlurEffect(style: .systemUltraThinMaterialDark)
     )
     private let glassWash = UIView()
+    /// 3.0.149: an optional dark layer over the blur, the counterpart to the
+    /// white wash. Alpha 0 leaves it fully clear (the 3.0.148 look).
+    private let glassShade = UIView()
     private let glassMask = CAShapeLayer()
     private var glassFrameInHost: CGRect = .zero
     /// The untransformed frame. `UIView.frame` reports the *transformed* box
@@ -531,7 +609,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         shadowHost.frame = frameOfPresentedViewInContainerView
         shadowHost.backgroundColor = .clear
         shadowHost.isUserInteractionEnabled = false
-        shadowHost.layer.shadowColor = UIColor.black.cgColor
+        shadowHost.layer.shadowColor = appearance.shadowUIColor.cgColor
         shadowHost.layer.shadowOpacity = effectiveShadowOpacity
         shadowHost.layer.shadowRadius = appearance.shadowBlurRadius
         shadowHost.layer.shadowOffset = CGSize(width: 0, height: 12)
@@ -581,6 +659,13 @@ final class FaircopySpringPresentationController: UIPresentationController {
         glassWash.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         glassHost.addSubview(glassWash)
 
+        // 3.0.149: dark tint over the blur, on top of the white wash. Its alpha
+        // is the setting; 0 leaves the card exactly as 3.0.148 built it.
+        glassShade.frame = glassHost.bounds
+        glassShade.backgroundColor = UIColor.black.withAlphaComponent(appearance.tintAlpha)
+        glassShade.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        glassHost.addSubview(glassShade)
+
         glassMask.fillColor = UIColor.white.cgColor
         glassMask.frame = glassHost.bounds
         glassHost.layer.mask = glassMask
@@ -596,6 +681,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
         NSLog("[Faircopy] external panel look extended 3.0.147: dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f",
               appearance.rimDirection, appearance.rimWidth, appearance.rimFalloff,
               appearance.shadowStrength, appearance.shadowRadius)
+        NSLog("[Faircopy] external panel look extended 3.0.149: tint=%.2f shadowTint=%d speed=%.2f bounce=%.2f grip=%.2f",
+              appearance.glassTint, appearance.shadowTint, appearance.introSpeed,
+              appearance.introBounce, appearance.gripOpacity)
     }
 
     /// The only per-frame work the glass does during a drag: one rounded-rect
@@ -716,16 +804,27 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
     /// before this path took over every external card. Never scales, so a card
     /// that starts at identity cannot pop when the toggle is off.
     private let bounces: Bool
+    /// 3.0.149: entrance duration multiplier (0.7 ... 1.4).
+    private let speed: CGFloat
+    /// 3.0.149: 0 ... 1 springiness; 1 reproduces the original 0.36 damping.
+    private let bounce: CGFloat
 
-    init(presenting: Bool, bounces: Bool = true) {
+    init(presenting: Bool, bounces: Bool = true, speed: CGFloat = 1.0, bounce: CGFloat = 1.0) {
         self.presenting = presenting
         self.bounces = bounces
+        self.speed = max(0.7, min(1.4, speed))
+        self.bounce = max(0, min(1, bounce))
         super.init()
     }
 
+    /// Lower damping = bouncier. bounce 1 → 0.36 (the 3.0.76 feel), 0 → 1.0.
+    private var damping: CGFloat {
+        max(0.30, min(1.0, 1.0 - 0.64 * bounce))
+    }
+
     func transitionDuration(using _: UIViewControllerContextTransitioning?) -> TimeInterval {
-        guard presenting else { return 0.18 }
-        return bounces ? 0.62 : 0.22
+        guard presenting else { return 0.18 * TimeInterval(speed) }
+        return bounces ? 0.62 * TimeInterval(speed) : 0.22 * TimeInterval(speed)
     }
 
     func animateTransition(using context: UIViewControllerContextTransitioning) {
@@ -756,7 +855,7 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
                 // (bouncesOnEntrance == false skipped the 0.72 seed), so this
                 // touches alpha only.
                 UIView.animate(
-                    withDuration: 0.22,
+                    withDuration: 0.22 * TimeInterval(speed),
                     delay: 0,
                     options: [.curveEaseOut, .allowUserInteraction]
                 ) {
@@ -771,7 +870,7 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
             // Opacity settles first so the "pop" is a scale beat on an already
             // solid card — a spring on alpha reads as a slow fade instead.
             UIView.animate(
-                withDuration: 0.16,
+                withDuration: 0.16 * TimeInterval(speed),
                 delay: 0,
                 options: [.curveEaseOut, .allowUserInteraction]
             ) {
@@ -782,9 +881,9 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
             // damping 0.36 on a 0.72 → 1.0 spring peaks around 1.09, i.e. a
             // touch bouncier than the 1.08 that was signed off on.
             UIView.animate(
-                withDuration: 0.62,
+                withDuration: 0.62 * TimeInterval(speed),
                 delay: 0,
-                usingSpringWithDamping: 0.36,
+                usingSpringWithDamping: damping,
                 initialSpringVelocity: 0,
                 options: [.allowUserInteraction, .beginFromCurrentState]
             ) {
@@ -801,7 +900,7 @@ final class FaircopySpringAnimator: NSObject, UIViewControllerAnimatedTransition
             // an instance property in one needs an explicit `self`.
             let shrink = bounces
             UIView.animate(
-                withDuration: 0.18,
+                withDuration: 0.18 * TimeInterval(speed),
                 delay: 0,
                 options: [.curveEaseIn, .allowUserInteraction]
             ) {
@@ -843,14 +942,18 @@ extension WritingToolController: UIViewControllerTransitioningDelegate {
         source _: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
         guard usesCardPresentation else { return nil }
-        return FaircopySpringAnimator(presenting: true, bounces: usesSpringEntrance)
+        return FaircopySpringAnimator(presenting: true, bounces: usesSpringEntrance,
+                                      speed: panelAppearance.introSpeedCGFloat,
+                                      bounce: panelAppearance.introBounceCGFloat)
     }
 
     func animationController(
         forDismissed _: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
         guard usesCardPresentation else { return nil }
-        return FaircopySpringAnimator(presenting: false, bounces: usesSpringEntrance)
+        return FaircopySpringAnimator(presenting: false, bounces: usesSpringEntrance,
+                                      speed: panelAppearance.introSpeedCGFloat,
+                                      bounce: panelAppearance.introBounceCGFloat)
     }
 
     func presentationController(

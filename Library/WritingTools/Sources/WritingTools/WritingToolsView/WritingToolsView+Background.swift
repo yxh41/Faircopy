@@ -86,6 +86,9 @@ extension WritingToolsView {
             Rectangle()
                 .fill(Color.white.opacity(context.panelAppearance.glassWash))
                 .padding(-64)
+            Rectangle()
+                .fill(Color.black.opacity(context.panelAppearance.glassTint))
+                .padding(-64)
         }
         .environment(\.colorScheme, .dark)
     }

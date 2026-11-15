@@ -458,7 +458,7 @@ extension WritingToolsView {
     /// the title, but a zero-distance drag would also swallow a plain tap.
     var heightGrip: some View {
         Capsule()
-            .fill(.white.opacity(heightTier > 1 ? 0.7 : 0.42))
+            .fill(.white.opacity((heightTier > 1 ? 0.7 : 0.42) * Double(context.panelAppearance.gripAlphaScale)))
             .frame(width: 38, height: 4)
             .padding(.vertical, 7)
             .frame(maxWidth: .infinity)

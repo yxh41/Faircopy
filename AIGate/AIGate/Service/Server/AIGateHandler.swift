@@ -25,6 +25,13 @@ private struct FCPanelSettingsResponse: Encodable {
     let showSourceBadge: Bool
     let defaultHeightTier: Int
     let cornerRadius: Double
+    /// 3.0.149: dark glass tint, shadow colour, entrance speed & bounce and the
+    /// height-handle opacity.
+    let glassTint: Double
+    let shadowTint: Int
+    let introSpeed: Double
+    let introBounce: Double
+    let gripOpacity: Double
 
     enum CodingKeys: String, CodingKey {
         case springEntrance = "spring_entrance"
@@ -39,6 +46,11 @@ private struct FCPanelSettingsResponse: Encodable {
         case showSourceBadge = "show_source_badge"
         case defaultHeightTier = "default_height_tier"
         case cornerRadius = "corner_radius"
+        case glassTint = "glass_tint"
+        case shadowTint = "shadow_tint"
+        case introSpeed = "intro_speed"
+        case introBounce = "intro_bounce"
+        case gripOpacity = "grip_opacity"
     }
 }
 
@@ -153,7 +165,12 @@ class AIGateHandler: ChannelDuplexHandler {
                 shadowRadius: settings.shadowRadius,
                 showSourceBadge: settings.showSourceBadge,
                 defaultHeightTier: settings.defaultHeightTier,
-                cornerRadius: settings.cornerRadius
+                cornerRadius: settings.cornerRadius,
+                glassTint: settings.glassTint,
+                shadowTint: settings.shadowTint,
+                introSpeed: settings.introSpeed,
+                introBounce: settings.introBounce,
+                gripOpacity: settings.gripOpacity
             ))
             return
         } else if checkForServerCommandIfIsGettingPanelPending() {

@@ -192,7 +192,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         // overshoot reads as the card breathing, not bouncing.
         if usesSpringEntrance {
             UIView.animate(
-                withDuration: 0.44,
+                withDuration: 0.44 * TimeInterval(panelAppearance.introSpeedCGFloat),
                 delay: 0,
                 usingSpringWithDamping: 0.82,
                 initialSpringVelocity: 0,
@@ -204,7 +204,7 @@ class WritingToolController: UIHostingController<WritingToolsView> {
             }
         } else {
             UIView.animate(
-                withDuration: 0.28,
+                withDuration: 0.28 * TimeInterval(panelAppearance.introSpeedCGFloat),
                 delay: 0,
                 options: [.curveEaseInOut, .beginFromCurrentState]
             ) {

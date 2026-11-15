@@ -121,6 +121,15 @@ int FC_PanelDefaultHeightTier(void);
 /// 3.0.148: card corner radius in points (8 ... 28).
 double FC_PanelCornerRadius(void);
 
+/// 3.0.149: dark glass tint (0...0.40), shadow colour preset (0...2),
+/// entrance speed (0.7...1.4), entrance bounce (0...1) and handle opacity
+/// (0...1). Defaults reproduce 3.0.148.
+double FC_PanelGlassTint(void);
+int FC_PanelShadowTint(void);
+double FC_PanelIntroSpeed(void);
+double FC_PanelIntroBounce(void);
+double FC_PanelGripOpacity(void);
+
 #ifdef __cplusplus
 }
 #endif
