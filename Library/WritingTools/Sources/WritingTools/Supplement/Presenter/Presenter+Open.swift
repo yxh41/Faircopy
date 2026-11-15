@@ -250,7 +250,17 @@ public extension Presenter {
         context.showSourceBadge = panelSettings.showSourceBadge
         context.defaultHeightTier = panelSettings.defaultHeightTier
 
+        // 3.0.150: the collapse control only exists when this card will live in
+        // our own overlay window (a Pill needs that window). Set before the
+        // controller is built so the first body pass draws the button.
+        context.showsMinimizeButton = context.parentController.view.window?.windowScene != nil
         let toolController = WritingToolController(context: context)
+        // 3.0.150: the header's collapse button hands the card to the overlay
+        // window's floating pill. Tap-time only, so wiring it after the
+        // controller exists is fine.
+        context.minimizePanel = { [weak toolController] in
+            toolController?.minimizePanel()
+        }
         // 3.0.142: the card is presented from a transparent window of our own
         // (see Presenter+OverlayWindow.swift). 3.0.140 had moved it into the
         // host's presentation container so `.ultraThinMaterial` could sample the

@@ -211,6 +211,8 @@ struct WritingToolsView: View {
     @State private var pendingWorkItems: [DispatchWorkItem] = []
 
     @State var isClosePressed: Bool = false
+    /// 3.0.150: press state for the collapse control beside the close button.
+    @State var isMinimizePressed: Bool = false
 
     var shouldShowError: Bool {
         error != nil

@@ -127,6 +127,15 @@ extension Presenter {
         /// tier it displays, the controller owns the height it snaps to.
         var heightTierCommitted: ((Int) -> Void)?
 
+        /// 3.0.150: whether the header draws the collapse control. Set BEFORE
+        /// the hosting controller is built (non-@Published, same rule as the
+        /// appearance fields) so the first body pass already sees it.
+        var showsMinimizeButton: Bool = false
+
+        /// 3.0.150: collapse the card into a movable floating pill. Only wired
+        /// for cards presented in our own overlay window; nil is a no-op.
+        var minimizePanel: (() -> Void)?
+
         func applyHeightTier(_ tier: Int) {
             heightTierHandler?(tier)
         }

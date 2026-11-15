@@ -88,6 +88,11 @@ extension WritingToolsView {
                 .overlay {
                     modelSelectionMenu.padding(-4)
                 }
+                // 3.0.150: only an external card has the overlay window that can
+                // host the floating pill, so the control is hidden everywhere else.
+                if context.showsMinimizeButton {
+                    minimizeButton
+                }
                 closeButton
             }
             // 3.0.139: an externally summoned card says who summoned it. The
@@ -230,6 +235,27 @@ extension WritingToolsView {
             .padding(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 8))
             .animation(.easeOut(duration: 0.15), value: isClosePressed)
             ._onButtonGesture { isClosePressed = $0 } perform: { dismiss() }
+    }
+
+    /// 3.0.150: collapse the card into the overlay window's floating pill.
+    var minimizeButton: some View {
+        MinimizeGlyph()
+            .stroke(Color.white, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            .frame(width: 12, height: 12)
+            .fixedSize()
+            .opacity(isMinimizePressed ? 0.5 : 1)
+            .background {
+                Circle()
+                    .foregroundStyle(.white)
+                    .opacity(isMinimizePressed ? 0.05 : 0.1)
+                    .padding(-8)
+            }
+            .padding(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 4))
+            .animation(.easeOut(duration: 0.15), value: isMinimizePressed)
+            ._onButtonGesture { isMinimizePressed = $0 } perform: {
+                context.minimizePanel?()
+            }
+            .accessibilityLabel(Text("Hide".localized))
     }
 
     func reloadHeaderDescription() {
@@ -420,6 +446,20 @@ struct BrandMark: Shape {
         path.addLine(to: point(9, 12))
         path.closeSubpath()
 
+        return path
+    }
+}
+
+/// 3.0.150: a downward chevron — "put the card away". Drawn from points for the
+/// same reason as `BrandMark`: no dependence on the system glyph table, and it
+/// keeps the same 1.5 pt stroke weight as the ✕ beside it.
+struct MinimizeGlyph: Shape {
+    func path(in rect: CGRect) -> Path {
+        let inset = rect.width * 0.12
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + inset, y: rect.minY + rect.height * 0.34))
+        path.addLine(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.72))
+        path.addLine(to: CGPoint(x: rect.maxX - inset, y: rect.minY + rect.height * 0.34))
         return path
     }
 }

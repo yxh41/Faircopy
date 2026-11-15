@@ -418,6 +418,18 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// settings app never mutates a card that is already on screen.
     var appearance = FaircopyPanelAppearance()
 
+    /// 3.0.150: the card is faded out and the overlay window shrunk to a
+    /// floating pill. While true `applyCardFrameNow` must leave the card's
+    /// geometry alone — a shrink of the host window would otherwise squeeze the
+    /// (invisible) card and make its SwiftUI content re-lay out.
+    private(set) var isMinimized = false
+
+    /// True only when UIKit presents this card in our own overlay window; the
+    /// floating pill lives there, so any other presentation cannot minimise.
+    var canMinimize: Bool {
+        FaircopyOverlayWindowHost.isHosting(containerView?.window)
+    }
+
     /// Matches the radius UIKit uses for an arrowless popover, so switching the
     /// toggle on does not visibly change the card. The radius is now a setting
     /// (FaircopyPanelAppearance.cornerRadius, 3.0.148) — read from `appearance`,
@@ -547,6 +559,10 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// which is exactly why the first drag version moved nothing at all while
     /// the log cheerfully reported a layout that took 0.0ms.
     func applyCardFrameNow() {
+        // 3.0.150: a minimised card is invisible and its window is tiny; laying
+        // it out against those bounds would squash the card and force a SwiftUI
+        // re-layout. Leave the geometry frozen until it is expanded again.
+        guard !isMinimized else { return }
         guard let card = animatedCard, containerView != nil else { return }
         let target = frameOfPresentedViewInContainerView
         if card.transform.isIdentity {
@@ -591,6 +607,53 @@ final class FaircopySpringPresentationController: UIPresentationController {
                || shadowHost.layer.shadowPath?.boundingBox.size != shadowHost.bounds.size)
         {
             redrawShadowPath()
+        }
+    }
+
+    // MARK: - 3.0.150: collapse to a floating pill
+
+    /// Fades the three card layers out, hands the keyboard back, and asks the
+    /// overlay host to shrink its window to a ball. The card is NOT dismissed:
+    /// the presented controller, the running stream and the whole SwiftUI state
+    /// stay alive, so tapping the ball returns the same panel.
+    func minimizeCard() {
+        guard !isMinimized, canMinimize,
+              let card = animatedCard, card.superview != nil
+        else { return }
+        isMinimized = true
+        UIView.animate(withDuration: 0.2, delay: 0, options: [.curveEaseIn]) {
+            card.alpha = 0
+            self.shadowHost.alpha = 0
+            self.glassHost.alpha = 0
+        } completion: { _ in
+            FaircopyOverlayWindowHost.enterFloating(
+                ballSize: 56,
+                restore: { [weak self] in self?.expandCard() },
+                close: { [weak self] in
+                    FaircopyOverlayWindowHost.cancelFloating()
+                    self?.presentedViewController.dismiss(animated: true)
+                }
+            )
+        }
+    }
+
+    /// Called by the host AFTER the window has been restored to full screen.
+    func expandCard() {
+        guard isMinimized, let card = animatedCard, card.superview != nil else { return }
+        isMinimized = false
+        // The container may still hold the pill-sized bounds it had while
+        // collapsed; adopt the restored window size before the card measures
+        // itself, or it would fade in at 56 pt.
+        if let container = containerView, let window = container.window {
+            container.frame = window.bounds
+            container.setNeedsLayout()
+            container.layoutIfNeeded()
+        }
+        applyCardFrameNow()
+        UIView.animate(withDuration: 0.24, delay: 0, options: [.curveEaseOut]) {
+            card.alpha = 1
+            self.shadowHost.alpha = 1
+            self.glassHost.alpha = 1
         }
     }
 

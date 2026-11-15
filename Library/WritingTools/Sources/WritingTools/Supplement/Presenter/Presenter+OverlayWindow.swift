@@ -24,6 +24,7 @@
 //  不要换回那两个 API。
 //
 
+import SwiftUI
 import UIKit
 
 /// Root of the overlay window. Its only job is to be the presenting controller of
@@ -67,6 +68,78 @@ enum FaircopyOverlayWindowHost {
     /// alert) must be presented from this window — otherwise they land behind it,
     /// on the host's controller, where nobody can see or reach them.
     private static weak var presentedCard: UIViewController?
+
+    /// 3.0.150: the collapsed state. While a pill is up the window is shrunk to
+    /// the pill's own frame (so it cannot swallow the host app's touches) and
+    /// the card is still presented, merely faded out.
+    private static var floatingBall: UIView?
+    private static var restoreHandler: (() -> Void)?
+
+    /// True when `w` is the overlay window this host owns.
+    static func isHosting(_ w: UIWindow?) -> Bool { w != nil && w === window }
+
+    /// 3.0.150: shrink the window to a pill and hand the keyboard back to the
+    /// host app. The card stays presented, so the panel's state is untouched.
+    static func enterFloating(
+        ballSize: CGFloat,
+        restore: @escaping () -> Void,
+        close: @escaping () -> Void
+    ) {
+        guard let window, let host, floatingBall == nil else { return }
+        restoreHandler = restore
+        let full = window.frame
+        // Only a normal-level window of the same scene can take typing back.
+        let keyTarget = previousWindow
+            ?? window.windowScene?.windows.first {
+                $0 !== window && !$0.isHidden && $0.windowLevel == .normal
+            }
+        keyTarget?.makeKey()
+        let margin: CGFloat = 16
+        let origin = CGPoint(
+            x: full.maxX - ballSize - margin,
+            y: full.midY - ballSize / 2
+        )
+        let pillFrame = CGRect(origin: origin, size: CGSize(width: ballSize, height: ballSize))
+        window.frame = pillFrame
+        host.view.frame = CGRect(origin: .zero, size: pillFrame.size)
+        let ball = FaircopyFloatingBall(
+            frame: CGRect(origin: .zero, size: pillFrame.size),
+            onTap: { exitFloating() },
+            onClose: close
+        )
+        // Added to the window, not to the host's view: the presentation
+        // container sits above that view and would otherwise cover the pill.
+        window.addSubview(ball)
+        floatingBall = ball
+        NSLog("[Faircopy] panel collapsed to a floating pill 3.0.150")
+    }
+
+    /// 3.0.150: restore the window to full screen, take the keyboard back and
+    /// let the card fade in again.
+    static func exitFloating() {
+        guard let window, let ball = floatingBall else { return }
+        ball.removeFromSuperview()
+        floatingBall = nil
+        let full = window.windowScene?.coordinateSpace.bounds ?? window.bounds
+        window.frame = full
+        host?.view.frame = CGRect(origin: .zero, size: full.size)
+        window.makeKey()
+        let handler = restoreHandler
+        restoreHandler = nil
+        handler?()
+    }
+
+    /// 3.0.150: drop the pill without restoring — used when the panel is being
+    /// dismissed from the pill (long press).
+    static func cancelFloating() {
+        floatingBall?.removeFromSuperview()
+        floatingBall = nil
+        restoreHandler = nil
+        guard let window else { return }
+        let full = window.windowScene?.coordinateSpace.bounds ?? window.bounds
+        window.frame = full
+        host?.view.frame = CGRect(origin: .zero, size: full.size)
+    }
 
     static func adopt(card controller: UIViewController) {
         presentedCard = controller
@@ -131,6 +204,11 @@ enum FaircopyOverlayWindowHost {
     /// window that is still unwinding the transition can cut it short.
     static func release() {
         guard let dying = window else { return }
+        // 3.0.150: a pill added straight to the window would outlive the window
+        // cleanup below — clearing the root controller does not remove it.
+        floatingBall?.removeFromSuperview()
+        floatingBall = nil
+        restoreHandler = nil
         // Key status goes back first: the caller re-focuses the host text view on
         // the same tick, and it cannot do that while our window is still key.
         previousWindow?.makeKey()
@@ -148,5 +226,86 @@ enum FaircopyOverlayWindowHost {
                 FaircopyOverlayWindowHost.host = nil
             }
         }
+    }
+}
+
+/// 3.0.150: the collapsed panel — a draggable circular pill carrying the same
+/// pen mark as the panel header.
+///
+/// It lives inside the (now pill-sized) overlay window, so moving it is moving
+/// the window; that keeps the whole screen outside the pill transparent to the
+/// host app without relying on hit-test trickery.
+final class FaircopyFloatingBall: UIView {
+    private let onTap: () -> Void
+    private let onClose: () -> Void
+
+    init(frame: CGRect, onTap: @escaping () -> Void, onClose: @escaping () -> Void) {
+        self.onTap = onTap
+        self.onClose = onClose
+        super.init(frame: frame)
+        backgroundColor = .clear
+        isUserInteractionEnabled = true
+
+        let disc = UIView(frame: bounds)
+        disc.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        disc.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        disc.layer.cornerRadius = bounds.width / 2
+        disc.layer.cornerCurve = .continuous
+        disc.layer.borderWidth = 0.5
+        disc.layer.borderColor = UIColor.white.withAlphaComponent(0.28).cgColor
+        disc.isUserInteractionEnabled = false
+        addSubview(disc)
+
+        let iconSize = bounds.width * 0.52
+        let iconRect = CGRect(
+            x: (bounds.width - iconSize) / 2,
+            y: (bounds.height - iconSize) / 2,
+            width: iconSize,
+            height: iconSize
+        )
+        let pen = CAShapeLayer()
+        pen.frame = CGRect(origin: .zero, size: bounds.size)
+        pen.path = BrandMark().path(in: iconRect).cgPath
+        pen.fillColor = UIColor.clear.cgColor
+        pen.strokeColor = UIColor.white.withAlphaComponent(0.95).cgColor
+        pen.lineWidth = 1.6
+        pen.lineCap = .round
+        pen.lineJoin = .round
+        layer.addSublayer(pen)
+
+        addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+        addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:))))
+        let press = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        press.minimumPressDuration = 0.55
+        addGestureRecognizer(press)
+
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        accessibilityLabel = "Faircopy"
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    @objc private func handleTap() {
+        onTap()
+    }
+
+    @objc private func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        if gesture.state == .began { onClose() }
+    }
+
+    @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
+        guard let window else { return }
+        let translation = gesture.translation(in: superview)
+        var frame = window.frame
+        frame.origin.x += translation.x
+        frame.origin.y += translation.y
+        let bounds = window.windowScene?.coordinateSpace.bounds ?? frame
+        frame.origin.x = min(max(bounds.minX, frame.origin.x), max(bounds.minX, bounds.maxX - frame.width))
+        frame.origin.y = min(max(bounds.minY, frame.origin.y), max(bounds.minY, bounds.maxY - frame.height))
+        window.frame = frame
+        gesture.setTranslation(.zero, in: superview)
     }
 }

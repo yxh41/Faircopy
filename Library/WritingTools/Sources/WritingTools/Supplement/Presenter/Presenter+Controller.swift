@@ -708,6 +708,16 @@ class WritingToolController: UIHostingController<WritingToolsView> {
         }
     }
 
+    /// 3.0.150: collapse the card into the overlay window's floating pill. Kept
+    /// on the controller so the header only needs the `context.minimizePanel`
+    /// closure and never reaches into the presentation machinery.
+    func minimizePanel() {
+        guard let spring = presentationController as? FaircopySpringPresentationController,
+              spring.canMinimize
+        else { return }
+        spring.minimizeCard()
+    }
+
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         // UIKit fires viewDidDisappear both when the panel is dismissed AND
