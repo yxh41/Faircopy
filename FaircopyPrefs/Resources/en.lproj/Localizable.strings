@@ -525,3 +525,26 @@
 "Appearance Footer" = "Changes take effect the next time the panel opens — no need to relaunch the app. A card that is already on screen keeps its current look.";
 "Restore Defaults" = "Restore Defaults";
 "Percent Format" = "%d%%";
+
+/* 3.0.147: rim, shadow and opening tier controls. */
+"Highlight Direction" = "Highlight Direction";
+"Direction Top Left" = "Top Left";
+"Direction Top Right" = "Top Right";
+"Direction Bottom Left" = "Bottom Left";
+"Direction Bottom Right" = "Bottom Right";
+"Rim Falloff" = "Rim Falloff";
+"Falloff Sharp" = "Sharp";
+"Falloff Standard" = "Standard";
+"Falloff Soft" = "Soft";
+"Rim Width" = "Rim Width";
+"Rim Footer" = "Direction picks the corner the highlight starts from. Width and falloff are independent; 1.0 pt + Standard + Top Left is the original look.";
+"Points Format" = "%.1f pt";
+"Shadow Strength" = "Shadow Strength";
+"Shadow Softness" = "Shadow Softness";
+"Shadow Footer" = "Only the shadow's opacity and spread change - the glass and shadow layers stay in the same order.";
+"Show Source Badge" = "Show Source App";
+"Default Height Tier" = "Default Height Tier";
+"Tier Compact" = "Compact (original)";
+"Tier Medium" = "Medium";
+"Tier Tall" = "Tall";
+"Default Tier Footer" = "Applies to externally summoned panels only; switching panel content still returns to the natural height. Changes take effect the next time the panel opens, without relaunching the app.";

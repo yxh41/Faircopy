@@ -44,6 +44,12 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// after this object exists.
     private var baseHeight: CGFloat = 0
 
+    /// 3.0.147: the natural height measured BEFORE a default height tier was
+    /// applied. `viewDidAppear` cannot use `view.bounds.height` for `baseHeight`
+    /// when the card already opened at tier 2/3 - the tier maths and the drag
+    /// hysteresis would then treat the enlarged card as its own base.
+    var measuredBaseHeight: CGFloat = 0
+
     /// 3.0.111: state for the defensive natural-height measurement.
     ///
     /// `generation` makes a newer request cancel the older one: the reset can be
@@ -225,7 +231,9 @@ class WritingToolController: UIHostingController<WritingToolsView> {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if baseHeight <= 0 { baseHeight = view.bounds.height }
+        if baseHeight <= 0 {
+            baseHeight = measuredBaseHeight > 1 ? measuredBaseHeight : view.bounds.height
+        }
     }
 
     // MARK: - 3.0.112: continuous drag

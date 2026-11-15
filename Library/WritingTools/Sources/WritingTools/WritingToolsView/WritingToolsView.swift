@@ -339,6 +339,9 @@ struct WritingToolsView: View {
             // 3.0.96: `mode=translate` — start the translation the moment the
             // card lands, so the button that promised 翻译 delivers it.
             applyAutoTranslateIfNeeded()
+            // 3.0.147: the card already opened at the configured tier; keep
+            // the handle's own state in step so the first drag starts from it.
+            heightTier = context.defaultHeightTier
             print("[Faircopy] panel ready: press scale 0.96, spring response 0.25 damping 0.7, haptic prepared")
         }
         .onChange(of: context.scenePhase) { phase in

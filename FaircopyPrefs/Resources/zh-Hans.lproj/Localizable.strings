@@ -611,3 +611,26 @@
 "Rim Strength" = "亮边强度";
 "Appearance Footer" = "调整在下次唤起面板时生效，不需要重启 App。已打开的面板保持当前外观。";
 "Percent Format" = "%d%%";
+
+/* 3.0.147: rim, shadow and opening tier controls. */
+"Highlight Direction" = "高光方向";
+"Direction Top Left" = "左上 → 右下";
+"Direction Top Right" = "右上 → 左下";
+"Direction Bottom Left" = "左下 → 右上";
+"Direction Bottom Right" = "右下 → 左上";
+"Rim Falloff" = "亮边衰减";
+"Falloff Sharp" = "锐利";
+"Falloff Standard" = "标准";
+"Falloff Soft" = "柔和";
+"Rim Width" = "亮边粗细";
+"Rim Footer" = "高光方向决定亮边从哪个角开始衰减；粗细与衰减互不影响。1.0 pt + 标准 + 左上为原始外观。";
+"Points Format" = "%.1f pt";
+"Shadow Strength" = "阴影浓度";
+"Shadow Softness" = "阴影柔化";
+"Shadow Footer" = "只改变阴影的浓度与扩散范围，玻璃与阴影的层级保持不变。";
+"Show Source Badge" = "显示来源 App";
+"Default Height Tier" = "默认打开档位";
+"Tier Compact" = "紧凑（原始）";
+"Tier Medium" = "中等";
+"Tier Tall" = "高";
+"Default Tier Footer" = "仅对外部调用唤起的面板生效；切换面板内容后仍会回到自然高度。改动在下次唤起面板时生效，无需重启 App。";

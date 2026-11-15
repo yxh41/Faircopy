@@ -109,6 +109,16 @@ int FC_PanelGlassStyle(void);
 double FC_PanelGlassWash(void);
 double FC_PanelRimStrength(void);
 
+/// 3.0.147: the rest of the external-card look and behaviour, fetched in the
+/// same gateway round trip. Defaults reproduce 3.0.146 exactly.
+int FC_PanelRimDirection(void);
+double FC_PanelRimWidth(void);
+int FC_PanelRimFalloff(void);
+double FC_PanelShadowStrength(void);
+double FC_PanelShadowRadius(void);
+BOOL FC_PanelShowSourceBadge(void);
+int FC_PanelDefaultHeightTier(void);
+
 #ifdef __cplusplus
 }
 #endif

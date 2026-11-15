@@ -92,7 +92,7 @@ extension WritingToolsView {
             }
             // 3.0.139: an externally summoned card says who summoned it. The
             // frosted-glass skin already sets it apart; this names the caller.
-            if context.isExternalInvocation {
+            if context.isExternalInvocation && context.showSourceBadge {
                 externalSourceBadge
             }
         }

@@ -64,6 +64,15 @@ extension Presenter {
         /// not @Published and cannot re-render the card mid-drag.
         var panelAppearance = FaircopyPanelAppearance()
 
+        /// 3.0.147: show the "From X" line under the title on external cards.
+        /// Default true so an upgraded install keeps the 3.0.139 look.
+        var showSourceBadge = true
+
+        /// 3.0.147: the tier an external card opens at (1/2/3). Only the first
+        /// presentation is affected; switching content still returns to the
+        /// natural height, and the drag hysteresis keeps its own base.
+        var defaultHeightTier = 1
+
         /// 3.0.139: display name of the host app that summoned the card, shown
         /// as "来自 X" under the title on external invocations. `nil` on the
         /// in-app selection path, where the source is obvious.

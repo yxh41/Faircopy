@@ -103,6 +103,15 @@ static BOOL __fc_springEntranceValue = NO;
 static int __fc_glassStyleValue = 0;
 static double __fc_glassWashValue = 0.08;
 static double __fc_rimStrengthValue = 1.0;
+/// 3.0.147: seven more values from the SAME gateway document. Every default
+/// reproduces the 3.0.146 look and behaviour, so a partial answer is safe.
+static int __fc_rimDirectionValue = 0;
+static double __fc_rimWidthValue = 1.0;
+static int __fc_rimFalloffValue = 1;
+static double __fc_shadowStrengthValue = 1.0;
+static double __fc_shadowRadiusValue = 26.0;
+static BOOL __fc_showSourceBadgeValue = YES;
+static int __fc_defaultHeightTierValue = 1;
 /// Guards against two attempts in flight (the deferred one and the one the
 /// presentation path kicks off when it finds nothing cached yet).
 static BOOL __fc_panelSettingsFetchInFlight = NO;
@@ -119,6 +128,13 @@ BOOL FC_PanelSettingsAreKnown(void) { return __fc_springEntranceKnown; }
 int FC_PanelGlassStyle(void) { return __fc_glassStyleValue; }
 double FC_PanelGlassWash(void) { return __fc_glassWashValue; }
 double FC_PanelRimStrength(void) { return __fc_rimStrengthValue; }
+int FC_PanelRimDirection(void) { return __fc_rimDirectionValue; }
+double FC_PanelRimWidth(void) { return __fc_rimWidthValue; }
+int FC_PanelRimFalloff(void) { return __fc_rimFalloffValue; }
+double FC_PanelShadowStrength(void) { return __fc_shadowStrengthValue; }
+double FC_PanelShadowRadius(void) { return __fc_shadowRadiusValue; }
+BOOL FC_PanelShowSourceBadge(void) { return __fc_showSourceBadgeValue; }
+int FC_PanelDefaultHeightTier(void) { return __fc_defaultHeightTierValue; }
 
 static void FC_FetchPanelSettings(NSUInteger attempt) {
     if (__fc_springEntranceKnown || __fc_panelSettingsFetchInFlight) { return; }
@@ -169,9 +185,45 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 if ([rim isKindOfClass:[NSNumber class]]) {
                     __fc_rimStrengthValue = MIN(1.0, MAX(0.0, [rim doubleValue]));
                 }
+                // 3.0.147: seven more keys in the SAME document. A missing key
+                // leaves the 3.0.146 default, so an older AIGate can answer a
+                // newer dylib without changing a single pixel.
+                NSDictionary *dict = [json isKindOfClass:[NSDictionary class]]
+                    ? (NSDictionary *)json : nil;
+                NSNumber *rimDir = dict[@"rim_direction"];
+                NSNumber *rimW = dict[@"rim_width"];
+                NSNumber *falloff = dict[@"rim_falloff"];
+                NSNumber *shadow = dict[@"shadow_strength"];
+                NSNumber *radius = dict[@"shadow_radius"];
+                NSNumber *badge = dict[@"show_source_badge"];
+                NSNumber *tier = dict[@"default_height_tier"];
+                if ([rimDir isKindOfClass:[NSNumber class]]) {
+                    __fc_rimDirectionValue = (int)MIN(3, MAX(0, [rimDir intValue]));
+                }
+                if ([rimW isKindOfClass:[NSNumber class]]) {
+                    __fc_rimWidthValue = MIN(2.0, MAX(0.5, [rimW doubleValue]));
+                }
+                if ([falloff isKindOfClass:[NSNumber class]]) {
+                    __fc_rimFalloffValue = (int)MIN(2, MAX(0, [falloff intValue]));
+                }
+                if ([shadow isKindOfClass:[NSNumber class]]) {
+                    __fc_shadowStrengthValue = MIN(1.0, MAX(0.0, [shadow doubleValue]));
+                }
+                if ([radius isKindOfClass:[NSNumber class]]) {
+                    __fc_shadowRadiusValue = MIN(40.0, MAX(0.0, [radius doubleValue]));
+                }
+                if ([badge isKindOfClass:[NSNumber class]]) {
+                    __fc_showSourceBadgeValue = [badge boolValue];
+                }
+                if ([tier isKindOfClass:[NSNumber class]]) {
+                    __fc_defaultHeightTierValue = (int)MIN(3, MAX(1, [tier intValue]));
+                }
                 FC_TraceLine([NSString stringWithFormat:
-                    @"panel appearance from gateway 3.0.146: blur=%d wash=%.2f rim=%.2f",
-                    __fc_glassStyleValue, __fc_glassWashValue, __fc_rimStrengthValue]);
+                    @"panel appearance from gateway 3.0.147: blur=%d wash=%.2f rim=%.2f dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f badge=%d tier=%d",
+                    __fc_glassStyleValue, __fc_glassWashValue, __fc_rimStrengthValue,
+                    __fc_rimDirectionValue, __fc_rimWidthValue, __fc_rimFalloffValue,
+                    __fc_shadowStrengthValue, __fc_shadowRadiusValue,
+                    (int)__fc_showSourceBadgeValue, __fc_defaultHeightTierValue]);
                 [session finishTasksAndInvalidate];
                 return;
             }

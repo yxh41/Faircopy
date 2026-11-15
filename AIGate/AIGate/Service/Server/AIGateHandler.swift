@@ -17,12 +17,26 @@ private struct FCPanelSettingsResponse: Encodable {
     let glassStyle: Int
     let glassWash: Double
     let rimStrength: Double
+    let rimDirection: Int
+    let rimWidth: Double
+    let rimFalloff: Int
+    let shadowStrength: Double
+    let shadowRadius: Double
+    let showSourceBadge: Bool
+    let defaultHeightTier: Int
 
     enum CodingKeys: String, CodingKey {
         case springEntrance = "spring_entrance"
         case glassStyle = "glass_style"
         case glassWash = "glass_wash"
         case rimStrength = "rim_strength"
+        case rimDirection = "rim_direction"
+        case rimWidth = "rim_width"
+        case rimFalloff = "rim_falloff"
+        case shadowStrength = "shadow_strength"
+        case shadowRadius = "shadow_radius"
+        case showSourceBadge = "show_source_badge"
+        case defaultHeightTier = "default_height_tier"
     }
 }
 
@@ -129,7 +143,14 @@ class AIGateHandler: ChannelDuplexHandler {
                 springEntrance: settings.springEntrance,
                 glassStyle: settings.glassStyle,
                 glassWash: settings.glassWash,
-                rimStrength: settings.rimStrength
+                rimStrength: settings.rimStrength,
+                rimDirection: settings.rimDirection,
+                rimWidth: settings.rimWidth,
+                rimFalloff: settings.rimFalloff,
+                shadowStrength: settings.shadowStrength,
+                shadowRadius: settings.shadowRadius,
+                showSourceBadge: settings.showSourceBadge,
+                defaultHeightTier: settings.defaultHeightTier
             ))
             return
         } else if checkForServerCommandIfIsGettingPanelPending() {

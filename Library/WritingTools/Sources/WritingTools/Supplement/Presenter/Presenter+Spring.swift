@@ -20,11 +20,11 @@ import WritingToolsInjector
 
 // MARK: - 设置
 
-/// 3.0.146: the three knobs the settings app exposes for the external frosted
-/// card. A plain value type so the presentation controller can own a copy — a
-/// card must keep the look it was opened with even if the setting is changed
-/// while it is on screen. All three are clamped here, so a stale or hand-edited
-/// JSON file can never push a layer out of its valid range.
+/// 3.0.146/147: the eight knobs the settings app exposes for the external
+/// frosted card. A plain value type so the presentation controller can own a
+/// copy — a card must keep the look it was opened with even if the setting is
+/// changed while it is on screen. Every value is clamped here, so a stale or
+/// hand-edited JSON file can never push a layer out of its valid range.
 struct FaircopyPanelAppearance {
     /// 0 = ultra thin, 1 = thin, 2 = regular, 3 = thick.
     var glassStyle: Int
@@ -32,11 +32,34 @@ struct FaircopyPanelAppearance {
     var glassWash: Double
     /// 0 ... 1, scales the four stops of the directional rim.
     var rimStrength: Double
+    /// 3.0.147: which corner the rim highlight starts from.
+    /// 0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right.
+    var rimDirection: Int
+    /// 0.5 ... 2.0 points. 1.0 is the 3.0.143 hairline.
+    var rimWidth: Double
+    /// 0 sharp / 1 standard / 2 soft - the four gradient locations.
+    var rimFalloff: Int
+    /// 0 ... 1, scales the 0.3 shadow opacity.
+    var shadowStrength: Double
+    /// 0 ... 40 points; 26 was the original soft edge.
+    var shadowRadius: Double
 
-    init(glassStyle: Int = 0, glassWash: Double = 0.08, rimStrength: Double = 1.0) {
+    init(glassStyle: Int = 0,
+         glassWash: Double = 0.08,
+         rimStrength: Double = 1.0,
+         rimDirection: Int = 0,
+         rimWidth: Double = 1.0,
+         rimFalloff: Int = 1,
+         shadowStrength: Double = 1.0,
+         shadowRadius: Double = 26.0) {
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
         self.rimStrength = min(1.0, max(0, rimStrength))
+        self.rimDirection = min(3, max(0, rimDirection))
+        self.rimWidth = min(2.0, max(0.5, rimWidth))
+        self.rimFalloff = min(2, max(0, rimFalloff))
+        self.shadowStrength = min(1.0, max(0, shadowStrength))
+        self.shadowRadius = min(40.0, max(0, shadowRadius))
     }
 
     var blurEffectStyle: UIBlurEffect.Style {
@@ -50,6 +73,31 @@ struct FaircopyPanelAppearance {
 
     var washAlpha: CGFloat { CGFloat(glassWash) }
     var rimAlpha: CGFloat { CGFloat(rimStrength) }
+    var rimLineWidth: CGFloat { CGFloat(rimWidth) }
+    var shadowBlurRadius: CGFloat { CGFloat(shadowRadius) }
+
+    /// 3.0.147: the gradient only ever describes a diagonal; which diagonal
+    /// is a setting now. 0 / standard / 1pt reproduce the 3.0.143 skin.
+    var rimGradientPoints: (start: CGPoint, end: CGPoint) {
+        switch rimDirection {
+        case 1: return (CGPoint(x: 1, y: 0), CGPoint(x: 0, y: 1))
+        case 2: return (CGPoint(x: 0, y: 1), CGPoint(x: 1, y: 0))
+        case 3: return (CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 0))
+        default: return (CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 1))
+        }
+    }
+
+    /// 3.0.147: sharp packs the light into the first corner, soft spreads it
+    /// across the whole diagonal. 1 is exactly the 3.0.143 skin.
+    var rimLocations: [NSNumber] {
+        let stops: [Double]
+        switch rimFalloff {
+        case 0: stops = [0.0, 0.10, 0.30, 0.55]
+        case 2: stops = [0.0, 0.35, 0.70, 1.0]
+        default: stops = [0.0, 0.22, 0.55, 0.85]
+        }
+        return stops.map { NSNumber(value: $0) }
+    }
 }
 
 /// KEEP IN SYNC with `PanelAnimationSettings` / `PanelAnimationSettingsStore` in
@@ -61,39 +109,86 @@ struct FaircopyPanelAnimationSettings: Codable {
     var glassStyle: Int
     var glassWash: Double
     var rimStrength: Double
+    var rimDirection: Int
+    var rimWidth: Double
+    var rimFalloff: Int
+    var shadowStrength: Double
+    var shadowRadius: Double
+    var showSourceBadge: Bool
+    var defaultHeightTier: Int
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
+        case rimDirection, rimWidth, rimFalloff
+        case shadowStrength, shadowRadius
+        case showSourceBadge, defaultHeightTier
     }
 
     init(springEntrance: Bool = false,
          glassStyle: Int = 0,
          glassWash: Double = 0.08,
-         rimStrength: Double = 1.0) {
+         rimStrength: Double = 1.0,
+         rimDirection: Int = 0,
+         rimWidth: Double = 1.0,
+         rimFalloff: Int = 1,
+         shadowStrength: Double = 1.0,
+         shadowRadius: Double = 26.0,
+         showSourceBadge: Bool = true,
+         defaultHeightTier: Int = 1) {
         self.springEntrance = springEntrance
         let appearance = FaircopyPanelAppearance(
-            glassStyle: glassStyle, glassWash: glassWash, rimStrength: rimStrength)
+            glassStyle: glassStyle,
+            glassWash: glassWash,
+            rimStrength: rimStrength,
+            rimDirection: rimDirection,
+            rimWidth: rimWidth,
+            rimFalloff: rimFalloff,
+            shadowStrength: shadowStrength,
+            shadowRadius: shadowRadius
+        )
         self.glassStyle = appearance.glassStyle
         self.glassWash = appearance.glassWash
         self.rimStrength = appearance.rimStrength
+        self.rimDirection = appearance.rimDirection
+        self.rimWidth = appearance.rimWidth
+        self.rimFalloff = appearance.rimFalloff
+        self.shadowStrength = appearance.shadowStrength
+        self.shadowRadius = appearance.shadowRadius
+        self.showSourceBadge = showSourceBadge
+        self.defaultHeightTier = min(3, max(1, defaultHeightTier))
     }
 
-    /// 3.0.146: the JSON written by every build up to 3.0.145 only had
-    /// `springEntrance`. A synthesised decoder would throw on the three missing
-    /// keys and silently reset the Q-bounce switch too, so every key is optional.
+    /// 3.0.146/147: a file written by an older build is missing every new
+    /// key. A synthesised decoder would throw and silently reset the Q-bounce
+    /// switch too, so ALL keys are decoded optionally here.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
             springEntrance: (try? container.decode(Bool.self, forKey: .springEntrance)) ?? false,
             glassStyle: (try? container.decode(Int.self, forKey: .glassStyle)) ?? 0,
             glassWash: (try? container.decode(Double.self, forKey: .glassWash)) ?? 0.08,
-            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0
+            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0,
+            rimDirection: (try? container.decode(Int.self, forKey: .rimDirection)) ?? 0,
+            rimWidth: (try? container.decode(Double.self, forKey: .rimWidth)) ?? 1.0,
+            rimFalloff: (try? container.decode(Int.self, forKey: .rimFalloff)) ?? 1,
+            shadowStrength: (try? container.decode(Double.self, forKey: .shadowStrength)) ?? 1.0,
+            shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
+            showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
+            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1
         )
     }
 
     var appearance: FaircopyPanelAppearance {
         FaircopyPanelAppearance(
-            glassStyle: glassStyle, glassWash: glassWash, rimStrength: rimStrength)
+            glassStyle: glassStyle,
+            glassWash: glassWash,
+            rimStrength: rimStrength,
+            rimDirection: rimDirection,
+            rimWidth: rimWidth,
+            rimFalloff: rimFalloff,
+            shadowStrength: shadowStrength,
+            shadowRadius: shadowRadius
+        )
     }
 }
 
@@ -125,7 +220,14 @@ enum FaircopyPanelAnimationStore {
                 springEntrance: spring,
                 glassStyle: Int(FC_PanelGlassStyle()),
                 glassWash: FC_PanelGlassWash(),
-                rimStrength: FC_PanelRimStrength()
+                rimStrength: FC_PanelRimStrength(),
+                rimDirection: Int(FC_PanelRimDirection()),
+                rimWidth: FC_PanelRimWidth(),
+                rimFalloff: Int(FC_PanelRimFalloff()),
+                shadowStrength: FC_PanelShadowStrength(),
+                shadowRadius: FC_PanelShadowRadius(),
+                showSourceBadge: FC_PanelShowSourceBadge(),
+                defaultHeightTier: Int(FC_PanelDefaultHeightTier())
             )
         }
         guard
@@ -239,10 +341,16 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// 754pt card that is the single most expensive thing a resize frame does.
     /// With the opacity at zero the path is left alone, the rasterisation is
     /// reused, and the drag stops paying for a soft edge nobody is looking at.
+    /// 3.0.147: the 0.3 baseline is scaled by the settings slider, and both
+    /// the install and the drag-restore path must use the same value.
+    private var effectiveShadowOpacity: Float {
+        Self.shadowOpacity * Float(appearance.shadowStrength)
+    }
+
     var shadowSuppressed = false {
         didSet {
             guard shadowSuppressed != oldValue, animatedCard != nil else { return }
-            shadowHost.layer.shadowOpacity = shadowSuppressed ? 0 : Self.shadowOpacity
+            shadowHost.layer.shadowOpacity = shadowSuppressed ? 0 : effectiveShadowOpacity
             // 3.0.116: the path is stale by exactly the drag's travel, and the
             // snap that follows is not guaranteed to lay out — `applyHeightTier`
             // returns early when the drag already ended at the tier's own height,
@@ -410,8 +518,8 @@ final class FaircopySpringPresentationController: UIPresentationController {
         shadowHost.backgroundColor = .clear
         shadowHost.isUserInteractionEnabled = false
         shadowHost.layer.shadowColor = UIColor.black.cgColor
-        shadowHost.layer.shadowOpacity = Self.shadowOpacity
-        shadowHost.layer.shadowRadius = 26
+        shadowHost.layer.shadowOpacity = effectiveShadowOpacity
+        shadowHost.layer.shadowRadius = appearance.shadowBlurRadius
         shadowHost.layer.shadowOffset = CGSize(width: 0, height: 12)
         // An explicit path keeps the shadow from being recomputed from the
         // alpha channel on every frame of the spring (that would composite the
@@ -471,6 +579,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
         NSLog("[Faircopy] frosted glass samples a fixed region, so a height drag never re-blurs the backdrop 3.0.144")
         NSLog("[Faircopy] external panel appearance applied 3.0.146: blur=%d wash=%.2f rim=%.2f",
               appearance.glassStyle, appearance.glassWash, appearance.rimStrength)
+        NSLog("[Faircopy] external panel look extended 3.0.147: dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f",
+              appearance.rimDirection, appearance.rimWidth, appearance.rimFalloff,
+              appearance.shadowStrength, appearance.shadowRadius)
     }
 
     /// The only per-frame work the glass does during a drag: one rounded-rect
@@ -516,14 +627,17 @@ final class FaircopySpringPresentationController: UIPresentationController {
             UIColor.white.withAlphaComponent(0.06 * strength).cgColor,
             UIColor.clear.cgColor,
         ]
-        rimLayer.locations = [0.0, 0.22, 0.55, 0.85]
-        rimLayer.startPoint = CGPoint(x: 0, y: 0)
-        rimLayer.endPoint = CGPoint(x: 1, y: 1)
+        // 3.0.147: direction, falloff and width are independent knobs.
+        // 0 / standard / 1pt reproduce the 3.0.143 skin exactly.
+        rimLayer.locations = appearance.rimLocations
+        let points = appearance.rimGradientPoints
+        rimLayer.startPoint = points.start
+        rimLayer.endPoint = points.end
         // A stroke only shows through its mask's alpha: fill nothing, stroke
         // white, and the gradient is cut down to the 1pt outline.
         rimMask.fillColor = nil
         rimMask.strokeColor = UIColor.white.cgColor
-        rimMask.lineWidth = 1
+        rimMask.lineWidth = appearance.rimLineWidth
         rimLayer.mask = rimMask
         // Above the presented view: the material inside it is translucent but it
         // is still drawn after this layer, and a rim underneath it would be
@@ -556,11 +670,12 @@ final class FaircopySpringPresentationController: UIPresentationController {
         }
         rimLayer.frame = bounds
         rimMask.frame = bounds
-        // Half a point in, so the 1pt stroke lands inside the clip instead of
-        // being sliced in half by it.
+        // 3.0.147: inset by half the CURRENT line width, so a 2pt rim still
+        // lands inside the clip instead of being sliced in half by it.
+        let inset = appearance.rimLineWidth / 2
         rimMask.path = UIBezierPath(
-            roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-            cornerRadius: max(0, Self.cornerRadius - 0.5)
+            roundedRect: bounds.insetBy(dx: inset, dy: inset),
+            cornerRadius: max(0, Self.cornerRadius - inset)
         ).cgPath
         CATransaction.commit()
     }

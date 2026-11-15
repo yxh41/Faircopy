@@ -238,6 +238,18 @@ public extension Presenter {
             return false
         }
 
+        // 3.0.146: one read for all eleven settings. The gateway answer is a
+        // single JSON document, and splitting it into two loads could mix a
+        // cached value with a file fallback.
+        // 3.0.147: these context fields are NOT @Published, so they have to be
+        // set BEFORE the hosting controller builds its SwiftUI root view — a
+        // body that evaluated once with the defaults would never be redrawn.
+        let panelSettings = FaircopyPanelAnimationStore.load()
+        let springEntrance = panelSettings.springEntrance
+        context.panelAppearance = panelSettings.appearance
+        context.showSourceBadge = panelSettings.showSourceBadge
+        context.defaultHeightTier = panelSettings.defaultHeightTier
+
         let toolController = WritingToolController(context: context)
         // 3.0.142: the card is presented from a transparent window of our own
         // (see Presenter+OverlayWindow.swift). 3.0.140 had moved it into the
@@ -247,11 +259,6 @@ public extension Presenter {
         // card then recognised the same touch: long-pressing a panel button also
         // raised the host app's own action menu. A window of our own isolates the
         // touch completely while the material keeps sampling across windows.
-        // 3.0.146: one read for all four settings. The gateway answer is a
-        // single JSON document, and splitting it into two loads could mix a
-        // cached value with a file fallback.
-        let panelSettings = FaircopyPanelAnimationStore.load()
-        let springEntrance = panelSettings.springEntrance
         // Width is measured at the width the card will actually get; the old
         // popover path measured at 400 and let UIKit clamp it, which clipped a
         // narrower centred card.
@@ -266,18 +273,28 @@ public extension Presenter {
               springEntrance ? "on" : "off")
         NSLog("[Faircopy] external panel appearance is adjustable from settings 3.0.146: blur=%d wash=%.2f rim=%.2f",
               panelSettings.glassStyle, panelSettings.glassWash, panelSettings.rimStrength)
+        NSLog("[Faircopy] external panel options 3.0.147: badge=%d tier=%d",
+              panelSettings.showSourceBadge ? 1 : 0, panelSettings.defaultHeightTier)
         toolController.usesCardPresentation = true
         toolController.usesSpringEntrance = springEntrance
         toolController.panelAppearance = panelSettings.appearance
-        context.panelAppearance = panelSettings.appearance
+        toolController.measuredBaseHeight = contentSize.height
         // The card chrome is drawn by the presentation controller, so the
         // controller itself must be transparent — an opaque backdrop would
         // also block the material from sampling the host content.
         toolController.view.backgroundColor = .clear
         toolController.modalPresentationStyle = .custom
+        // 3.0.147: the default tier is applied to the requested size BEFORE
+        // presentation, so the card never animates from tier 1 to tier 3 while
+        // the entrance spring is still running. The presentation controller
+        // clamps to the screen; `measuredBaseHeight` above preserves the
+        // natural height for the tier maths and the drag hysteresis.
+        let tierFactors: [CGFloat] = [1, 1, 1.55, 2.05]
+        let openingTier = min(max(panelSettings.defaultHeightTier, 1), tierFactors.count - 1)
+        NSLog("[Faircopy] opening tier uses the measured natural height so drag hysteresis keeps its base 3.0.147")
         toolController.preferredContentSize = CGSize(
             width: measureWidth,
-            height: contentSize.height
+            height: contentSize.height * tierFactors[openingTier]
         )
         toolController.transitioningDelegate = toolController
         // 3.0.142: our own window when the host has a scene (always, in practice);

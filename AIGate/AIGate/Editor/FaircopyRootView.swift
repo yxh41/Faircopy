@@ -834,6 +834,12 @@ struct ExternalPanelAppearanceView: View {
     @State private var pendingSave: DispatchWorkItem?
 
     private static let blurNames = ["Ultra Thin", "Thin", "Regular", "Thick"]
+    private static let directionNames = [
+        "Direction Top Left", "Direction Top Right",
+        "Direction Bottom Left", "Direction Bottom Right",
+    ]
+    private static let falloffNames = ["Falloff Sharp", "Falloff Standard", "Falloff Soft"]
+    private static let tierNames = ["Tier Compact", "Tier Medium", "Tier Tall"]
 
     var body: some View {
         Form {
@@ -859,6 +865,32 @@ struct ExternalPanelAppearanceView: View {
             }
 
             Section {
+                directionPicker
+                falloffPicker
+                rimWidthSlider
+            } footer: {
+                Text(NSLocalizedString("Rim Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                shadowStrengthSlider
+                shadowRadiusSlider
+            } footer: {
+                Text(NSLocalizedString("Shadow Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                Toggle(isOn: $settings.showSourceBadge) {
+                    Text(NSLocalizedString("Show Source Badge", bundle: Bundle.wrti_support, comment: ""))
+                }
+                .onChange(of: settings.showSourceBadge) { _ in scheduleSave() }
+
+                defaultTierPicker
+            } footer: {
+                Text(NSLocalizedString("Default Tier Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
                 Button(role: .destructive) {
                     settings = PanelAnimationSettings(springEntrance: settings.springEntrance)
                     scheduleSave()
@@ -877,6 +909,11 @@ struct ExternalPanelAppearanceView: View {
     private func percent(_ value: Double) -> String {
         String(format: NSLocalizedString("Percent Format", bundle: Bundle.wrti_support, comment: ""),
                Int((value * 100).rounded()))
+    }
+
+    private func points(_ value: Double) -> String {
+        String(format: NSLocalizedString("Points Format", bundle: Bundle.wrti_support, comment: ""),
+               value)
     }
 
     private var washSlider: some View {
@@ -902,6 +939,78 @@ struct ExternalPanelAppearanceView: View {
             }
             Slider(value: $settings.rimStrength, in: 0...1.0, step: 0.05)
                 .onChange(of: settings.rimStrength) { _ in scheduleSave() }
+        }
+    }
+
+    private var directionPicker: some View {
+        Picker(selection: $settings.rimDirection) {
+            ForEach(0..<Self.directionNames.count, id: \.self) { index in
+                Text(NSLocalizedString(Self.directionNames[index], bundle: Bundle.wrti_support, comment: ""))
+                    .tag(index)
+            }
+        } label: {
+            Text(NSLocalizedString("Highlight Direction", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .onChange(of: settings.rimDirection) { _ in scheduleSave() }
+    }
+
+    private var falloffPicker: some View {
+        Picker(selection: $settings.rimFalloff) {
+            ForEach(0..<Self.falloffNames.count, id: \.self) { index in
+                Text(NSLocalizedString(Self.falloffNames[index], bundle: Bundle.wrti_support, comment: ""))
+                    .tag(index)
+            }
+        } label: {
+            Text(NSLocalizedString("Rim Falloff", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .onChange(of: settings.rimFalloff) { _ in scheduleSave() }
+    }
+
+    private var defaultTierPicker: some View {
+        Picker(selection: $settings.defaultHeightTier) {
+            ForEach(1..<(Self.tierNames.count + 1), id: \.self) { tier in
+                Text(NSLocalizedString(Self.tierNames[tier - 1], bundle: Bundle.wrti_support, comment: ""))
+                    .tag(tier)
+            }
+        } label: {
+            Text(NSLocalizedString("Default Height Tier", bundle: Bundle.wrti_support, comment: ""))
+        }
+        .onChange(of: settings.defaultHeightTier) { _ in scheduleSave() }
+    }
+
+    private var rimWidthSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Rim Width", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(points(settings.rimWidth)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.rimWidth, in: 0.5...2.0, step: 0.1)
+                .onChange(of: settings.rimWidth) { _ in scheduleSave() }
+        }
+    }
+
+    private var shadowStrengthSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Shadow Strength", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.shadowStrength)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.shadowStrength, in: 0...1.0, step: 0.05)
+                .onChange(of: settings.shadowStrength) { _ in scheduleSave() }
+        }
+    }
+
+    private var shadowRadiusSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Shadow Softness", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(points(settings.shadowRadius)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.shadowRadius, in: 0...40.0, step: 1)
+                .onChange(of: settings.shadowRadius) { _ in scheduleSave() }
         }
     }
 
@@ -1197,22 +1306,49 @@ struct PanelAnimationSettings: Codable {
     var glassWash: Double
     /// 0 ... 1; 1 is the original 3.0.143 rim.
     var rimStrength: Double
+    /// 3.0.147: rim highlight corner (0..3), line width (0.5..2.0),
+    /// falloff preset (0..2), shadow opacity scale (0..1) and blur (0..40).
+    var rimDirection: Int
+    var rimWidth: Double
+    var rimFalloff: Int
+    var shadowStrength: Double
+    var shadowRadius: Double
+    /// 3.0.147: behaviour, not chrome. Both default to the 3.0.146 look.
+    var showSourceBadge: Bool
+    var defaultHeightTier: Int
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
+        case rimDirection, rimWidth, rimFalloff
+        case shadowStrength, shadowRadius
+        case showSourceBadge, defaultHeightTier
     }
 
     init(springEntrance: Bool = false,
          glassStyle: Int = 0,
          glassWash: Double = 0.08,
-         rimStrength: Double = 1.0) {
+         rimStrength: Double = 1.0,
+         rimDirection: Int = 0,
+         rimWidth: Double = 1.0,
+         rimFalloff: Int = 1,
+         shadowStrength: Double = 1.0,
+         shadowRadius: Double = 26.0,
+         showSourceBadge: Bool = true,
+         defaultHeightTier: Int = 1) {
         self.springEntrance = springEntrance
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
         self.rimStrength = min(1.0, max(0, rimStrength))
+        self.rimDirection = min(3, max(0, rimDirection))
+        self.rimWidth = min(2.0, max(0.5, rimWidth))
+        self.rimFalloff = min(2, max(0, rimFalloff))
+        self.shadowStrength = min(1.0, max(0, shadowStrength))
+        self.shadowRadius = min(40.0, max(0, shadowRadius))
+        self.showSourceBadge = showSourceBadge
+        self.defaultHeightTier = min(3, max(1, defaultHeightTier))
     }
 
-    /// 3.0.146: files written by 3.0.145 and earlier only have `springEntrance`.
+    /// 3.0.146/147: files written by older builds are missing every new key.
     /// Optional keys keep that Q-bounce answer intact instead of throwing and
     /// silently falling back to the defaults for everything.
     init(from decoder: Decoder) throws {
@@ -1221,7 +1357,14 @@ struct PanelAnimationSettings: Codable {
             springEntrance: (try? container.decode(Bool.self, forKey: .springEntrance)) ?? false,
             glassStyle: (try? container.decode(Int.self, forKey: .glassStyle)) ?? 0,
             glassWash: (try? container.decode(Double.self, forKey: .glassWash)) ?? 0.08,
-            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0
+            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0,
+            rimDirection: (try? container.decode(Int.self, forKey: .rimDirection)) ?? 0,
+            rimWidth: (try? container.decode(Double.self, forKey: .rimWidth)) ?? 1.0,
+            rimFalloff: (try? container.decode(Int.self, forKey: .rimFalloff)) ?? 1,
+            shadowStrength: (try? container.decode(Double.self, forKey: .shadowStrength)) ?? 1.0,
+            shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
+            showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
+            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1
         )
     }
 }
