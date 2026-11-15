@@ -627,7 +627,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
             self.glassHost.alpha = 0
         } completion: { _ in
             FaircopyOverlayWindowHost.enterFloating(
-                ballSize: 56,
+                ballSize: 44,
                 restore: { [weak self] in self?.expandCard() },
                 close: { [weak self] in
                     FaircopyOverlayWindowHost.cancelFloating()
@@ -643,7 +643,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         isMinimized = false
         // The container may still hold the pill-sized bounds it had while
         // collapsed; adopt the restored window size before the card measures
-        // itself, or it would fade in at 56 pt.
+        // itself, or it would fade in at the tiny pill size.
         if let container = containerView, let window = container.window {
             container.frame = window.bounds
             container.setNeedsLayout()

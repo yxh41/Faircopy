@@ -268,7 +268,7 @@ final class FaircopyFloatingBall: UIView {
         pen.path = BrandMark().path(in: iconRect).cgPath
         pen.fillColor = UIColor.clear.cgColor
         pen.strokeColor = UIColor.white.withAlphaComponent(0.95).cgColor
-        pen.lineWidth = 1.6
+        pen.lineWidth = 1.4
         pen.lineCap = .round
         pen.lineJoin = .round
         layer.addSublayer(pen)

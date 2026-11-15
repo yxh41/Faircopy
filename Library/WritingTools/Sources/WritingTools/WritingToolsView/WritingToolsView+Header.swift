@@ -230,7 +230,7 @@ extension WritingToolsView {
                 Circle()
                     .foregroundStyle(.white)
                     .opacity(isClosePressed ? 0.05 : 0.1)
-                    .padding(-8)
+                    .padding(-6)
             }
             .padding(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 8))
             .animation(.easeOut(duration: 0.15), value: isClosePressed)
@@ -238,19 +238,21 @@ extension WritingToolsView {
     }
 
     /// 3.0.150: collapse the card into the overlay window's floating pill.
+    /// 3.0.151: smaller glyph/circle and a wider trailing gap so the two header
+    /// buttons no longer read as one touching pair.
     var minimizeButton: some View {
         MinimizeGlyph()
-            .stroke(Color.white, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            .frame(width: 12, height: 12)
+            .stroke(Color.white, style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
+            .frame(width: 10, height: 10)
             .fixedSize()
             .opacity(isMinimizePressed ? 0.5 : 1)
             .background {
                 Circle()
                     .foregroundStyle(.white)
                     .opacity(isMinimizePressed ? 0.05 : 0.1)
-                    .padding(-8)
+                    .padding(-6)
             }
-            .padding(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 4))
+            .padding(EdgeInsets(top: 0, leading: 0, bottom: 4, trailing: 10))
             .animation(.easeOut(duration: 0.15), value: isMinimizePressed)
             ._onButtonGesture { isMinimizePressed = $0 } perform: {
                 context.minimizePanel?()
