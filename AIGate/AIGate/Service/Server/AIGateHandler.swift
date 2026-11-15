@@ -24,6 +24,7 @@ private struct FCPanelSettingsResponse: Encodable {
     let shadowRadius: Double
     let showSourceBadge: Bool
     let defaultHeightTier: Int
+    let cornerRadius: Double
 
     enum CodingKeys: String, CodingKey {
         case springEntrance = "spring_entrance"
@@ -37,6 +38,7 @@ private struct FCPanelSettingsResponse: Encodable {
         case shadowRadius = "shadow_radius"
         case showSourceBadge = "show_source_badge"
         case defaultHeightTier = "default_height_tier"
+        case cornerRadius = "corner_radius"
     }
 }
 
@@ -150,7 +152,8 @@ class AIGateHandler: ChannelDuplexHandler {
                 shadowStrength: settings.shadowStrength,
                 shadowRadius: settings.shadowRadius,
                 showSourceBadge: settings.showSourceBadge,
-                defaultHeightTier: settings.defaultHeightTier
+                defaultHeightTier: settings.defaultHeightTier,
+                cornerRadius: settings.cornerRadius
             ))
             return
         } else if checkForServerCommandIfIsGettingPanelPending() {

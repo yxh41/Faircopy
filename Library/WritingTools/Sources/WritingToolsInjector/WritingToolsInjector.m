@@ -112,6 +112,8 @@ static double __fc_shadowStrengthValue = 1.0;
 static double __fc_shadowRadiusValue = 26.0;
 static BOOL __fc_showSourceBadgeValue = YES;
 static int __fc_defaultHeightTierValue = 1;
+/// 3.0.148: card corner radius (points). 13 reproduces the 3.0.143 popover.
+static double __fc_cornerRadiusValue = 13.0;
 /// Guards against two attempts in flight (the deferred one and the one the
 /// presentation path kicks off when it finds nothing cached yet).
 static BOOL __fc_panelSettingsFetchInFlight = NO;
@@ -135,6 +137,7 @@ double FC_PanelShadowStrength(void) { return __fc_shadowStrengthValue; }
 double FC_PanelShadowRadius(void) { return __fc_shadowRadiusValue; }
 BOOL FC_PanelShowSourceBadge(void) { return __fc_showSourceBadgeValue; }
 int FC_PanelDefaultHeightTier(void) { return __fc_defaultHeightTierValue; }
+double FC_PanelCornerRadius(void) { return __fc_cornerRadiusValue; }
 
 static void FC_FetchPanelSettings(NSUInteger attempt) {
     if (__fc_springEntranceKnown || __fc_panelSettingsFetchInFlight) { return; }
@@ -197,6 +200,7 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 NSNumber *radius = dict[@"shadow_radius"];
                 NSNumber *badge = dict[@"show_source_badge"];
                 NSNumber *tier = dict[@"default_height_tier"];
+                NSNumber *cr = dict[@"corner_radius"];
                 if ([rimDir isKindOfClass:[NSNumber class]]) {
                     __fc_rimDirectionValue = (int)MIN(3, MAX(0, [rimDir intValue]));
                 }
@@ -218,12 +222,16 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 if ([tier isKindOfClass:[NSNumber class]]) {
                     __fc_defaultHeightTierValue = (int)MIN(3, MAX(1, [tier intValue]));
                 }
+                if ([cr isKindOfClass:[NSNumber class]]) {
+                    __fc_cornerRadiusValue = MIN(28.0, MAX(8.0, [cr doubleValue]));
+                }
                 FC_TraceLine([NSString stringWithFormat:
-                    @"panel appearance from gateway 3.0.147: blur=%d wash=%.2f rim=%.2f dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f badge=%d tier=%d",
+                    @"panel appearance from gateway 3.0.148: blur=%d wash=%.2f rim=%.2f dir=%d width=%.1f falloff=%d shadow=%.2f radius=%.0f badge=%d tier=%d cr=%.0f",
                     __fc_glassStyleValue, __fc_glassWashValue, __fc_rimStrengthValue,
                     __fc_rimDirectionValue, __fc_rimWidthValue, __fc_rimFalloffValue,
                     __fc_shadowStrengthValue, __fc_shadowRadiusValue,
-                    (int)__fc_showSourceBadgeValue, __fc_defaultHeightTierValue]);
+                    (int)__fc_showSourceBadgeValue, __fc_defaultHeightTierValue,
+                    __fc_cornerRadiusValue]);
                 [session finishTasksAndInvalidate];
                 return;
             }

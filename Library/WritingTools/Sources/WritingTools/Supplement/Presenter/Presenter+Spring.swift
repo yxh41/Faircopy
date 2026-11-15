@@ -20,7 +20,7 @@ import WritingToolsInjector
 
 // MARK: - 设置
 
-/// 3.0.146/147: the eight knobs the settings app exposes for the external
+/// 3.0.146/147/148: the nine knobs the settings app exposes for the external
 /// frosted card. A plain value type so the presentation controller can own a
 /// copy — a card must keep the look it was opened with even if the setting is
 /// changed while it is on screen. Every value is clamped here, so a stale or
@@ -43,6 +43,8 @@ struct FaircopyPanelAppearance {
     var shadowStrength: Double
     /// 0 ... 40 points; 26 was the original soft edge.
     var shadowRadius: Double
+    /// 8 ... 28 points; 13 was the original arrowless popover corner.
+    var cornerRadius: Double
 
     init(glassStyle: Int = 0,
          glassWash: Double = 0.08,
@@ -51,7 +53,8 @@ struct FaircopyPanelAppearance {
          rimWidth: Double = 1.0,
          rimFalloff: Int = 1,
          shadowStrength: Double = 1.0,
-         shadowRadius: Double = 26.0) {
+         shadowRadius: Double = 26.0,
+         cornerRadius: Double = 13.0) {
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
         self.rimStrength = min(1.0, max(0, rimStrength))
@@ -60,6 +63,7 @@ struct FaircopyPanelAppearance {
         self.rimFalloff = min(2, max(0, rimFalloff))
         self.shadowStrength = min(1.0, max(0, shadowStrength))
         self.shadowRadius = min(40.0, max(0, shadowRadius))
+        self.cornerRadius = min(28.0, max(8.0, cornerRadius))
     }
 
     var blurEffectStyle: UIBlurEffect.Style {
@@ -75,6 +79,7 @@ struct FaircopyPanelAppearance {
     var rimAlpha: CGFloat { CGFloat(rimStrength) }
     var rimLineWidth: CGFloat { CGFloat(rimWidth) }
     var shadowBlurRadius: CGFloat { CGFloat(shadowRadius) }
+    var cornerRadiusCGFloat: CGFloat { CGFloat(cornerRadius) }
 
     /// 3.0.147: the gradient only ever describes a diagonal; which diagonal
     /// is a setting now. 0 / standard / 1pt reproduce the 3.0.143 skin.
@@ -116,12 +121,14 @@ struct FaircopyPanelAnimationSettings: Codable {
     var shadowRadius: Double
     var showSourceBadge: Bool
     var defaultHeightTier: Int
+    /// 3.0.148: card corner radius in points (8 ... 28).
+    var cornerRadius: Double
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
         case rimDirection, rimWidth, rimFalloff
         case shadowStrength, shadowRadius
-        case showSourceBadge, defaultHeightTier
+        case showSourceBadge, defaultHeightTier, cornerRadius
     }
 
     init(springEntrance: Bool = false,
@@ -134,7 +141,8 @@ struct FaircopyPanelAnimationSettings: Codable {
          shadowStrength: Double = 1.0,
          shadowRadius: Double = 26.0,
          showSourceBadge: Bool = true,
-         defaultHeightTier: Int = 1) {
+         defaultHeightTier: Int = 1,
+         cornerRadius: Double = 13.0) {
         self.springEntrance = springEntrance
         let appearance = FaircopyPanelAppearance(
             glassStyle: glassStyle,
@@ -144,7 +152,8 @@ struct FaircopyPanelAnimationSettings: Codable {
             rimWidth: rimWidth,
             rimFalloff: rimFalloff,
             shadowStrength: shadowStrength,
-            shadowRadius: shadowRadius
+            shadowRadius: shadowRadius,
+            cornerRadius: cornerRadius
         )
         self.glassStyle = appearance.glassStyle
         self.glassWash = appearance.glassWash
@@ -156,6 +165,7 @@ struct FaircopyPanelAnimationSettings: Codable {
         self.shadowRadius = appearance.shadowRadius
         self.showSourceBadge = showSourceBadge
         self.defaultHeightTier = min(3, max(1, defaultHeightTier))
+        self.cornerRadius = appearance.cornerRadius
     }
 
     /// 3.0.146/147: a file written by an older build is missing every new
@@ -174,7 +184,8 @@ struct FaircopyPanelAnimationSettings: Codable {
             shadowStrength: (try? container.decode(Double.self, forKey: .shadowStrength)) ?? 1.0,
             shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
             showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
-            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1
+            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1,
+            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0
         )
     }
 
@@ -187,7 +198,8 @@ struct FaircopyPanelAnimationSettings: Codable {
             rimWidth: rimWidth,
             rimFalloff: rimFalloff,
             shadowStrength: shadowStrength,
-            shadowRadius: shadowRadius
+            shadowRadius: shadowRadius,
+            cornerRadius: cornerRadius
         )
     }
 }
@@ -227,7 +239,8 @@ enum FaircopyPanelAnimationStore {
                 shadowStrength: FC_PanelShadowStrength(),
                 shadowRadius: FC_PanelShadowRadius(),
                 showSourceBadge: FC_PanelShowSourceBadge(),
-                defaultHeightTier: Int(FC_PanelDefaultHeightTier())
+                defaultHeightTier: Int(FC_PanelDefaultHeightTier()),
+                cornerRadius: FC_PanelCornerRadius()
             )
         }
         guard
@@ -328,8 +341,9 @@ final class FaircopySpringPresentationController: UIPresentationController {
     var appearance = FaircopyPanelAppearance()
 
     /// Matches the radius UIKit uses for an arrowless popover, so switching the
-    /// toggle on does not visibly change the card.
-    private static let cornerRadius: CGFloat = 13
+    /// toggle on does not visibly change the card. The radius is now a setting
+    /// (FaircopyPanelAppearance.cornerRadius, 3.0.148) — read from `appearance`,
+    /// not from this constant.
     private static let screenMargin: CGFloat = 20
     private static let shadowOpacity: Float = 0.3
 
@@ -410,7 +424,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
 
         clipView.frame = cardView.bounds
         clipView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        clipView.layer.cornerRadius = Self.cornerRadius
+        clipView.layer.cornerRadius = appearance.cornerRadiusCGFloat
         clipView.layer.cornerCurve = .continuous
         clipView.clipsToBounds = true
         cardView.addSubview(clipView)
@@ -507,7 +521,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
     private func redrawShadowPath() {
         shadowHost.layer.shadowPath = UIBezierPath(
             roundedRect: shadowHost.bounds,
-            cornerRadius: Self.cornerRadius
+            cornerRadius: appearance.cornerRadiusCGFloat
         ).cgPath
     }
 
@@ -526,7 +540,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // whole card offscreen 60 times a second).
         shadowHost.layer.shadowPath = UIBezierPath(
             roundedRect: shadowHost.bounds,
-            cornerRadius: Self.cornerRadius
+            cornerRadius: appearance.cornerRadiusCGFloat
         ).cgPath
         container.addSubview(shadowHost)
     }
@@ -605,7 +619,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         glassMask.frame = glassHost.bounds
         glassMask.path = UIBezierPath(
             roundedRect: local,
-            cornerRadius: Self.cornerRadius
+            cornerRadius: appearance.cornerRadiusCGFloat
         ).cgPath
         CATransaction.commit()
     }
@@ -675,7 +689,7 @@ final class FaircopySpringPresentationController: UIPresentationController {
         let inset = appearance.rimLineWidth / 2
         rimMask.path = UIBezierPath(
             roundedRect: bounds.insetBy(dx: inset, dy: inset),
-            cornerRadius: max(0, Self.cornerRadius - inset)
+            cornerRadius: max(0, appearance.cornerRadiusCGFloat - inset)
         ).cgPath
         CATransaction.commit()
     }

@@ -548,3 +548,5 @@
 "Tier Medium" = "Medium";
 "Tier Tall" = "Tall";
 "Default Tier Footer" = "Applies to externally summoned panels only; switching panel content still returns to the natural height. Changes take effect the next time the panel opens, without relaunching the app.";
+"Corner Radius" = "Corner Radius";
+"Corner Radius Footer" = "Card corner radius, 8 to 28 points. Applies to the next card; the one on screen is unchanged.";

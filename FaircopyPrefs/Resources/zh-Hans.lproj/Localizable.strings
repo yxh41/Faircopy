@@ -634,3 +634,5 @@
 "Tier Medium" = "中等";
 "Tier Tall" = "高";
 "Default Tier Footer" = "仅对外部调用唤起的面板生效；切换面板内容后仍会回到自然高度。改动在下次唤起面板时生效，无需重启 App。";
+"Corner Radius" = "圆角";
+"Corner Radius Footer" = "卡片圆角半径，8 至 28 点。下次唤起面板生效，已打开的卡片保持原样。";

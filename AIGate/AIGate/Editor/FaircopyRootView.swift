@@ -823,12 +823,13 @@ struct PanelAnimationSettingsView: View {
 
 // MARK: - External Panel Appearance Subpage (3.0.146)
 
-/// Three knobs for the frosted card shown when another app summons the panel.
+/// The look of the frosted card shown when another app summons the panel.
 /// They are written to the same JSON the gateway answers from; the Darwin post
 /// in `PanelAnimationSettingsStore.save` invalidates the cached answer in every
 /// injected process, so the next card picks the change up without relaunching
-/// the host app. Corner radius, shadow and the three height tiers deliberately
-/// stay fixed — all three are wired into the rim/mask geometry and the drag.
+/// the host app. The three height tiers deliberately stay fixed — they are
+/// wired into the drag hysteresis; corner radius and the rim/shadow are now
+/// adjustable.
 struct ExternalPanelAppearanceView: View {
     @State private var settings: PanelAnimationSettings = PanelAnimationSettingsStore.load()
     @State private var pendingSave: DispatchWorkItem?
@@ -877,6 +878,12 @@ struct ExternalPanelAppearanceView: View {
                 shadowRadiusSlider
             } footer: {
                 Text(NSLocalizedString("Shadow Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                cornerRadiusSlider
+            } footer: {
+                Text(NSLocalizedString("Corner Radius Footer", bundle: Bundle.wrti_support, comment: ""))
             }
 
             Section {
@@ -1011,6 +1018,18 @@ struct ExternalPanelAppearanceView: View {
             }
             Slider(value: $settings.shadowRadius, in: 0...40.0, step: 1)
                 .onChange(of: settings.shadowRadius) { _ in scheduleSave() }
+        }
+    }
+
+    private var cornerRadiusSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Corner Radius", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(points(settings.cornerRadius)).foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.cornerRadius, in: 8...28.0, step: 1)
+                .onChange(of: settings.cornerRadius) { _ in scheduleSave() }
         }
     }
 
@@ -1316,12 +1335,14 @@ struct PanelAnimationSettings: Codable {
     /// 3.0.147: behaviour, not chrome. Both default to the 3.0.146 look.
     var showSourceBadge: Bool
     var defaultHeightTier: Int
+    /// 3.0.148: card corner radius in points (8 ... 28).
+    var cornerRadius: Double
 
     private enum CodingKeys: String, CodingKey {
         case springEntrance, glassStyle, glassWash, rimStrength
         case rimDirection, rimWidth, rimFalloff
         case shadowStrength, shadowRadius
-        case showSourceBadge, defaultHeightTier
+        case showSourceBadge, defaultHeightTier, cornerRadius
     }
 
     init(springEntrance: Bool = false,
@@ -1334,7 +1355,8 @@ struct PanelAnimationSettings: Codable {
          shadowStrength: Double = 1.0,
          shadowRadius: Double = 26.0,
          showSourceBadge: Bool = true,
-         defaultHeightTier: Int = 1) {
+         defaultHeightTier: Int = 1,
+         cornerRadius: Double = 13.0) {
         self.springEntrance = springEntrance
         self.glassStyle = min(3, max(0, glassStyle))
         self.glassWash = min(0.20, max(0, glassWash))
@@ -1346,6 +1368,7 @@ struct PanelAnimationSettings: Codable {
         self.shadowRadius = min(40.0, max(0, shadowRadius))
         self.showSourceBadge = showSourceBadge
         self.defaultHeightTier = min(3, max(1, defaultHeightTier))
+        self.cornerRadius = min(28.0, max(8.0, cornerRadius))
     }
 
     /// 3.0.146/147: files written by older builds are missing every new key.
@@ -1364,7 +1387,8 @@ struct PanelAnimationSettings: Codable {
             shadowStrength: (try? container.decode(Double.self, forKey: .shadowStrength)) ?? 1.0,
             shadowRadius: (try? container.decode(Double.self, forKey: .shadowRadius)) ?? 26.0,
             showSourceBadge: (try? container.decode(Bool.self, forKey: .showSourceBadge)) ?? true,
-            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1
+            defaultHeightTier: (try? container.decode(Int.self, forKey: .defaultHeightTier)) ?? 1,
+            cornerRadius: (try? container.decode(Double.self, forKey: .cornerRadius)) ?? 13.0
         )
     }
 }

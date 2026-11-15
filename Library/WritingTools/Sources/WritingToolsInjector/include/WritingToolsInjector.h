@@ -118,6 +118,8 @@ double FC_PanelShadowStrength(void);
 double FC_PanelShadowRadius(void);
 BOOL FC_PanelShowSourceBadge(void);
 int FC_PanelDefaultHeightTier(void);
+/// 3.0.148: card corner radius in points (8 ... 28).
+double FC_PanelCornerRadius(void);
 
 #ifdef __cplusplus
 }
