@@ -58,6 +58,12 @@ extension Presenter {
         /// the card can never come up with no glass at all.
         @Published var glassIsManagedByUIKit = false
 
+        /// 3.0.146: the same frosted look for the SwiftUI fallback material.
+        /// Only read while `glassIsManagedByUIKit` is false (popover / scene-less
+        /// hosts); assigned once before the view is built, so it deliberately is
+        /// not @Published and cannot re-render the card mid-drag.
+        var panelAppearance = FaircopyPanelAppearance()
+
         /// 3.0.139: display name of the host app that summoned the card, shown
         /// as "来自 X" under the title on external invocations. `nil` on the
         /// in-app selection path, where the source is obvious.

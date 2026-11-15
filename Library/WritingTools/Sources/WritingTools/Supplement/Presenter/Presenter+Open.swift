@@ -247,7 +247,11 @@ public extension Presenter {
         // card then recognised the same touch: long-pressing a panel button also
         // raised the host app's own action menu. A window of our own isolates the
         // touch completely while the material keeps sampling across windows.
-        let springEntrance = FaircopyPanelAnimationStore.load().springEntrance
+        // 3.0.146: one read for all four settings. The gateway answer is a
+        // single JSON document, and splitting it into two loads could mix a
+        // cached value with a file fallback.
+        let panelSettings = FaircopyPanelAnimationStore.load()
+        let springEntrance = panelSettings.springEntrance
         // Width is measured at the width the card will actually get; the old
         // popover path measured at 400 and let UIKit clamp it, which clipped a
         // narrower centred card.
@@ -260,8 +264,12 @@ public extension Presenter {
         ))
         NSLog("[Faircopy] external card: own-window presentation, host cannot receive the touch, glass samples across windows 3.0.142 (spring %@)",
               springEntrance ? "on" : "off")
+        NSLog("[Faircopy] external panel appearance is adjustable from settings 3.0.146: blur=%d wash=%.2f rim=%.2f",
+              panelSettings.glassStyle, panelSettings.glassWash, panelSettings.rimStrength)
         toolController.usesCardPresentation = true
         toolController.usesSpringEntrance = springEntrance
+        toolController.panelAppearance = panelSettings.appearance
+        context.panelAppearance = panelSettings.appearance
         // The card chrome is drawn by the presentation controller, so the
         // controller itself must be transparent — an opaque backdrop would
         // also block the material from sampling the host content.

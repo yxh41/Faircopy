@@ -511,3 +511,17 @@
 
 /* No comment provided by engineer. */
 "Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them." = "Your configuration will be stored securely and will not be accessible to apps. This service will delegate your request from tweaks to server and sending response back to them.";
+
+/* 3.0.146: external frosted panel appearance settings. */
+"External Panel Appearance" = "External Panel Appearance";
+"Blur Intensity" = "Blur Intensity";
+"Blur Intensity Footer" = "How much the glass hides the app behind it. Thicker blur is less transparent.";
+"Ultra Thin" = "Ultra Thin";
+"Thin" = "Thin";
+"Regular" = "Regular";
+"Thick" = "Thick";
+"White Wash" = "White Wash";
+"Rim Strength" = "Rim Strength";
+"Appearance Footer" = "Changes take effect the next time the panel opens — no need to relaunch the app. A card that is already on screen keeps its current look.";
+"Restore Defaults" = "Restore Defaults";
+"Percent Format" = "%d%%";

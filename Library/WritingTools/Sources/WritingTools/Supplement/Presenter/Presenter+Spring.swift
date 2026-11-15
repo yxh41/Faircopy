@@ -20,12 +20,81 @@ import WritingToolsInjector
 
 // MARK: - 设置
 
+/// 3.0.146: the three knobs the settings app exposes for the external frosted
+/// card. A plain value type so the presentation controller can own a copy — a
+/// card must keep the look it was opened with even if the setting is changed
+/// while it is on screen. All three are clamped here, so a stale or hand-edited
+/// JSON file can never push a layer out of its valid range.
+struct FaircopyPanelAppearance {
+    /// 0 = ultra thin, 1 = thin, 2 = regular, 3 = thick.
+    var glassStyle: Int
+    /// 0 ... 0.20, the white lift over the glass. 0.08 was the original skin.
+    var glassWash: Double
+    /// 0 ... 1, scales the four stops of the directional rim.
+    var rimStrength: Double
+
+    init(glassStyle: Int = 0, glassWash: Double = 0.08, rimStrength: Double = 1.0) {
+        self.glassStyle = min(3, max(0, glassStyle))
+        self.glassWash = min(0.20, max(0, glassWash))
+        self.rimStrength = min(1.0, max(0, rimStrength))
+    }
+
+    var blurEffectStyle: UIBlurEffect.Style {
+        switch glassStyle {
+        case 1: return .systemThinMaterialDark
+        case 2: return .systemMaterialDark
+        case 3: return .systemThickMaterialDark
+        default: return .systemUltraThinMaterialDark
+        }
+    }
+
+    var washAlpha: CGFloat { CGFloat(glassWash) }
+    var rimAlpha: CGFloat { CGFloat(rimStrength) }
+}
+
 /// KEEP IN SYNC with `PanelAnimationSettings` / `PanelAnimationSettingsStore` in
 /// AIGate's FaircopyRootView.swift — AIGate does not link the WritingTools
 /// framework, so the type is duplicated on purpose. The property names must
 /// match or the JSON will not decode on this side.
 struct FaircopyPanelAnimationSettings: Codable {
     var springEntrance: Bool
+    var glassStyle: Int
+    var glassWash: Double
+    var rimStrength: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case springEntrance, glassStyle, glassWash, rimStrength
+    }
+
+    init(springEntrance: Bool = false,
+         glassStyle: Int = 0,
+         glassWash: Double = 0.08,
+         rimStrength: Double = 1.0) {
+        self.springEntrance = springEntrance
+        let appearance = FaircopyPanelAppearance(
+            glassStyle: glassStyle, glassWash: glassWash, rimStrength: rimStrength)
+        self.glassStyle = appearance.glassStyle
+        self.glassWash = appearance.glassWash
+        self.rimStrength = appearance.rimStrength
+    }
+
+    /// 3.0.146: the JSON written by every build up to 3.0.145 only had
+    /// `springEntrance`. A synthesised decoder would throw on the three missing
+    /// keys and silently reset the Q-bounce switch too, so every key is optional.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            springEntrance: (try? container.decode(Bool.self, forKey: .springEntrance)) ?? false,
+            glassStyle: (try? container.decode(Int.self, forKey: .glassStyle)) ?? 0,
+            glassWash: (try? container.decode(Double.self, forKey: .glassWash)) ?? 0.08,
+            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0
+        )
+    }
+
+    var appearance: FaircopyPanelAppearance {
+        FaircopyPanelAppearance(
+            glassStyle: glassStyle, glassWash: glassWash, rimStrength: rimStrength)
+    }
 }
 
 enum FaircopyPanelAnimationStore {
@@ -44,16 +113,25 @@ enum FaircopyPanelAnimationStore {
     /// asks the gateway instead (the channel every model request already uses)
     /// and hands the answer back here; the file stays as the fallback for the
     /// first presentation, before that answer has landed.
+    ///
+    /// 3.0.146: the same answer now carries the frosted-card look. The injector
+    /// invalidates its cache on a Darwin notification from Settings, so a change
+    /// is picked up by the *next* card without relaunching the host app.
     static func load() -> FaircopyPanelAnimationSettings {
         var known: ObjCBool = false
         let spring = FC_PanelSpringEntrance(&known)
         if known.boolValue {
-            return FaircopyPanelAnimationSettings(springEntrance: spring)
+            return FaircopyPanelAnimationSettings(
+                springEntrance: spring,
+                glassStyle: Int(FC_PanelGlassStyle()),
+                glassWash: FC_PanelGlassWash(),
+                rimStrength: FC_PanelRimStrength()
+            )
         }
         guard
             let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
             let settings = try? JSONDecoder().decode(FaircopyPanelAnimationSettings.self, from: data)
-        else { return FaircopyPanelAnimationSettings(springEntrance: false) }
+        else { return FaircopyPanelAnimationSettings() }
         return settings
     }
 }
@@ -141,6 +219,11 @@ final class FaircopySpringPresentationController: UIPresentationController {
     /// is off. The animator owns the motion; this flag only decides the state
     /// the card starts in, which has to be set before the first frame renders.
     var bouncesOnEntrance = true
+
+    /// 3.0.146: the frosted look this card was opened with. Copied from the
+    /// controller when the presentation is built; changing the setting in the
+    /// settings app never mutates a card that is already on screen.
+    var appearance = FaircopyPanelAppearance()
 
     /// Matches the radius UIKit uses for an arrowless popover, so switching the
     /// toggle on does not visibly change the card.
@@ -360,14 +443,19 @@ final class FaircopySpringPresentationController: UIPresentationController {
         glassHost.backgroundColor = .clear
         glassHost.isUserInteractionEnabled = false
 
+        // 3.0.146: the blur style is set once, before the view is added to the
+        // hierarchy. Swapping `effect` is cheap and does not change the fixed
+        // frame — the whole point of 3.0.144's glass plate.
+        glassView.effect = UIBlurEffect(style: appearance.blurEffectStyle)
         glassView.frame = glassHost.bounds
         glassView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         glassHost.addSubview(glassView)
 
-        // The 8% white lift used to live in the SwiftUI ZStack; it belongs to
-        // the glass, so it moves with the blur and stays inside the same mask.
+        // The white lift used to live in the SwiftUI ZStack; it belongs to the
+        // glass, so it moves with the blur and stays inside the same mask.
+        // 3.0.146: its 8% default is now the first slider in Settings.
         glassWash.frame = glassHost.bounds
-        glassWash.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+        glassWash.backgroundColor = UIColor.white.withAlphaComponent(appearance.washAlpha)
         glassWash.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         glassHost.addSubview(glassWash)
 
@@ -381,6 +469,8 @@ final class FaircopySpringPresentationController: UIPresentationController {
         (presentedViewController as? WritingToolController)?
             .context.glassIsManagedByUIKit = true
         NSLog("[Faircopy] frosted glass samples a fixed region, so a height drag never re-blurs the backdrop 3.0.144")
+        NSLog("[Faircopy] external panel appearance applied 3.0.146: blur=%d wash=%.2f rim=%.2f",
+              appearance.glassStyle, appearance.glassWash, appearance.rimStrength)
     }
 
     /// The only per-frame work the glass does during a drag: one rounded-rect
@@ -416,10 +506,14 @@ final class FaircopySpringPresentationController: UIPresentationController {
         // White at the top-left, gone by the bottom-right — a lens, not a glow.
         // The same four stops the SwiftUI stroke used, so the look the user
         // signed off on is unchanged; only where it is drawn moved.
+        // 3.0.146: scale the four stops together. 1.0 is exactly the 3.0.143
+        // look; 0 draws no highlight at all. Only the outline is affected — the
+        // glass, the corner radius and the mask path are untouched.
+        let strength = appearance.rimAlpha
         rimLayer.colors = [
-            UIColor.white.withAlphaComponent(0.85).cgColor,
-            UIColor.white.withAlphaComponent(0.28).cgColor,
-            UIColor.white.withAlphaComponent(0.06).cgColor,
+            UIColor.white.withAlphaComponent(0.85 * strength).cgColor,
+            UIColor.white.withAlphaComponent(0.28 * strength).cgColor,
+            UIColor.white.withAlphaComponent(0.06 * strength).cgColor,
             UIColor.clear.cgColor,
         ]
         rimLayer.locations = [0.0, 0.22, 0.55, 0.85]
@@ -643,6 +737,7 @@ extension WritingToolController: UIViewControllerTransitioningDelegate {
             presenting: presenting
         )
         controller.bouncesOnEntrance = usesSpringEntrance
+        controller.appearance = panelAppearance
         return controller
     }
 }

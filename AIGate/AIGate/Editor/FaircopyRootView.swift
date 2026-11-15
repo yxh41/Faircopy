@@ -42,6 +42,25 @@ let kFCExternalPresentNotificationName = "wiki.qaq.faircopy.present"
 /// notification above). Keep in sync with SceneDelegate.handleOpenURL.
 let kFCExternalPanelURLScheme = "faircopy://panel"
 
+/// 3.0.146: posted whenever an external panel appearance setting changes. The
+/// injector caches the gateway answer for the lifetime of the host process, so
+/// this asks every injected process to fetch it again. Keep in sync with
+/// kFCPanelAppearanceChangedNotification in WritingToolsInjector.h.
+let kFCPanelAppearanceChangedNotificationName = "wiki.qaq.faircopy.appearance"
+
+/// Declared here, not imported from FaircopyApp.swift: that file belongs to the
+/// app target only, while this view is also compiled into FaircopyPrefs (the
+/// Settings bundle) and the resident daemon. The iOS SDK ships no
+/// <notify/notify.h>; the symbol lives in libSystem, which everything links.
+@_silgen_name("notify_post")
+private func fc_appearance_notify_post(_ name: UnsafePointer<CChar>?) -> UInt32
+
+private func FC_PostPanelAppearanceChanged() {
+    _ = kFCPanelAppearanceChangedNotificationName.withCString {
+        fc_appearance_notify_post($0)
+    }
+}
+
 struct FaircopyRootView: View {
     @StateObject var appViewModel = FaircopyAppModel.shared
     @StateObject var configuration = Configuration.shared
@@ -318,6 +337,17 @@ struct FaircopyRootView: View {
                     }
                 ]
             )
+            // 3.0.146: the frosted card's three knobs live here rather than in
+            // "Panel Animation", which is about motion, not looks.
+            NavigationLink {
+                ExternalPanelAppearanceView()
+            } label: {
+                Label {
+                    Text(NSLocalizedString("External Panel Appearance", bundle: Bundle.wrti_support, comment: ""))
+                } icon: {
+                    Image(systemName: "paintbrush")
+                }
+            }
         } header: {
             Text(NSLocalizedString("External Invocation", bundle: Bundle.wrti_support, comment: ""))
         } footer: {
@@ -773,7 +803,11 @@ struct PanelAnimationSettingsView: View {
                     }
                 }
                 .onChange(of: springEntrance) { newValue in
-                    PanelAnimationSettingsStore.save(PanelAnimationSettings(springEntrance: newValue))
+                    // 3.0.146: keep the appearance fields. Saving a freshly
+                    // built struct here would silently reset the three sliders.
+                    var settings = PanelAnimationSettingsStore.load()
+                    settings.springEntrance = newValue
+                    PanelAnimationSettingsStore.save(settings)
                 }
             } footer: {
                 Text(NSLocalizedString("Turn off to use the system popover transition.", bundle: Bundle.wrti_support, comment: ""))
@@ -784,6 +818,104 @@ struct PanelAnimationSettingsView: View {
         .onAppear {
             springEntrance = PanelAnimationSettingsStore.load().springEntrance
         }
+    }
+}
+
+// MARK: - External Panel Appearance Subpage (3.0.146)
+
+/// Three knobs for the frosted card shown when another app summons the panel.
+/// They are written to the same JSON the gateway answers from; the Darwin post
+/// in `PanelAnimationSettingsStore.save` invalidates the cached answer in every
+/// injected process, so the next card picks the change up without relaunching
+/// the host app. Corner radius, shadow and the three height tiers deliberately
+/// stay fixed — all three are wired into the rim/mask geometry and the drag.
+struct ExternalPanelAppearanceView: View {
+    @State private var settings: PanelAnimationSettings = PanelAnimationSettingsStore.load()
+    @State private var pendingSave: DispatchWorkItem?
+
+    private static let blurNames = ["Ultra Thin", "Thin", "Regular", "Thick"]
+
+    var body: some View {
+        Form {
+            Section {
+                Picker(selection: $settings.glassStyle) {
+                    ForEach(0..<Self.blurNames.count, id: \.self) { index in
+                        Text(NSLocalizedString(Self.blurNames[index], bundle: Bundle.wrti_support, comment: ""))
+                            .tag(index)
+                    }
+                } label: {
+                    Text(NSLocalizedString("Blur Intensity", bundle: Bundle.wrti_support, comment: ""))
+                }
+                .onChange(of: settings.glassStyle) { _ in scheduleSave() }
+            } footer: {
+                Text(NSLocalizedString("Blur Intensity Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                washSlider
+                rimSlider
+            } footer: {
+                Text(NSLocalizedString("Appearance Footer", bundle: Bundle.wrti_support, comment: ""))
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    settings = PanelAnimationSettings(springEntrance: settings.springEntrance)
+                    scheduleSave()
+                } label: {
+                    Text(NSLocalizedString("Restore Defaults", bundle: Bundle.wrti_support, comment: ""))
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("External Panel Appearance", bundle: Bundle.wrti_support, comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            settings = PanelAnimationSettingsStore.load()
+        }
+    }
+
+    private func percent(_ value: Double) -> String {
+        String(format: NSLocalizedString("Percent Format", bundle: Bundle.wrti_support, comment: ""),
+               Int((value * 100).rounded()))
+    }
+
+    private var washSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("White Wash", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.glassWash))
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.glassWash, in: 0...0.20, step: 0.01)
+                .onChange(of: settings.glassWash) { _ in scheduleSave() }
+        }
+    }
+
+    private var rimSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(NSLocalizedString("Rim Strength", bundle: Bundle.wrti_support, comment: ""))
+                Spacer()
+                Text(percent(settings.rimStrength))
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: $settings.rimStrength, in: 0...1.0, step: 0.05)
+                .onChange(of: settings.rimStrength) { _ in scheduleSave() }
+        }
+    }
+
+    /// A slider fires dozens of changes a second. Debounce the write (and the
+    /// Darwin post it triggers) to the end of the gesture; each work item
+    /// captures the newest struct value, so the last one always wins.
+    private func scheduleSave() {
+        pendingSave?.cancel()
+        let snapshot = settings
+        let item = DispatchWorkItem {
+            PanelAnimationSettingsStore.save(snapshot)
+        }
+        pendingSave = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20, execute: item)
     }
 }
 
@@ -1059,6 +1191,39 @@ struct AppSearchSettingsStore {
 /// match so the JSON decodes unchanged on the panel side.
 struct PanelAnimationSettings: Codable {
     var springEntrance: Bool
+    /// 3.0.146: 0 ultra thin / 1 thin / 2 regular / 3 thick.
+    var glassStyle: Int
+    /// 0 ... 0.20; 0.08 is the original 3.0.139 skin.
+    var glassWash: Double
+    /// 0 ... 1; 1 is the original 3.0.143 rim.
+    var rimStrength: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case springEntrance, glassStyle, glassWash, rimStrength
+    }
+
+    init(springEntrance: Bool = false,
+         glassStyle: Int = 0,
+         glassWash: Double = 0.08,
+         rimStrength: Double = 1.0) {
+        self.springEntrance = springEntrance
+        self.glassStyle = min(3, max(0, glassStyle))
+        self.glassWash = min(0.20, max(0, glassWash))
+        self.rimStrength = min(1.0, max(0, rimStrength))
+    }
+
+    /// 3.0.146: files written by 3.0.145 and earlier only have `springEntrance`.
+    /// Optional keys keep that Q-bounce answer intact instead of throwing and
+    /// silently falling back to the defaults for everything.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            springEntrance: (try? container.decode(Bool.self, forKey: .springEntrance)) ?? false,
+            glassStyle: (try? container.decode(Int.self, forKey: .glassStyle)) ?? 0,
+            glassWash: (try? container.decode(Double.self, forKey: .glassWash)) ?? 0.08,
+            rimStrength: (try? container.decode(Double.self, forKey: .rimStrength)) ?? 1.0
+        )
+    }
 }
 
 struct PanelAnimationSettingsStore {
@@ -1069,7 +1234,7 @@ struct PanelAnimationSettingsStore {
         guard
             let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
             let settings = try? JSONDecoder().decode(PanelAnimationSettings.self, from: data)
-        else { return PanelAnimationSettings(springEntrance: false) }
+        else { return PanelAnimationSettings() }
         return settings
     }
 
@@ -1079,6 +1244,10 @@ struct PanelAnimationSettingsStore {
                                                  withIntermediateDirectories: true)
         guard let data = try? JSONEncoder().encode(settings) else { return }
         try? data.write(to: url, options: .atomic)
+        // 3.0.146: this process owns the file and answers the gateway, but every
+        // injected host app has cached the old answer. Ask them all to refetch;
+        // no payload is needed because the gateway is the single source.
+        FC_PostPanelAppearanceChanged()
     }
 }
 

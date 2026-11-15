@@ -8,6 +8,24 @@
 import Foundation
 import NIO
 
+/// 3.0.146: the gateway's panel-settings answer. The keys are snake_case on
+/// purpose — the Objective-C injector reads them literally. A struct rather than
+/// a dictionary: `responseWithHTTP(code:json:)` takes `some Encodable`, and a
+/// `[String: Any]` holding a Bool, an Int and two Doubles is not Encodable.
+private struct FCPanelSettingsResponse: Encodable {
+    let springEntrance: Bool
+    let glassStyle: Int
+    let glassWash: Double
+    let rimStrength: Double
+
+    enum CodingKeys: String, CodingKey {
+        case springEntrance = "spring_entrance"
+        case glassStyle = "glass_style"
+        case glassWash = "glass_wash"
+        case rimStrength = "rim_strength"
+    }
+}
+
 class AIGateHandler: ChannelDuplexHandler {
     typealias InboundIn = ByteBuffer
     typealias OutboundIn = ByteBuffer
@@ -103,9 +121,16 @@ class AIGateHandler: ChannelDuplexHandler {
             //
             // Answering here keeps a single source of truth: this process reads
             // the file it wrote, and the panel asks this process.
-            context.responseWithHTTP(code: 200, json: [
-                "spring_entrance": PanelAnimationSettingsStore.load().springEntrance,
-            ])
+            // 3.0.146: one read for all four values. The same document answers
+            // the Q-bounce switch and the frosted-card look, so the injector
+            // only needs one cached round trip.
+            let settings = PanelAnimationSettingsStore.load()
+            context.responseWithHTTP(code: 200, json: FCPanelSettingsResponse(
+                springEntrance: settings.springEntrance,
+                glassStyle: settings.glassStyle,
+                glassWash: settings.glassWash,
+                rimStrength: settings.rimStrength
+            ))
             return
         } else if checkForServerCommandIfIsGettingPanelPending() {
             // 3.0.122: the same redirection that hid the animation setting also

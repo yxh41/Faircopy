@@ -40,6 +40,14 @@
 /// permission, so it works even when the shared preferences directory does not.
 #define kFCPanelPresentedNotification "wiki.qaq.faircopy.presented"
 
+/// 3.0.146: posted by the settings app after the external frosted-card look
+/// changes (blur / white wash / rim). The injector caches the gateway answer for
+/// the lifetime of the host process; this notification invalidates that cache so
+/// the NEXT card — and the Q-bounce switch — picks the new value up without
+/// relaunching the app. Keep in sync with
+/// `kFCPanelAppearanceChangedNotificationName` in FaircopyRootView.swift.
+#define kFCPanelAppearanceChangedNotification "wiki.qaq.faircopy.appearance"
+
 NS_ASSUME_NONNULL_BEGIN
 
 __attribute__((visibility("hidden")))
@@ -92,6 +100,14 @@ void FC_UnlockPanelPresentation(void);
 /// `known` is set to NO until a background fetch lands, so the caller can fall
 /// back to reading the file exactly as before.
 BOOL FC_PanelSpringEntrance(BOOL *_Nullable known);
+
+/// 3.0.146: the external card's frosted look, as last reported by the gateway.
+/// The defaults are returned until an answer lands, and every value is already
+/// clamped to the range the settings UI offers.
+BOOL FC_PanelSettingsAreKnown(void);
+int FC_PanelGlassStyle(void);
+double FC_PanelGlassWash(void);
+double FC_PanelRimStrength(void);
 
 #ifdef __cplusplus
 }

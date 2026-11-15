@@ -73,18 +73,29 @@ extension WritingToolsView {
         }
     }
 
-    /// The 3.0.139 skin, unchanged. Kept for presentation paths that do not
-    /// build a `FaircopySpringPresentationController` (the glass then has to
-    /// come from SwiftUI, and those paths cannot be stretched by the handle).
+    /// The 3.0.139 skin, kept for presentation paths that do not build a
+    /// `FaircopySpringPresentationController` (the glass then has to come from
+    /// SwiftUI, and those paths cannot be stretched by the handle).
+    /// 3.0.146: it follows the same two knobs as the UIKit glass so the fallback
+    /// does not suddenly revert to the old look after a setting is changed.
     private var legacyFrostedGlass: some View {
         ZStack {
             Rectangle()
-                .fill(.ultraThinMaterial)
+                .fill(fallbackMaterial)
                 .padding(-64)
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.white.opacity(context.panelAppearance.glassWash))
                 .padding(-64)
         }
         .environment(\.colorScheme, .dark)
+    }
+
+    private var fallbackMaterial: Material {
+        switch context.panelAppearance.glassStyle {
+        case 1: return .thinMaterial
+        case 2: return .regularMaterial
+        case 3: return .thickMaterial
+        default: return .ultraThinMaterial
+        }
     }
 }

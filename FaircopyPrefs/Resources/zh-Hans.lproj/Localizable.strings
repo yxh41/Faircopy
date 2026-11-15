@@ -598,3 +598,16 @@
 "Spring Entrance" = "Q 弹入场";
 "The panel pops up from the centre with a slight bounce." = "面板从屏幕中心弹出，带一点回弹。";
 "Turn off to use the system popover transition." = "关闭后使用系统原本的弹出过渡。";
+
+/* 3.0.146: external frosted panel appearance settings. */
+"External Panel Appearance" = "外部面板外观";
+"Blur Intensity" = "模糊强度";
+"Blur Intensity Footer" = "决定毛玻璃背后内容的虚化程度，档位越高越不透明。";
+"Ultra Thin" = "超薄";
+"Thin" = "薄";
+"Regular" = "标准";
+"Thick" = "厚";
+"White Wash" = "白色提亮";
+"Rim Strength" = "亮边强度";
+"Appearance Footer" = "调整在下次唤起面板时生效，不需要重启 App。已打开的面板保持当前外观。";
+"Percent Format" = "%d%%";

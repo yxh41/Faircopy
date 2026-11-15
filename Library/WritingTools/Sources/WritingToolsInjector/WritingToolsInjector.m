@@ -97,6 +97,12 @@ static void FC_TraceLine(NSString *line) {
 /// before, so this can only add a working channel, never remove one.
 static BOOL __fc_springEntranceKnown = NO;
 static BOOL __fc_springEntranceValue = NO;
+/// 3.0.146: the frosted-card look, fetched in the same round trip. Defaults
+/// reproduce the 3.0.143 skin exactly, so an older gateway (or a partial
+/// answer) cannot change the look behind the user's back.
+static int __fc_glassStyleValue = 0;
+static double __fc_glassWashValue = 0.08;
+static double __fc_rimStrengthValue = 1.0;
 /// Guards against two attempts in flight (the deferred one and the one the
 /// presentation path kicks off when it finds nothing cached yet).
 static BOOL __fc_panelSettingsFetchInFlight = NO;
@@ -108,6 +114,11 @@ BOOL FC_PanelSpringEntrance(BOOL *known) {
     if (known) { *known = __fc_springEntranceKnown; }
     return __fc_springEntranceValue;
 }
+
+BOOL FC_PanelSettingsAreKnown(void) { return __fc_springEntranceKnown; }
+int FC_PanelGlassStyle(void) { return __fc_glassStyleValue; }
+double FC_PanelGlassWash(void) { return __fc_glassWashValue; }
+double FC_PanelRimStrength(void) { return __fc_rimStrengthValue; }
 
 static void FC_FetchPanelSettings(NSUInteger attempt) {
     if (__fc_springEntranceKnown || __fc_panelSettingsFetchInFlight) { return; }
@@ -140,6 +151,27 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
                 FC_TraceLine([NSString stringWithFormat:
                     @"panel settings from gateway: spring=%d",
                     (int)__fc_springEntranceValue]);
+                // 3.0.146: the same document carries the frosted-card look. A
+                // missing key simply leaves the 3.0.143 default in place, which
+                // is also what an older AIGate binary answers with.
+                NSNumber *style = [json isKindOfClass:[NSDictionary class]]
+                    ? json[@"glass_style"] : nil;
+                NSNumber *wash = [json isKindOfClass:[NSDictionary class]]
+                    ? json[@"glass_wash"] : nil;
+                NSNumber *rim = [json isKindOfClass:[NSDictionary class]]
+                    ? json[@"rim_strength"] : nil;
+                if ([style isKindOfClass:[NSNumber class]]) {
+                    __fc_glassStyleValue = (int)MIN(3, MAX(0, [style intValue]));
+                }
+                if ([wash isKindOfClass:[NSNumber class]]) {
+                    __fc_glassWashValue = MIN(0.20, MAX(0.0, [wash doubleValue]));
+                }
+                if ([rim isKindOfClass:[NSNumber class]]) {
+                    __fc_rimStrengthValue = MIN(1.0, MAX(0.0, [rim doubleValue]));
+                }
+                FC_TraceLine([NSString stringWithFormat:
+                    @"panel appearance from gateway 3.0.146: blur=%d wash=%.2f rim=%.2f",
+                    __fc_glassStyleValue, __fc_glassWashValue, __fc_rimStrengthValue]);
                 [session finishTasksAndInvalidate];
                 return;
             }
@@ -172,6 +204,28 @@ static void FC_SchedulePanelSettingsFetch(void) {
         dispatch_time(DISPATCH_TIME_NOW,
                       (int64_t)(kFCPanelSettingsRetryDelays[0] * NSEC_PER_SEC)),
         dispatch_get_main_queue(), ^{ FC_FetchPanelSettings(0); });
+}
+
+/// 3.0.146: Settings posts kFCPanelAppearanceChangedNotification after a look
+/// change. That answer is cached for the lifetime of the host process, so
+/// without this the new sliders would only take effect after the app was killed
+/// and relaunched. Clearing `known` also refreshes the Q-bounce switch, which
+/// shares the very same document.
+static void FC_PanelAppearanceChangedCallback(CFNotificationCenterRef center,
+                                              void *observer,
+                                              CFStringRef name,
+                                              const void *object,
+                                              CFDictionaryRef userInfo) {
+    (void)center; (void)observer; (void)name; (void)object; (void)userInfo;
+    // The Darwin centre delivers on an arbitrary thread; the cached values are
+    // read on the main thread by the presentation path, so clear and refetch
+    // there. The notification needs no payload — the gateway owns the values.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        __fc_springEntranceKnown = NO;
+        __fc_panelSettingsFetchInFlight = NO;
+        FC_TraceLine(@"panel appearance changed, refetching panel settings 3.0.146");
+        FC_FetchPanelSettings(0);
+    });
 }
 
 // MARK: - Cross-process "a card is up" handshake (3.0.119)
@@ -1764,6 +1818,19 @@ __attribute__((always_inline)) BOOL WTAddMessageExecute(Class cls, SEL selName, 
         NULL,
         FC_PanelPresentedCallback,
         CFSTR(kFCPanelPresentedNotification),
+        NULL,
+        CFNotificationSuspensionBehaviorDeliverImmediately
+    );
+
+    // 3.0.146: a look change in Settings invalidates the cached gateway answer.
+    // Registered here, alongside the other Darwin observers, so it stays alive
+    // for the whole process — a per-presentation registration would miss changes
+    // made while no card was on screen.
+    CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        NULL,
+        FC_PanelAppearanceChangedCallback,
+        CFSTR(kFCPanelAppearanceChangedNotification),
         NULL,
         CFNotificationSuspensionBehaviorDeliverImmediately
     );

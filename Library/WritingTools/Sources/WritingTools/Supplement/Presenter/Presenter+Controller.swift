@@ -17,6 +17,13 @@ class WritingToolController: UIHostingController<WritingToolsView> {
     /// when false the card shows with a plain cross-fade instead of a spring.
     var usesSpringEntrance = false
 
+    /// 3.0.146: the frosted-card look, read once when the card is opened and
+    /// handed to `FaircopySpringPresentationController` when UIKit asks for the
+    /// presentation controller. All three values come from Settings (AIGate's
+    /// gateway), so a card in a sandboxed host app sees the same look as the
+    /// settings app.
+    var panelAppearance = FaircopyPanelAppearance()
+
     /// 3.0.140: every external card is presented through
     /// `FaircopySpringPresentationController`, whatever the Q-bounce toggle says.
     ///
