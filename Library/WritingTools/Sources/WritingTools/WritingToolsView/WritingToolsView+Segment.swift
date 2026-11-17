@@ -1094,7 +1094,7 @@ struct SegmentGestureLayer: UIViewRepresentable {
         // A long press must win over the tap: without this, touch-up after a
         // successful split would fire the tap and immediately undo it. A quick
         // tap still works — the long press fails the moment the finger lifts.
-        tap.requireGestureRecognizerToFail(longPress)
+        tap.require(toFail: longPress)
 
         context.coordinator.hostView = view
         return view
