@@ -142,6 +142,14 @@ struct WritingToolsView: View {
     @State var segmentActive: Bool = false
     @State var segmentTruncated: Bool = false
 
+    // 3.0.152: long-press an English word to split it into per-letter chips.
+    // Backs up the original word token (keyed by its id) so the letters can
+    // merge back into the exact same token — text, range and line-break flag.
+    @State var segmentLetterSources: [Int: SegmentToken] = [:]
+    /// Monotonic id allocator for the split letters; must never collide with a
+    /// source token's id (those were assigned 0..<count by the segmenter).
+    @State var segmentNextTokenID: Int = 0
+
     // Selection gesture state (driven by the UIKit gesture layer)
     @State var segmentDragAnchor: Int? = nil
     @State var segmentIsDragging: Bool = false

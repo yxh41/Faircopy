@@ -18,12 +18,21 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
     public let text: String
     public let range: NSRange
     public let lineBreakAfter: Bool
+    /// 3.0.152: set on a single letter split out of an English word by a long
+    /// press. Points at the id of the original word token, whose full data is
+    /// kept in `segmentLetterSources` so the letters can merge back losslessly.
+    public let sourceWordID: Int?
+    /// 3.0.152: true when this token is one letter of a split word.
+    public let isLetter: Bool
 
-    public init(id: Int, text: String, range: NSRange, lineBreakAfter: Bool = false) {
+    public init(id: Int, text: String, range: NSRange, lineBreakAfter: Bool = false,
+                sourceWordID: Int? = nil, isLetter: Bool = false) {
         self.id = id
         self.text = text
         self.range = range
         self.lineBreakAfter = lineBreakAfter
+        self.sourceWordID = sourceWordID
+        self.isLetter = isLetter
     }
 
     /// True when the token is only whitespace / newlines. These are kept as
@@ -56,6 +65,8 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
             && lhs.range.location == rhs.range.location
             && lhs.range.length == rhs.range.length
             && lhs.lineBreakAfter == rhs.lineBreakAfter
+            && lhs.sourceWordID == rhs.sourceWordID
+            && lhs.isLetter == rhs.isLetter
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -64,6 +75,8 @@ public struct SegmentToken: Identifiable, Equatable, Hashable {
         hasher.combine(range.location)
         hasher.combine(range.length)
         hasher.combine(lineBreakAfter)
+        hasher.combine(sourceWordID)
+        hasher.combine(isLetter)
     }
 }
 
@@ -487,7 +500,8 @@ extension WritingToolsView {
                         onTap: handleSegmentTap,
                         onPanBegan: handleSegmentPanBegan,
                         onPanChanged: handleSegmentPanChanged,
-                        onPanEnded: handleSegmentPanEnded
+                        onPanEnded: handleSegmentPanEnded,
+                        onLongPress: handleSegmentLongPress
                     )
                     .frame(width: width, height: packed.height)
                 }
@@ -657,7 +671,18 @@ extension WritingToolsView {
     /// Token count shown in the stats line: whitespace tokens are kept for
     /// reconstruction but shouldn't inflate the "words" figure.
     private var segmentWordCount: Int {
-        segmentTokens.reduce(0) { $0 + ($1.isWhitespaceOnly ? 0 : 1) }
+        // 3.0.152: letters split from one word count as that single word, not
+        // as N separate ones, so the stats line never jumps on a long press.
+        var splitWordIDs = Set<Int>()
+        return segmentTokens.reduce(0) { count, token in
+            if token.isWhitespaceOnly { return count }
+            if token.isLetter {
+                guard let source = token.sourceWordID else { return count }
+                if splitWordIDs.insert(source).inserted { return count + 1 }
+                return count
+            }
+            return count + 1
+        }
     }
 
     // MARK: - State
@@ -716,10 +741,109 @@ extension WritingToolsView {
         segmentTruncated = result.truncated
         selectedSegmentIndexes = []
         segmentSelectionOrder = []
+        // 3.0.152: a fresh segmentation invalidates any previously split words.
+        segmentLetterSources = [:]
+        segmentNextTokenID = result.tokens.count
         print("[Faircopy] segment: \(result.tokens.count) tokens, punctuation and whitespace preserved")
         segmentActive = true
         output = ""
         isRunning = false
+    }
+
+    // MARK: - 3.0.152: long-press an English word to split into letters / merge back
+
+    /// Whether a token is a plain ASCII Latin word — the only kind we split into
+    /// letters. Digits, punctuation, whitespace, CJK and already-split letters
+    /// are left alone. Requiring >=2 letters avoids a pointless one-letter split.
+    private func isSplitLatinWord(_ token: SegmentToken) -> Bool {
+        guard !token.isLetter, token.text.count >= 2 else { return false }
+        for scalar in token.text.unicodeScalars {
+            if !(scalar.value >= 65 && scalar.value <= 90)   // A-Z
+                && !(scalar.value >= 97 && scalar.value <= 122) // a-z
+            { return false }
+        }
+        return true
+    }
+
+    /// Long-press callback. Toggles one word between a whole chip and its
+    /// individual letter chips:
+    ///  - whole English word -> split into one letter token per character;
+    ///  - a letter -> merge every sibling letter of the same source word back
+    ///    into the original token (restored verbatim from `segmentLetterSources`).
+    /// Only the pressed word is affected; all other tokens keep their ids,
+    /// ranges and selection state, so Copy / Accept stay lossless.
+    func handleSegmentLongPress(_ id: Int) {
+        guard let index = segmentTokens.firstIndex(where: { $0.id == id }) else { return }
+        let token = segmentTokens[index]
+
+        if token.isLetter {
+            guard let sourceID = token.sourceWordID,
+                  let original = segmentLetterSources[sourceID] else { return }
+            // Merge: drop every letter of this word, insert the original back at
+            // the position of the first letter so visual order is unchanged.
+            let letterIDs = Set(segmentTokens.filter { $0.sourceWordID == sourceID }.map(\.id))
+            guard !letterIDs.isEmpty else { return }
+            let wasSelected = letterIDs.contains(where: { selectedSegmentIndexes.contains($0) })
+            var updated = segmentTokens.filter { !letterIDs.contains($0.id) }
+            let insertAt = min(index, updated.count)
+            updated.insert(original, at: insertAt)
+
+            segmentTokens = updated
+            segmentLetterSources.removeValue(forKey: sourceID)
+            var order = segmentSelectionOrder.filter { !letterIDs.contains($0) }
+            if wasSelected, !order.contains(original.id) { order.append(original.id) }
+            if wasSelected { selectedSegmentIndexes.insert(original.id) }
+            segmentSelectionOrder = order
+            // A deselected merge must not leave the id selected via stale state.
+            if !wasSelected { selectedSegmentIndexes.remove(original.id) }
+            print("[Faircopy] segment long-press: merge letters back into word 3.0.152")
+        } else {
+            guard isSplitLatinWord(token) else { return }
+            let text = token.text
+            var letters: [SegmentToken] = []
+            var offset = 0
+            let scalars = Array(text.unicodeScalars)
+            for (i, scalar) in scalars.enumerated() {
+                // ASCII letters are one UTF-16 code unit each; safe to slice by
+                // UTF-16 offset so each letter's range stays inside the word.
+                let ch = String(scalar)
+                let length = ch.utf16.count
+                // The last letter inherits the word's line-break flag so a word
+                // that ended a sentence keeps the same row layout when split.
+                let letter = SegmentToken(
+                    id: segmentNextTokenID,
+                    text: ch,
+                    range: NSRange(location: token.range.location + offset, length: length),
+                    lineBreakAfter: i == scalars.count - 1 ? token.lineBreakAfter : false,
+                    sourceWordID: token.id,
+                    isLetter: true
+                )
+                letters.append(letter)
+                segmentNextTokenID += 1
+                offset += length
+            }
+            guard !letters.isEmpty else { return }
+
+            segmentLetterSources[token.id] = token
+            var updated = segmentTokens
+            updated.remove(at: index)
+            updated.insert(contentsOf: letters, at: index)
+            segmentTokens = updated
+
+            let wasSelected = selectedSegmentIndexes.contains(token.id)
+            var order = segmentSelectionOrder.filter { $0 != token.id }
+            for letter in letters {
+                if wasSelected { selectedSegmentIndexes.insert(letter.id) }
+                order.append(letter.id)
+            }
+            if !wasSelected {
+                for letter in letters { selectedSegmentIndexes.remove(letter.id) }
+            }
+            selectedSegmentIndexes.remove(token.id)
+            segmentSelectionOrder = order
+            print("[Faircopy] segment long-press: split word into \(letters.count) letters 3.0.152")
+        }
+        SegmentHaptics.light.impactOccurred()
     }
 
     func toggleSegmentSelection(_ index: Int) {
@@ -924,6 +1048,10 @@ struct SegmentGestureLayer: UIViewRepresentable {
     let onPanBegan: (Int) -> Void
     let onPanChanged: (Int) -> Void
     let onPanEnded: () -> Void
+    /// 3.0.152: long-press an English word to split it into letters (and a
+    /// letter back into its word). Only fires when the press does not turn into
+    /// a pan, so it never competes with range selection or scrolling.
+    let onLongPress: (Int) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -952,6 +1080,21 @@ struct SegmentGestureLayer: UIViewRepresentable {
         pan.cancelsTouchesInView = false
         pan.maximumNumberOfTouches = 1
         view.addGestureRecognizer(pan)
+
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        longPress.delegate = context.coordinator
+        longPress.minimumPressDuration = 0.5
+        // A finger that slides >10pt becomes a pan and the long press fails on
+        // its own, so it never competes with range selection.
+        longPress.allowableMovement = 10
+        view.addGestureRecognizer(longPress)
+        // A long press must win over the tap: without this, touch-up after a
+        // successful split would fire the tap and immediately undo it. A quick
+        // tap still works — the long press fails the moment the finger lifts.
+        tap.requireGestureRecognizerToFail(longPress)
 
         context.coordinator.hostView = view
         return view
@@ -1018,6 +1161,12 @@ struct SegmentGestureLayer: UIViewRepresentable {
                 }
             }
             return bestIndex
+        }
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            guard gesture.state == .began, let view = gesture.view else { return }
+            guard let index = index(at: gesture.location(in: view)) else { return }
+            parent.onLongPress(index)
         }
 
         @objc func handleTap(_ gesture: UITapGestureRecognizer) {
