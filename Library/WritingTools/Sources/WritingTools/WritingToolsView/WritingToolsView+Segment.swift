@@ -752,17 +752,22 @@ extension WritingToolsView {
 
     // MARK: - 3.0.152: long-press an English word to split into letters / merge back
 
-    /// Whether a token is a plain ASCII Latin word — the only kind we split into
-    /// letters. Digits, punctuation, whitespace, CJK and already-split letters
-    /// are left alone. Requiring >=2 letters avoids a pointless one-letter split.
+    /// 3.0.153: whether a token is a splittable ASCII run. Latin letters, digits
+    /// and mixes of both ("hello", "abc123", "iPhone15") all qualify — a run may
+    /// contain digits as long as it also has at least one ASCII letter. Punctuation,
+    /// whitespace, symbols, CJK and already-split letters are still left alone.
+    /// >=2 characters avoids a pointless one-character split.
     private func isSplitLatinWord(_ token: SegmentToken) -> Bool {
         guard !token.isLetter, token.text.count >= 2 else { return false }
+        var hasLetter = false
         for scalar in token.text.unicodeScalars {
-            if !(scalar.value >= 65 && scalar.value <= 90)   // A-Z
-                && !(scalar.value >= 97 && scalar.value <= 122) // a-z
-            { return false }
+            let v = scalar.value
+            if v >= 65 && v <= 90 { hasLetter = true; continue }   // A-Z
+            if v >= 97 && v <= 122 { hasLetter = true; continue }  // a-z
+            if v >= 48 && v <= 57 { continue }                     // 0-9
+            return false // punctuation / symbol / CJK / non-ASCII
         }
-        return true
+        return hasLetter
     }
 
     /// Long-press callback. Toggles one word between a whole chip and its
@@ -796,7 +801,7 @@ extension WritingToolsView {
             segmentSelectionOrder = order
             // A deselected merge must not leave the id selected via stale state.
             if !wasSelected { selectedSegmentIndexes.remove(original.id) }
-            print("[Faircopy] segment long-press: merge letters back into word 3.0.152")
+            print("[Faircopy] segment long-press: merge letters back into word 3.0.153")
         } else {
             guard isSplitLatinWord(token) else { return }
             let text = token.text
@@ -841,7 +846,7 @@ extension WritingToolsView {
             }
             selectedSegmentIndexes.remove(token.id)
             segmentSelectionOrder = order
-            print("[Faircopy] segment long-press: split word into \(letters.count) letters 3.0.152")
+            print("[Faircopy] segment long-press: split run into \(letters.count) chars 3.0.153")
         }
         SegmentHaptics.light.impactOccurred()
     }
@@ -891,13 +896,21 @@ extension WritingToolsView {
     /// dragging back toward the anchor shrinks the applied range instead of
     /// leaving a committed trail (matching Kayoko's applySelectionGestureThroughIndex).
     private func applySegmentDragRange(anchor: Int, through index: Int) {
-        let lower = min(anchor, index)
-        let upper = max(anchor, index)
+        // 3.0.153: ranges are in VISUAL order (segmentTokens array positions),
+        // never raw id numbers. Split letters get fresh ids from a global
+        // counter (100+), so their ids no longer line up with visual order —
+        // using min/max of the ids would skip letters whose id falls outside
+        // the numeric range (e.g. h=100 dragged to world=1 skips e..o=101..104).
+        guard let anchorPos = segmentTokens.firstIndex(where: { $0.id == anchor }),
+              let indexPos = segmentTokens.firstIndex(where: { $0.id == index }) else { return }
+        let lower = min(anchorPos, indexPos)
+        let upper = max(anchorPos, indexPos)
+        let idsInRange = Set(segmentTokens[lower ... upper].map(\.id))
         var updated = segmentDragOriginalSelection
         if segmentDragSelects {
-            for i in lower ... upper { updated.insert(i) }
+            updated.formUnion(idsInRange)
         } else {
-            for i in lower ... upper { updated.remove(i) }
+            updated.subtract(idsInRange)
         }
         guard updated != selectedSegmentIndexes else { return }
         selectedSegmentIndexes = updated
@@ -906,11 +919,12 @@ extension WritingToolsView {
         // (downward drag records lower -> upper, upward records the reverse).
         var order = segmentSelectionOrder.filter { updated.contains($0) }
         let added = updated.subtracting(segmentDragOriginalSelection)
-        let sequence: [Int] = index >= anchor
+        let sequence: [Int] = indexPos >= anchorPos
             ? Array(lower ... upper)
             : Array((lower ... upper).reversed())
-        for i in sequence where added.contains(i) && !order.contains(i) {
-            order.append(i)
+        for pos in sequence {
+            let id = segmentTokens[pos].id
+            if added.contains(id) && !order.contains(id) { order.append(id) }
         }
         segmentSelectionOrder = order
         SegmentHaptics.light.impactOccurred()
