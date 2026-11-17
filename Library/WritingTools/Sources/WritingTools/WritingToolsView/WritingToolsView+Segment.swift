@@ -752,22 +752,21 @@ extension WritingToolsView {
 
     // MARK: - 3.0.152: long-press an English word to split into letters / merge back
 
-    /// 3.0.153: whether a token is a splittable ASCII run. Latin letters, digits
-    /// and mixes of both ("hello", "abc123", "iPhone15") all qualify — a run may
-    /// contain digits as long as it also has at least one ASCII letter. Punctuation,
-    /// whitespace, symbols, CJK and already-split letters are still left alone.
-    /// >=2 characters avoids a pointless one-character split.
+    /// 3.0.154: whether a token is a splittable ASCII run. Latin letters, digits
+    /// and mixes of both all qualify — including pure-digit runs ("123"), which
+    /// can now be split into individual digits. Punctuation, whitespace, symbols,
+    /// CJK and already-split letters are still left alone. >=2 characters avoids
+    /// a pointless one-character split.
     private func isSplitLatinWord(_ token: SegmentToken) -> Bool {
         guard !token.isLetter, token.text.count >= 2 else { return false }
-        var hasLetter = false
         for scalar in token.text.unicodeScalars {
             let v = scalar.value
-            if v >= 65 && v <= 90 { hasLetter = true; continue }   // A-Z
-            if v >= 97 && v <= 122 { hasLetter = true; continue }  // a-z
-            if v >= 48 && v <= 57 { continue }                     // 0-9
+            if v >= 65 && v <= 90 { continue }   // A-Z
+            if v >= 97 && v <= 122 { continue }  // a-z
+            if v >= 48 && v <= 57 { continue }   // 0-9
             return false // punctuation / symbol / CJK / non-ASCII
         }
-        return hasLetter
+        return true
     }
 
     /// Long-press callback. Toggles one word between a whole chip and its
@@ -784,13 +783,17 @@ extension WritingToolsView {
         if token.isLetter {
             guard let sourceID = token.sourceWordID,
                   let original = segmentLetterSources[sourceID] else { return }
-            // Merge: drop every letter of this word, insert the original back at
-            // the position of the first letter so visual order is unchanged.
+            // 3.0.154: drop every letter of this word, insert the original back
+            // at the FIRST letter's slot so visual order is unchanged. Using the
+            // pressed letter's index (the old code) put the restored word after
+            // following tokens whenever a non-first letter was long-pressed
+            // (e.g. "hello 1": split hello, long-press 'e', restore landed after 1).
             let letterIDs = Set(segmentTokens.filter { $0.sourceWordID == sourceID }.map(\.id))
             guard !letterIDs.isEmpty else { return }
+            let firstLetterIndex = segmentTokens.firstIndex(where: { letterIDs.contains($0.id) }) ?? index
             let wasSelected = letterIDs.contains(where: { selectedSegmentIndexes.contains($0) })
             var updated = segmentTokens.filter { !letterIDs.contains($0.id) }
-            let insertAt = min(index, updated.count)
+            let insertAt = min(firstLetterIndex, updated.count)
             updated.insert(original, at: insertAt)
 
             segmentTokens = updated
@@ -801,7 +804,7 @@ extension WritingToolsView {
             segmentSelectionOrder = order
             // A deselected merge must not leave the id selected via stale state.
             if !wasSelected { selectedSegmentIndexes.remove(original.id) }
-            print("[Faircopy] segment long-press: merge letters back into word 3.0.153")
+            print("[Faircopy] segment long-press: merge letters back into word 3.0.154")
         } else {
             guard isSplitLatinWord(token) else { return }
             let text = token.text
@@ -846,7 +849,7 @@ extension WritingToolsView {
             }
             selectedSegmentIndexes.remove(token.id)
             segmentSelectionOrder = order
-            print("[Faircopy] segment long-press: split run into \(letters.count) chars 3.0.153")
+            print("[Faircopy] segment long-press: split run into \(letters.count) chars 3.0.154")
         }
         SegmentHaptics.light.impactOccurred()
     }
