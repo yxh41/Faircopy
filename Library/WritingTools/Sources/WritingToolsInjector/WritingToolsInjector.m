@@ -126,7 +126,13 @@ static double __fc_gripOpacityValue = 1.0;
 static BOOL __fc_panelSettingsFetchInFlight = NO;
 /// Seconds after load to (re)try. The first wait is the important one: see
 /// FC_SchedulePanelSettingsFetch.
-static const NSTimeInterval kFCPanelSettingsRetryDelays[] = {5.0, 10.0, 25.0};
+/// 3.0.155: the first attempt used to wait 5s, so a panel summoned within 5s of
+/// a process launching read `known=NO` and fell back to the per-process settings
+/// file — which under roothide is an empty container copy — giving a stock card
+/// with no entrance on the FIRST call. 0.5s is still dispatched onto a later
+/// main-queue turn (never the dyld initialiser that crashed WeChat in 3.0.120),
+/// but early enough that the first card already carries the user's settings.
+static const NSTimeInterval kFCPanelSettingsRetryDelays[] = {0.5, 10.0, 25.0};
 
 BOOL FC_PanelSpringEntrance(BOOL *known) {
     if (known) { *known = __fc_springEntranceKnown; }
@@ -296,6 +302,9 @@ static void FC_FetchPanelSettings(NSUInteger attempt) {
 /// logging `pmap_enter retried due to resource shortage`. QQ survived it; that
 /// is luck, not safety.
 static void FC_SchedulePanelSettingsFetch(void) {
+    // 3.0.155: early fetch so the first card is not a stock one. Long ASCII
+    // marker for the deb proof (short literals get inlined by Xcode 16.4).
+    NSLog(@"[Faircopy] panel settings fetched early so the first card is not stock 3.0.155");
     dispatch_after(
         dispatch_time(DISPATCH_TIME_NOW,
                       (int64_t)(kFCPanelSettingsRetryDelays[0] * NSEC_PER_SEC)),
